@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from langchain_core.messages import HumanMessage, SystemMessage
 
@@ -52,10 +52,10 @@ class Planner:
         self,
         target: str,
         iteration: int,
-        completed_tools: List[str],
+        completed_tools: list[str],
         findings_summary: str,
         available_tools: str = DEFAULT_AVAILABLE_TOOLS,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Ask the LLM to decide the next action.
 
         Returns a dict with keys: action, category, tool, params, reasoning
@@ -83,7 +83,7 @@ class Planner:
         return _parse_llm_response(raw)
 
 
-def _parse_llm_response(raw: str) -> Dict[str, Any]:
+def _parse_llm_response(raw: str) -> dict[str, Any]:
     """Parse the LLM JSON response, handling markdown fences and edge cases."""
     text = raw.strip()
 
@@ -91,7 +91,7 @@ def _parse_llm_response(raw: str) -> Dict[str, Any]:
     if text.startswith("```"):
         lines = text.split("\n")
         # Remove first and last fence lines
-        lines = [l for l in lines if not l.strip().startswith("```")]
+        lines = [line for line in lines if not line.strip().startswith("```")]
         text = "\n".join(lines).strip()
 
     try:

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-from typing import Optional
 
 import click
 from rich.table import Table
@@ -13,6 +12,8 @@ import blhackbox
 from blhackbox.config import settings
 from blhackbox.utils.logger import (
     console as rich_console,
+)
+from blhackbox.utils.logger import (
     get_logger,
     print_banner,
     print_warning_banner,
@@ -74,7 +75,7 @@ def version() -> None:
     help="Use the AI orchestrator (LangGraph) for autonomous planning.",
 )
 @click.option("--output", "-o", type=click.Path(), help="Override output file path.")
-def recon(target: str, authorized: bool, ai: bool, output: Optional[str]) -> None:
+def recon(target: str, authorized: bool, ai: bool, output: str | None) -> None:
     """Run reconnaissance against a target via HexStrike."""
     if not authorized:
         rich_console.print(
@@ -89,7 +90,7 @@ def recon(target: str, authorized: bool, ai: bool, output: Optional[str]) -> Non
     _run_async(_do_recon(target, ai, output))
 
 
-async def _do_recon(target: str, ai: bool, output: Optional[str]) -> None:
+async def _do_recon(target: str, ai: bool, output: str | None) -> None:
     from blhackbox.clients.hexstrike_client import HexStrikeClient
     from blhackbox.core.runner import ReconRunner, save_session
 
@@ -166,7 +167,7 @@ def run_tool(category: str, tool: str, params: str, authorized: bool) -> None:
         params_dict = json.loads(params)
     except json.JSONDecodeError as exc:
         rich_console.print(f"[error]Invalid JSON in --params: {exc}[/error]")
-        raise SystemExit(1)
+        raise SystemExit(1) from exc
 
     _run_async(_do_run_tool(category, tool, params_dict))
 
@@ -239,7 +240,8 @@ def agents_run(name: str, target: str, authorized: bool) -> None:
 async def _do_run_agent(name: str, target: str) -> None:
     from blhackbox.clients.hexstrike_client import HexStrikeClient
     from blhackbox.core.runner import save_session
-    from blhackbox.models.base import Finding, ScanSession, Severity, Target as TargetModel
+    from blhackbox.models.base import Finding, ScanSession, Severity
+    from blhackbox.models.base import Target as TargetModel
 
     async with HexStrikeClient() as client:
         result = await client.run_agent(name, target)
@@ -333,12 +335,12 @@ async def _do_graph_summary(target: str) -> None:
     help="Report format.",
 )
 @click.option("--output", "-o", type=click.Path(), help="Output file path.")
-def report(session: str, fmt: str, output: Optional[str]) -> None:
+def report(session: str, fmt: str, output: str | None) -> None:
     """Generate a report from scan session results."""
     _run_async(_do_report(session, fmt, output))
 
 
-async def _do_report(session_id: str, fmt: str, output: Optional[str]) -> None:
+async def _do_report(session_id: str, fmt: str, output: str | None) -> None:
     from pathlib import Path
 
     from blhackbox.models.base import ScanSession

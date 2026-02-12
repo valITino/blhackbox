@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, List
+from typing import Any
 from unittest.mock import AsyncMock
 
 import pytest
@@ -16,7 +16,7 @@ class DummyModule(HexStrikeModule):
     description = "Test module"
     category = "test"
 
-    async def run(self, target: str, **kwargs: Any) -> List[Finding]:
+    async def run(self, target: str, **kwargs: Any) -> list[Finding]:
         self.clear_findings()
         self.add_finding(
             target=target,

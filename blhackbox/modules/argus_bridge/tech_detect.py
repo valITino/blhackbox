@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any, Dict, List
+from typing import Any
 
 from blhackbox.models.base import Finding, Severity
 from blhackbox.modules.base import HexStrikeModule
@@ -19,10 +19,10 @@ class TechDetectModule(HexStrikeModule):
     description = "Technology stack detection via httpx and whatweb"
     category = "web"
 
-    async def run(self, target: str, **kwargs: Any) -> List[Finding]:
+    async def run(self, target: str, **kwargs: Any) -> list[Finding]:
         """Run httpx and whatweb for technology fingerprinting."""
         self.clear_findings()
-        technologies: Dict[str, str] = {}  # tech_name -> details
+        technologies: dict[str, str] = {}  # tech_name -> details
 
         # Tool 1: httpx with tech detection
         try:
@@ -67,9 +67,9 @@ class TechDetectModule(HexStrikeModule):
         return self.findings
 
 
-def _parse_httpx_tech(output: Any, raw_output: str) -> Dict[str, str]:
+def _parse_httpx_tech(output: Any, raw_output: str) -> dict[str, str]:
     """Parse technology info from httpx output."""
-    techs: Dict[str, str] = {}
+    techs: dict[str, str] = {}
     text = raw_output or ""
     if isinstance(output, dict):
         for key in ("technologies", "tech", "fingerprints"):
@@ -100,9 +100,9 @@ def _parse_httpx_tech(output: Any, raw_output: str) -> Dict[str, str]:
     return techs
 
 
-def _parse_whatweb(output: Any, raw_output: str) -> Dict[str, str]:
+def _parse_whatweb(output: Any, raw_output: str) -> dict[str, str]:
     """Parse technology info from whatweb output."""
-    techs: Dict[str, str] = {}
+    techs: dict[str, str] = {}
     text = raw_output or ""
     if isinstance(output, dict):
         for k, v in output.items():

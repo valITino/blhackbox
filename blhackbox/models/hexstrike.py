@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -15,8 +15,8 @@ class HexStrikeToolResponse(BaseModel):
     category: str = ""
     output: Any = None
     raw_output: str = ""
-    execution_time: Optional[float] = None
-    errors: List[str] = Field(default_factory=list)
+    execution_time: float | None = None
+    errors: list[str] = Field(default_factory=list)
 
     @property
     def has_errors(self) -> bool:
@@ -29,10 +29,10 @@ class HexStrikeAnalysisResponse(BaseModel):
     success: bool = True
     target: str = ""
     analysis_type: str = ""
-    results: Dict[str, Any] = Field(default_factory=dict)
-    recommendations: List[str] = Field(default_factory=list)
-    risk_score: Optional[float] = None
-    errors: List[str] = Field(default_factory=list)
+    results: dict[str, Any] = Field(default_factory=dict)
+    recommendations: list[str] = Field(default_factory=list)
+    risk_score: float | None = None
+    errors: list[str] = Field(default_factory=list)
 
 
 class HexStrikeAgentInfo(BaseModel):
@@ -40,7 +40,7 @@ class HexStrikeAgentInfo(BaseModel):
 
     name: str
     description: str = ""
-    capabilities: List[str] = Field(default_factory=list)
+    capabilities: list[str] = Field(default_factory=list)
     status: str = "available"
 
 
@@ -50,10 +50,10 @@ class HexStrikeAgentResponse(BaseModel):
     success: bool = True
     agent: str = ""
     target: str = ""
-    results: Dict[str, Any] = Field(default_factory=dict)
-    findings: List[Dict[str, Any]] = Field(default_factory=list)
-    execution_time: Optional[float] = None
-    errors: List[str] = Field(default_factory=list)
+    results: dict[str, Any] = Field(default_factory=dict)
+    findings: list[dict[str, Any]] = Field(default_factory=list)
+    execution_time: float | None = None
+    errors: list[str] = Field(default_factory=list)
 
     @property
     def has_errors(self) -> bool:

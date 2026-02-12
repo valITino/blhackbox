@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import List
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -20,7 +19,9 @@ class Settings(BaseSettings):
     )
 
     # --- HexStrike ---
-    hexstrike_url: str = Field(default="http://hexstrike:8888", description="HexStrike API base URL")
+    hexstrike_url: str = Field(
+        default="http://hexstrike:8888", description="HexStrike API base URL"
+    )
     hexstrike_timeout: int = Field(default=120, description="HTTP timeout in seconds")
     hexstrike_max_retries: int = Field(default=3, description="Max retries for failed requests")
 
@@ -33,7 +34,9 @@ class Settings(BaseSettings):
     openai_api_key: str = Field(default="", description="OpenAI API key")
     openai_model: str = Field(default="gpt-4o", description="OpenAI model name")
     anthropic_api_key: str = Field(default="", description="Anthropic API key")
-    anthropic_model: str = Field(default="claude-sonnet-4-20250514", description="Anthropic model name")
+    anthropic_model: str = Field(
+        default="claude-sonnet-4-20250514", description="Anthropic model name"
+    )
     ollama_url: str = Field(default="http://ollama:11434", description="Ollama API URL")
     ollama_model: str = Field(default="llama3", description="Ollama model name")
     llm_provider_priority: str = Field(
@@ -47,7 +50,7 @@ class Settings(BaseSettings):
     wordlists_dir: Path = Field(default=Path("./wordlists"), description="Directory for wordlists")
 
     @property
-    def provider_priority_list(self) -> List[str]:
+    def provider_priority_list(self) -> list[str]:
         return [p.strip() for p in self.llm_provider_priority.split(",") if p.strip()]
 
 

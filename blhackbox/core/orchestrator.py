@@ -63,7 +63,9 @@ async def gather_state(state: OrchestratorState) -> OrchestratorState:
                 sev = f.get("severity", "info")
                 summary_parts.append(f"  - [{sev}] {title}")
 
-        state["findings_summary"] = "\n".join(summary_parts) if summary_parts else "No findings yet."
+        state["findings_summary"] = (
+            "\n".join(summary_parts) if summary_parts else "No findings yet."
+        )
     except Exception as exc:
         logger.warning("Graph query failed (continuing without): %s", exc)
         state["findings_summary"] = _session_findings_summary(state["session"])

@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 from blhackbox.clients.hexstrike_client import HexStrikeClient
 from blhackbox.config import settings
@@ -71,7 +71,7 @@ class ReconRunner:
         self,
         category: str,
         tool: str,
-        params: Dict[str, Any],
+        params: dict[str, Any],
     ) -> ScanSession:
         """Run a single HexStrike tool and return a session with findings."""
         target_str = params.get("target", "unknown")
@@ -108,12 +108,12 @@ class ReconRunner:
         return session
 
 
-def save_session(session: ScanSession, results_dir: Optional[Path] = None) -> Path:
+def save_session(session: ScanSession, results_dir: Path | None = None) -> Path:
     """Persist a scan session as JSON to the results directory."""
     out_dir = results_dir or settings.results_dir
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
     filename = f"{session.target.value.replace('.', '_')}_{session.id}_{timestamp}.json"
     filepath = out_dir / filename
 

@@ -2,18 +2,17 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from enum import Enum
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from enum import StrEnum
+from typing import Any
 
 from pydantic import BaseModel, Field
-
 
 # ---------------------------------------------------------------------------
 # Relationships
 # ---------------------------------------------------------------------------
 
-class RelationshipType(str, Enum):
+class RelationshipType(StrEnum):
     RESOLVES_TO = "RESOLVES_TO"
     HAS_PORT = "HAS_PORT"
     RUNS_SERVICE = "RUNS_SERVICE"
@@ -33,12 +32,12 @@ class GraphNode(BaseModel):
     """Base for all graph nodes."""
 
     label: str
-    properties: Dict[str, Any] = Field(default_factory=dict)
+    properties: dict[str, Any] = Field(default_factory=dict)
     merge_key: str = Field(description="Property name used as the unique merge key")
     merge_value: Any = Field(description="Value of the merge key")
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
-    def to_cypher_properties(self) -> Dict[str, Any]:
+    def to_cypher_properties(self) -> dict[str, Any]:
         props = {**self.properties, "created_at": self.created_at.isoformat()}
         props[self.merge_key] = self.merge_value
         return props
@@ -155,4 +154,4 @@ class GraphRelationship(BaseModel):
     source: GraphNode
     target: GraphNode
     rel_type: RelationshipType
-    properties: Dict[str, Any] = Field(default_factory=dict)
+    properties: dict[str, Any] = Field(default_factory=dict)

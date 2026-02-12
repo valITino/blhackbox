@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-import sys
 
 from rich.console import Console
 from rich.logging import RichHandler
