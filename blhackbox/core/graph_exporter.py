@@ -12,7 +12,9 @@ from blhackbox.models.base import Finding, ScanSession
 logger = logging.getLogger("blhackbox.core.graph_exporter")
 
 # Regex patterns for extracting structured data from tool output
-_IP_PATTERN = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
+_IP_PATTERN = re.compile(
+    r"\b(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\b"
+)
 _PORT_PATTERN = re.compile(r"(\d{1,5})/(tcp|udp)\s+\w+\s+(.*)")
 _SUBDOMAIN_PATTERN = re.compile(r"(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}")
 _CVE_PATTERN = re.compile(r"CVE-\d{4}-\d{4,}", re.IGNORECASE)
@@ -128,9 +130,13 @@ class GraphExporter:
         text = _to_text(output)
 
         # Extract IPs
-        for ip in _IP_PATTERN.findall(text):
+        ips = _IP_PATTERN.findall(text)
+        for ip in ips:
             await self._kg.link_domain_to_ip(target, ip)
             ops += 1
+
+        # Use first detected IP for port/service associations, or fall back to target
+        host_ip = ips[0] if ips else target
 
         # Extract port/service lines (nmap-style)
         for match in _PORT_PATTERN.finditer(text):
@@ -139,11 +145,7 @@ class GraphExporter:
             service_info = match.group(3).strip()
             service_name = service_info.split()[0] if service_info else "unknown"
 
-            # Use first detected IP, or infer from target
-            ips = _IP_PATTERN.findall(text)
-            ip = ips[0] if ips else target
-
-            await self._kg.merge_service(ip, port_num, service_name)
+            await self._kg.merge_service(host_ip, port_num, service_name)
             ops += 1
 
         return ops

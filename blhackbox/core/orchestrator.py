@@ -1,11 +1,11 @@
 """LangGraph-based AI orchestrator for autonomous reconnaissance.
 
-The orchestrator builds a state graph with four main nodes:
+The orchestrator builds a state graph with four nodes and one conditional edge:
   1. gather_state  – query the knowledge graph for current findings
   2. plan          – ask the LLM planner for the next action
   3. execute       – call HexStrike to run the selected tool/agent
   4. analyze       – store results in the knowledge graph, update state
-  5. decide        – conditional edge: continue or stop
+  *  decide        – conditional edge: continue or stop
 """
 
 from __future__ import annotations
@@ -17,6 +17,7 @@ from typing import Any, TypedDict
 from langgraph.graph import END, StateGraph
 
 from blhackbox.clients.hexstrike_client import HexStrikeClient
+from blhackbox.config import settings
 from blhackbox.core.graph_exporter import GraphExporter
 from blhackbox.core.knowledge_graph import KnowledgeGraphClient
 from blhackbox.core.planner import Planner
@@ -24,8 +25,6 @@ from blhackbox.core.runner import save_session
 from blhackbox.models.base import Finding, ScanSession, Severity, Target
 
 logger = logging.getLogger("blhackbox.core.orchestrator")
-
-MAX_ITERATIONS = 10
 
 
 # ---------------------------------------------------------------------------
@@ -39,6 +38,7 @@ class OrchestratorState(TypedDict):
     completed_tools: list[str]
     pending_action: dict[str, Any]
     iteration: int
+    max_iterations: int
     should_stop: bool
     error: str
 
@@ -75,7 +75,7 @@ async def gather_state(state: OrchestratorState) -> OrchestratorState:
 
 async def plan(state: OrchestratorState) -> OrchestratorState:
     """Use the LLM planner to decide the next action."""
-    planner = Planner(max_iterations=MAX_ITERATIONS)
+    planner = Planner(max_iterations=state["max_iterations"])
 
     try:
         decision = await planner.decide_next(
@@ -196,8 +196,9 @@ def decide_continue(state: OrchestratorState) -> str:
     """Conditional edge: continue planning or stop."""
     if state["should_stop"]:
         return "end"
-    if state["iteration"] >= MAX_ITERATIONS:
-        logger.info("Max iterations (%d) reached, stopping", MAX_ITERATIONS)
+    max_iter = state["max_iterations"]
+    if state["iteration"] >= max_iter:
+        logger.info("Max iterations (%d) reached, stopping", max_iter)
         return "end"
     return "continue"
 
@@ -246,6 +247,7 @@ async def run_orchestrated_recon(target: str) -> ScanSession:
         "completed_tools": [],
         "pending_action": {},
         "iteration": 0,
+        "max_iterations": settings.max_iterations,
         "should_stop": False,
         "error": "",
     }

@@ -53,13 +53,16 @@ HexStrike provides the tools. Blhackbox provides the brain.
 
 ### Prerequisites
 
+- Python >= 3.11 (3.13 used in Docker image)
 - Docker and Docker Compose
 - Git
+
+> For detailed Docker setup, troubleshooting, and architecture details, see [DOCKER.md](DOCKER.md).
 
 ### 1. Clone and initialise
 
 ```bash
-git clone https://github.com/your-org/blhackbox.git
+git clone https://github.com/crhacky/blhackbox.git
 cd blhackbox
 git submodule update --init --recursive
 ```
@@ -76,6 +79,9 @@ cp .env.example .env
 ```bash
 make build
 make up
+
+# Optional: start with local Ollama LLM (no API key required)
+docker compose --profile ollama up -d
 ```
 
 ### 4. Run your first recon
@@ -152,46 +158,69 @@ blhackbox version
 blhackbox --debug <command>   # Enable debug logging
 ```
 
+### Makefile Shortcuts
+
+```bash
+make help         # Show all available targets
+make build        # Build Docker containers
+make up           # Start services (detached)
+make down         # Stop services
+make shell        # Open a shell in the blhackbox container
+make test         # Run tests in Docker
+make test-local   # Run tests locally
+make lint         # Ruff linting
+make format       # Auto-format code
+make reset-graph  # Reset the Neo4j knowledge graph
+make wordlists    # Download common SecLists wordlists
+```
+
 ---
 
 ## Project Structure
 
 ```
 blhackbox/
-├── docker-compose.yml        # HexStrike + Neo4j + Blhackbox
-├── Dockerfile                # Blhackbox container
+├── .github/workflows/
+│   ├── ci.yml                # Lint, test, and pip-audit
+│   └── build-and-push.yml    # Docker image build
+├── docker-compose.yml        # HexStrike + Neo4j + Blhackbox (+ optional Ollama)
+├── Dockerfile                # Multi-stage Blhackbox container (Python 3.13)
 ├── Makefile                  # Common tasks
+├── DOCKER.md                 # Docker quick-reference guide
 ├── hexstrike/                # Git submodule -> HexStrike AI
 ├── blhackbox/
-│   ├── main.py               # CLI (Click)
+│   ├── main.py               # CLI entry point (Click)
 │   ├── config.py             # Pydantic settings
-│   ├── exceptions.py         # Custom exceptions
+│   ├── exceptions.py         # Custom exception hierarchy
 │   ├── clients/
-│   │   └── hexstrike_client.py  # Async HexStrike API client
+│   │   └── hexstrike_client.py  # Async HexStrike HTTP client
 │   ├── models/
 │   │   ├── base.py           # Target, Finding, ScanSession
 │   │   ├── hexstrike.py      # HexStrike response models
 │   │   └── graph.py          # Neo4j node/relationship models
 │   ├── core/
 │   │   ├── runner.py         # Simple scan runner
-│   │   ├── knowledge_graph.py  # Neo4j client
+│   │   ├── knowledge_graph.py  # Neo4j async client
 │   │   ├── graph_exporter.py # HexStrike -> Neo4j translator
 │   │   ├── orchestrator.py   # LangGraph state machine
-│   │   └── planner.py        # LLM-based planning
+│   │   └── planner.py        # LLM-based action planner
 │   ├── llm/
 │   │   ├── client.py         # Multi-provider LLM client
 │   │   └── prompts.py        # System/user prompts
 │   ├── modules/
 │   │   ├── base.py           # HexStrikeModule base class
 │   │   └── argus_bridge/     # Argus-inspired modules
+│   │       ├── port_scan.py      # Port scanning
+│   │       ├── subdomain_enum.py # Subdomain enumeration
+│   │       └── tech_detect.py    # Technology detection
 │   ├── reporting/
 │   │   ├── html_generator.py # Interactive HTML reports
 │   │   └── pdf_generator.py  # PDF via WeasyPrint
 │   └── utils/
 │       └── logger.py         # Rich logging
 ├── scripts/
-│   └── reset_graph.py        # Reset Neo4j
-├── tests/
+│   └── reset_graph.py        # Reset Neo4j database
+├── tests/                    # pytest suite (53+ tests)
 ├── results/                  # Scan output (gitignored)
 └── wordlists/                # Fuzzing wordlists (gitignored)
 ```
@@ -231,19 +260,24 @@ class MyCustomModule(HexStrikeModule):
 
 ## Configuration
 
-All settings are loaded from environment variables or `.env`:
+All settings are loaded from environment variables or `.env`. See [`.env.example`](.env.example) for the full template.
 
 | Variable | Default | Description |
 |---|---|---|
 | `HEXSTRIKE_URL` | `http://hexstrike:8888` | HexStrike API base URL |
 | `HEXSTRIKE_TIMEOUT` | `120` | HTTP timeout (seconds) |
+| `HEXSTRIKE_MAX_RETRIES` | `3` | Max retries for failed requests |
 | `NEO4J_URI` | `bolt://neo4j:7687` | Neo4j connection URI |
 | `NEO4J_USER` | `neo4j` | Neo4j username |
 | `NEO4J_PASSWORD` | (required) | Neo4j password |
-| `OPENAI_API_KEY` | (optional) | For AI orchestrator |
-| `ANTHROPIC_API_KEY` | (optional) | For AI orchestrator |
-| `OLLAMA_URL` | `http://ollama:11434` | Local LLM |
-| `LLM_PROVIDER_PRIORITY` | `openai,anthropic,ollama` | Fallback order |
+| `OPENAI_API_KEY` | (optional) | OpenAI API key for AI orchestrator |
+| `OPENAI_MODEL` | `gpt-4o` | OpenAI model name |
+| `ANTHROPIC_API_KEY` | (optional) | Anthropic API key for AI orchestrator |
+| `ANTHROPIC_MODEL` | `claude-sonnet-4-20250514` | Anthropic model name |
+| `OLLAMA_URL` | `http://ollama:11434` | Ollama API URL (local LLM) |
+| `OLLAMA_MODEL` | `llama3` | Ollama model name |
+| `LLM_PROVIDER_PRIORITY` | `openai,anthropic,ollama` | Comma-separated fallback order |
+| `MAX_ITERATIONS` | `10` | Max orchestrator iterations per session |
 | `LOG_LEVEL` | `INFO` | Logging level |
 
 ---

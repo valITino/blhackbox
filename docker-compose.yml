@@ -93,6 +93,7 @@ services:
       - OLLAMA_URL=${OLLAMA_URL:-http://ollama:11434}
       - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3}
       - LLM_PROVIDER_PRIORITY=${LLM_PROVIDER_PRIORITY:-openai,anthropic,ollama}
+      - MAX_ITERATIONS=${MAX_ITERATIONS:-10}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - RESULTS_DIR=/app/results
       - WORDLISTS_DIR=/app/wordlists

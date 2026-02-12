@@ -20,3 +20,11 @@ class TestSettings:
     def test_provider_priority_with_spaces(self) -> None:
         s = Settings(llm_provider_priority=" openai , anthropic ")
         assert s.provider_priority_list == ["openai", "anthropic"]
+
+    def test_max_iterations_default(self) -> None:
+        s = Settings()
+        assert s.max_iterations == 10
+
+    def test_max_iterations_override(self) -> None:
+        s = Settings(max_iterations=20)
+        assert s.max_iterations == 20
