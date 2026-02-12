@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -12,6 +13,10 @@ from blhackbox.config import settings
 from blhackbox.models.base import ScanSession
 
 logger = logging.getLogger("blhackbox.reporting.html_generator")
+
+# Allowed severity values for CSS class injection prevention
+_ALLOWED_SEVERITIES = frozenset({"critical", "high", "medium", "low", "info"})
+_SAFE_CSS_CLASS = re.compile(r"^[a-z]+$")
 
 HTML_TEMPLATE = """\
 <!DOCTYPE html>
@@ -173,18 +178,18 @@ HTML_TEMPLATE = """\
         <div class="finding">
             <div class="finding-header">
                 <span class="finding-title">{{ finding.title }}</span>
-                <span class="severity-badge severity-{{ finding.severity }}">
+                <span class="severity-badge severity-{{ finding.severity | safe_severity }}">
                     {{ finding.severity }}</span>
             </div>
             <div class="finding-body">
                 <p><strong>Tool:</strong> {{ finding.tool }}</p>
                 {% if finding.description %}
-                <pre>{{ finding.description[:3000] }}</pre>
+                <pre>{{ finding.description | truncate_text(3000) }}</pre>
                 {% endif %}
                 {% if finding.evidence %}
                 <div class="evidence">
                     <strong>Evidence:</strong>
-                    <pre>{{ finding.evidence[:2000] }}</pre>
+                    <pre>{{ finding.evidence | truncate_text(2000) }}</pre>
                 </div>
                 {% endif %}
                 {% if finding.remediation %}
@@ -222,6 +227,21 @@ def generate_html_report(
         Path to the generated HTML file.
     """
     env = Environment(loader=BaseLoader(), autoescape=True)
+
+    def _safe_severity(value: str) -> str:
+        """Sanitize severity for use in CSS class names."""
+        val = str(value).lower().strip()
+        if val in _ALLOWED_SEVERITIES and _SAFE_CSS_CLASS.match(val):
+            return val
+        return "info"
+
+    def _truncate_text(value: str, max_len: int = 3000) -> str:
+        """Safely truncate text content."""
+        return str(value)[:max_len]
+
+    env.filters["safe_severity"] = _safe_severity
+    env.filters["truncate_text"] = _truncate_text
+
     template = env.from_string(HTML_TEMPLATE)
 
     findings_sorted = sorted(

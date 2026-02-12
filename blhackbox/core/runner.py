@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -108,14 +109,31 @@ class ReconRunner:
         return session
 
 
+def _sanitize_filename(value: str) -> str:
+    """Sanitize a string for safe use in filenames (prevent path traversal)."""
+    # Replace path separators and other dangerous characters
+    safe = re.sub(r"[^a-zA-Z0-9._\-]", "_", value)
+    # Remove any leading dots or dashes to prevent hidden files
+    safe = safe.lstrip("._")
+    # Truncate to reasonable length
+    return safe[:100] if safe else "unknown"
+
+
 def save_session(session: ScanSession, results_dir: Path | None = None) -> Path:
     """Persist a scan session as JSON to the results directory."""
     out_dir = results_dir or settings.results_dir
     out_dir.mkdir(parents=True, exist_ok=True)
 
     timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
-    filename = f"{session.target.value.replace('.', '_')}_{session.id}_{timestamp}.json"
+    safe_target = _sanitize_filename(session.target.value)
+    safe_id = _sanitize_filename(session.id)
+    filename = f"{safe_target}_{safe_id}_{timestamp}.json"
     filepath = out_dir / filename
+
+    # Verify the resolved path stays within the output directory
+    resolved = filepath.resolve()
+    if not str(resolved).startswith(str(out_dir.resolve())):
+        raise ValueError(f"Output path escapes results directory: {filepath}")
 
     filepath.write_text(
         session.model_dump_json(indent=2),

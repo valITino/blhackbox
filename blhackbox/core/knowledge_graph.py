@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from typing import Any
 
 from neo4j import AsyncDriver, AsyncGraphDatabase
@@ -23,6 +24,19 @@ from blhackbox.models.graph import (
 )
 
 logger = logging.getLogger("blhackbox.core.knowledge_graph")
+
+# Cypher injection prevention: only allow safe identifiers in dynamic query parts
+_SAFE_IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+
+def _validate_identifier(value: str, context: str) -> str:
+    """Validate that a value is safe for use as a Cypher identifier (label, property key)."""
+    if not _SAFE_IDENTIFIER.match(value):
+        raise GraphError(
+            f"Unsafe Cypher identifier in {context}: {value!r}. "
+            "Only alphanumeric characters and underscores are allowed."
+        )
+    return value
 
 
 class KnowledgeGraphClient:
@@ -66,8 +80,10 @@ class KnowledgeGraphClient:
 
     async def merge_node(self, node: GraphNode) -> None:
         """MERGE a node by its merge key, setting all properties."""
+        label = _validate_identifier(node.label, "node label")
+        merge_key = _validate_identifier(node.merge_key, "merge key")
         cypher = (
-            f"MERGE (n:{node.label} {{{node.merge_key}: $merge_value}}) "
+            f"MERGE (n:{label} {{{merge_key}: $merge_value}}) "
             f"SET n += $props"
         )
         props = node.to_cypher_properties()
@@ -75,7 +91,7 @@ class KnowledgeGraphClient:
 
         async with self.driver.session() as session:
             await session.run(cypher, merge_value=merge_value, props=props)
-        logger.debug("Merged %s(%s=%s)", node.label, node.merge_key, merge_value)
+        logger.debug("Merged %s(%s=%s)", label, merge_key, merge_value)
 
     async def create_relationship(
         self,
@@ -86,10 +102,15 @@ class KnowledgeGraphClient:
     ) -> None:
         """Create a relationship between two existing nodes."""
         props = properties or {}
+        src_label = _validate_identifier(source.label, "source label")
+        src_key = _validate_identifier(source.merge_key, "source merge key")
+        tgt_label = _validate_identifier(target.label, "target label")
+        tgt_key = _validate_identifier(target.merge_key, "target merge key")
+        rel_name = _validate_identifier(rel_type.value, "relationship type")
         cypher = (
-            f"MATCH (a:{source.label} {{{source.merge_key}: $a_val}}) "
-            f"MATCH (b:{target.label} {{{target.merge_key}: $b_val}}) "
-            f"MERGE (a)-[r:{rel_type.value}]->(b) "
+            f"MATCH (a:{src_label} {{{src_key}: $a_val}}) "
+            f"MATCH (b:{tgt_label} {{{tgt_key}: $b_val}}) "
+            f"MERGE (a)-[r:{rel_name}]->(b) "
             f"SET r += $props"
         )
         async with self.driver.session() as session:
