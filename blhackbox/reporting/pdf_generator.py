@@ -4,9 +4,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Optional
 
-from blhackbox.config import settings
 from blhackbox.exceptions import ReportingError
 from blhackbox.models.base import ScanSession
 from blhackbox.reporting.html_generator import generate_html_report
@@ -16,7 +14,7 @@ logger = logging.getLogger("blhackbox.reporting.pdf_generator")
 
 def generate_pdf_report(
     session: ScanSession,
-    output_path: Optional[str] = None,
+    output_path: str | None = None,
 ) -> Path:
     """Generate a PDF report from a scan session.
 
@@ -30,7 +28,7 @@ def generate_pdf_report(
         Path to the generated PDF file.
     """
     try:
-        from weasyprint import HTML as WeasyprintHTML
+        from weasyprint import HTML
     except ImportError as exc:
         raise ReportingError(
             "weasyprint is required for PDF generation. "
@@ -46,7 +44,7 @@ def generate_pdf_report(
         pdf_path = html_path.with_suffix(".pdf")
 
     try:
-        WeasyprintHTML(filename=str(html_path)).write_pdf(str(pdf_path))
+        HTML(filename=str(html_path)).write_pdf(str(pdf_path))
     except Exception as exc:
         raise ReportingError(f"PDF generation failed: {exc}") from exc
 

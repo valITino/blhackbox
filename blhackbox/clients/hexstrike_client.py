@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import httpx
 from tenacity import (
@@ -13,7 +13,8 @@ from tenacity import (
     wait_exponential,
 )
 
-from blhackbox.config import Settings, settings as default_settings
+from blhackbox.config import Settings
+from blhackbox.config import settings as default_settings
 from blhackbox.exceptions import (
     HexStrikeAPIError,
     HexStrikeConnectionError,
@@ -36,14 +37,14 @@ class HexStrikeClient:
     timeouts.  All public methods return typed Pydantic models.
     """
 
-    def __init__(self, settings: Optional[Settings] = None) -> None:
+    def __init__(self, settings: Settings | None = None) -> None:
         self._settings = settings or default_settings
         self._base_url = self._settings.hexstrike_url.rstrip("/")
-        self._client: Optional[httpx.AsyncClient] = None
+        self._client: httpx.AsyncClient | None = None
 
     # -- lifecycle -----------------------------------------------------------
 
-    async def __aenter__(self) -> "HexStrikeClient":
+    async def __aenter__(self) -> HexStrikeClient:
         self._client = httpx.AsyncClient(
             base_url=self._base_url,
             timeout=httpx.Timeout(self._settings.hexstrike_timeout, connect=10.0),
@@ -86,7 +87,7 @@ class HexStrikeClient:
         self,
         category: str,
         tool: str,
-        params: Optional[Dict[str, Any]] = None,
+        params: dict[str, Any] | None = None,
     ) -> HexStrikeToolResponse:
         """Execute a HexStrike tool.
 
@@ -180,7 +181,7 @@ class HexStrikeClient:
         wait=wait_exponential(multiplier=1, min=2, max=16),
         reraise=True,
     )
-    async def list_agents(self) -> List[HexStrikeAgentInfo]:
+    async def list_agents(self) -> list[HexStrikeAgentInfo]:
         """Retrieve the list of available HexStrike AI agents."""
         logger.info("Listing HexStrike agents")
 
@@ -206,7 +207,7 @@ class HexStrikeClient:
         self,
         agent_name: str,
         target: str,
-        params: Optional[Dict[str, Any]] = None,
+        params: dict[str, Any] | None = None,
     ) -> HexStrikeAgentResponse:
         """Invoke a HexStrike AI agent against a target.
 
@@ -216,7 +217,7 @@ class HexStrikeClient:
             params: Extra agent-specific parameters.
         """
         url = f"/api/agents/{agent_name}/run"
-        payload: Dict[str, Any] = {"target": target}
+        payload: dict[str, Any] = {"target": target}
         if params:
             payload.update(params)
         logger.info("Running agent '%s' against %s", agent_name, target)

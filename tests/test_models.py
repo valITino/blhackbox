@@ -3,11 +3,6 @@
 from __future__ import annotations
 
 from blhackbox.models.base import Finding, ScanSession, Severity, Target
-from blhackbox.models.hexstrike import (
-    HexStrikeAgentResponse,
-    HexStrikeAnalysisResponse,
-    HexStrikeToolResponse,
-)
 from blhackbox.models.graph import (
     DomainNode,
     FindingNode,
@@ -17,6 +12,11 @@ from blhackbox.models.graph import (
     RelationshipType,
     ServiceNode,
     VulnerabilityNode,
+)
+from blhackbox.models.hexstrike import (
+    HexStrikeAgentResponse,
+    HexStrikeAnalysisResponse,
+    HexStrikeToolResponse,
 )
 
 

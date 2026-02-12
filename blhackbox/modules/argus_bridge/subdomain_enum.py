@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import re
-from typing import Any, Dict, List, Set
+from typing import Any
 
 from blhackbox.models.base import Finding, Severity
 from blhackbox.modules.base import HexStrikeModule
@@ -22,10 +22,10 @@ class SubdomainEnumModule(HexStrikeModule):
     description = "Multi-source subdomain enumeration via HexStrike"
     category = "dns"
 
-    async def run(self, target: str, **kwargs: Any) -> List[Finding]:
+    async def run(self, target: str, **kwargs: Any) -> list[Finding]:
         """Run subfinder and amass via HexStrike, merge and deduplicate results."""
         self.clear_findings()
-        all_subdomains: Set[str] = set()
+        all_subdomains: set[str] = set()
 
         # Tool 1: subfinder
         try:
@@ -71,7 +71,7 @@ class SubdomainEnumModule(HexStrikeModule):
         return self.findings
 
 
-def _extract_subdomains(output: Any, raw_output: str, parent: str) -> Set[str]:
+def _extract_subdomains(output: Any, raw_output: str, parent: str) -> set[str]:
     """Extract unique subdomains from tool output."""
     text = raw_output or ""
     if isinstance(output, list):
@@ -81,7 +81,7 @@ def _extract_subdomains(output: Any, raw_output: str, parent: str) -> Set[str]:
     elif isinstance(output, str):
         text += " " + output
 
-    found: Set[str] = set()
+    found: set[str] = set()
     for match in _SUBDOMAIN_RE.findall(text):
         match_lower = match.lower().rstrip(".")
         if parent in match_lower and match_lower != parent:

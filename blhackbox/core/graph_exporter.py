@@ -83,7 +83,11 @@ class GraphExporter:
             finding_id=finding.id,
             tool=finding.tool,
             title=finding.title,
-            severity=finding.severity if isinstance(finding.severity, str) else finding.severity.value,
+            severity=(
+                finding.severity
+                if isinstance(finding.severity, str)
+                else finding.severity.value
+            ),
             description=finding.description,
             evidence=finding.evidence,
             remediation=finding.remediation,
@@ -107,7 +111,11 @@ class GraphExporter:
             await self._kg.merge_vulnerability(
                 target_value=finding.target,
                 identifier=cve.upper(),
-                severity=finding.severity if isinstance(finding.severity, str) else finding.severity.value,
+                severity=(
+                    finding.severity
+                    if isinstance(finding.severity, str)
+                    else finding.severity.value
+                ),
                 title=finding.title,
             )
             ops += 1
@@ -127,7 +135,7 @@ class GraphExporter:
         # Extract port/service lines (nmap-style)
         for match in _PORT_PATTERN.finditer(text):
             port_num = int(match.group(1))
-            protocol = match.group(2)
+            _protocol = match.group(2)
             service_info = match.group(3).strip()
             service_name = service_info.split()[0] if service_info else "unknown"
 

@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-from neo4j import AsyncGraphDatabase, AsyncDriver
+from neo4j import AsyncDriver, AsyncGraphDatabase
 
-from blhackbox.config import Settings, settings as default_settings
+from blhackbox.config import Settings
+from blhackbox.config import settings as default_settings
 from blhackbox.exceptions import GraphError
 from blhackbox.models.graph import (
     DomainNode,
@@ -31,13 +32,13 @@ class KnowledgeGraphClient:
     relationships that model the attack surface.
     """
 
-    def __init__(self, settings: Optional[Settings] = None) -> None:
+    def __init__(self, settings: Settings | None = None) -> None:
         self._settings = settings or default_settings
-        self._driver: Optional[AsyncDriver] = None
+        self._driver: AsyncDriver | None = None
 
     # -- lifecycle -----------------------------------------------------------
 
-    async def __aenter__(self) -> "KnowledgeGraphClient":
+    async def __aenter__(self) -> KnowledgeGraphClient:
         try:
             self._driver = AsyncGraphDatabase.driver(
                 self._settings.neo4j_uri,
@@ -81,7 +82,7 @@ class KnowledgeGraphClient:
         source: GraphNode,
         rel_type: RelationshipType,
         target: GraphNode,
-        properties: Optional[Dict[str, Any]] = None,
+        properties: dict[str, Any] | None = None,
     ) -> None:
         """Create a relationship between two existing nodes."""
         props = properties or {}
@@ -218,15 +219,15 @@ class KnowledgeGraphClient:
     # -- query helpers -------------------------------------------------------
 
     async def run_query(
-        self, cypher: str, params: Optional[Dict[str, Any]] = None
-    ) -> List[Dict[str, Any]]:
+        self, cypher: str, params: dict[str, Any] | None = None
+    ) -> list[dict[str, Any]]:
         """Execute a raw Cypher query and return records as dicts."""
         async with self.driver.session() as session:
             result = await session.run(cypher, **(params or {}))
             records = await result.data()
         return records
 
-    async def get_target_summary(self, target: str) -> Dict[str, int]:
+    async def get_target_summary(self, target: str) -> dict[str, int]:
         """Return node-type counts for a target's subgraph."""
         cypher = """
         MATCH (root {name: $target})-[*0..3]-(n)
@@ -236,7 +237,7 @@ class KnowledgeGraphClient:
         records = await self.run_query(cypher, {"target": target})
         return {r["label"]: r["cnt"] for r in records if r.get("label")}
 
-    async def get_findings_for_target(self, target: str) -> List[Dict[str, Any]]:
+    async def get_findings_for_target(self, target: str) -> list[dict[str, Any]]:
         """Retrieve all findings linked to a target."""
         cypher = """
         MATCH (root)-[:HAS_FINDING]->(f:Finding)

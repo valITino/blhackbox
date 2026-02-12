@@ -3,14 +3,12 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Optional
 
-from jinja2 import Environment, BaseLoader
+from jinja2 import BaseLoader, Environment
 
 from blhackbox.config import settings
-from blhackbox.exceptions import ReportingError
 from blhackbox.models.base import ScanSession
 
 logger = logging.getLogger("blhackbox.reporting.html_generator")
@@ -38,7 +36,8 @@ HTML_TEMPLATE = """\
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont,
+                'Segoe UI', Helvetica, Arial, sans-serif;
             background: var(--bg);
             color: var(--text);
             line-height: 1.6;
@@ -46,7 +45,10 @@ HTML_TEMPLATE = """\
         }
         .container { max-width: 1100px; margin: 0 auto; }
         h1 { color: var(--accent); margin-bottom: 0.5rem; font-size: 1.8rem; }
-        h2 { color: var(--text); margin: 2rem 0 1rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; }
+        h2 {
+            color: var(--text); margin: 2rem 0 1rem;
+            border-bottom: 1px solid var(--border); padding-bottom: 0.5rem;
+        }
         h3 { color: var(--text-muted); margin: 1rem 0 0.5rem; }
         .meta { color: var(--text-muted); margin-bottom: 2rem; }
         .meta span { margin-right: 2rem; }
@@ -171,7 +173,8 @@ HTML_TEMPLATE = """\
         <div class="finding">
             <div class="finding-header">
                 <span class="finding-title">{{ finding.title }}</span>
-                <span class="severity-badge severity-{{ finding.severity }}">{{ finding.severity }}</span>
+                <span class="severity-badge severity-{{ finding.severity }}">
+                    {{ finding.severity }}</span>
             </div>
             <div class="finding-body">
                 <p><strong>Tool:</strong> {{ finding.tool }}</p>
@@ -207,7 +210,7 @@ SEVERITY_ORDER = {"critical": 0, "high": 1, "medium": 2, "low": 3, "info": 4}
 
 def generate_html_report(
     session: ScanSession,
-    output_path: Optional[str] = None,
+    output_path: str | None = None,
 ) -> Path:
     """Generate an HTML report from a scan session.
 
@@ -234,7 +237,7 @@ def generate_html_report(
         session=session,
         findings_sorted=findings_sorted,
         severity_counts=severity_counts,
-        generated_at=datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
+        generated_at=datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC"),
     )
 
     if output_path:

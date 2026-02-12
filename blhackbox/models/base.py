@@ -3,14 +3,14 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
-from enum import Enum
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from enum import StrEnum
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
 
-class Severity(str, Enum):
+class Severity(StrEnum):
     CRITICAL = "critical"
     HIGH = "high"
     MEDIUM = "medium"
@@ -23,7 +23,7 @@ class Target(BaseModel):
 
     value: str = Field(description="Domain, IP, or URL")
     target_type: str = Field(default="auto", description="Type: domain, ip, url, cidr")
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
     def __str__(self) -> str:
         return self.value
@@ -41,8 +41,8 @@ class Finding(BaseModel):
     severity: Severity = Severity.INFO
     evidence: str = ""
     remediation: str = ""
-    raw_data: Dict[str, Any] = Field(default_factory=dict)
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    raw_data: dict[str, Any] = Field(default_factory=dict)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     model_config = ConfigDict(use_enum_values=True)
 
@@ -52,12 +52,12 @@ class ScanSession(BaseModel):
 
     id: str = Field(default_factory=lambda: uuid.uuid4().hex[:8])
     target: Target
-    started_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    finished_at: Optional[datetime] = None
-    tools_executed: List[str] = Field(default_factory=list)
-    findings: List[Finding] = Field(default_factory=list)
+    started_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    finished_at: datetime | None = None
+    tools_executed: list[str] = Field(default_factory=list)
+    findings: list[Finding] = Field(default_factory=list)
     status: str = Field(default="running")
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
     def add_finding(self, finding: Finding) -> None:
         self.findings.append(finding)
@@ -67,19 +67,19 @@ class ScanSession(BaseModel):
             self.tools_executed.append(tool_name)
 
     def finish(self) -> None:
-        self.finished_at = datetime.now(timezone.utc)
+        self.finished_at = datetime.now(UTC)
         self.status = "completed"
 
     @property
-    def severity_counts(self) -> Dict[str, int]:
-        counts: Dict[str, int] = {}
+    def severity_counts(self) -> dict[str, int]:
+        counts: dict[str, int] = {}
         for f in self.findings:
             sev = f.severity if isinstance(f.severity, str) else f.severity.value
             counts[sev] = counts.get(sev, 0) + 1
         return counts
 
     @property
-    def duration_seconds(self) -> Optional[float]:
+    def duration_seconds(self) -> float | None:
         if self.finished_at:
             return (self.finished_at - self.started_at).total_seconds()
         return None

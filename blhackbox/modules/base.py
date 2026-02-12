@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from blhackbox.clients.hexstrike_client import HexStrikeClient
 from blhackbox.models.base import Finding, Severity
@@ -31,10 +31,10 @@ class HexStrikeModule(ABC):
 
     def __init__(self, client: HexStrikeClient) -> None:
         self._client = client
-        self._findings: List[Finding] = []
+        self._findings: list[Finding] = []
 
     @abstractmethod
-    async def run(self, target: str, **kwargs: Any) -> List[Finding]:
+    async def run(self, target: str, **kwargs: Any) -> list[Finding]:
         """Execute the module and return findings.
 
         Args:
@@ -54,7 +54,7 @@ class HexStrikeModule(ABC):
         severity: Severity = Severity.INFO,
         evidence: str = "",
         remediation: str = "",
-        raw_data: Optional[Dict[str, Any]] = None,
+        raw_data: dict[str, Any] | None = None,
     ) -> Finding:
         """Create and register a finding."""
         finding = Finding(
@@ -72,7 +72,7 @@ class HexStrikeModule(ABC):
         return finding
 
     @property
-    def findings(self) -> List[Finding]:
+    def findings(self) -> list[Finding]:
         return list(self._findings)
 
     def clear_findings(self) -> None:

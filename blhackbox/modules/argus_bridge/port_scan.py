@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-import json
 import logging
 import re
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 from blhackbox.models.base import Finding, Severity
 from blhackbox.modules.base import HexStrikeModule
@@ -22,7 +21,7 @@ class PortScanModule(HexStrikeModule):
     description = "Port scanning and service detection via nmap"
     category = "network"
 
-    async def run(self, target: str, **kwargs: Any) -> List[Finding]:
+    async def run(self, target: str, **kwargs: Any) -> list[Finding]:
         """Run nmap service scan via HexStrike."""
         self.clear_findings()
         scan_type = kwargs.get("scan_type", "service")
@@ -73,7 +72,7 @@ class PortScanModule(HexStrikeModule):
             )
 
             # Flag potentially risky services
-            for port, proto, state, service in ports:
+            for port, proto, _state, service in ports:
                 sev = _service_severity(port, service)
                 if sev in (Severity.HIGH, Severity.CRITICAL):
                     self.add_finding(
@@ -101,9 +100,9 @@ class PortScanModule(HexStrikeModule):
 
 def _parse_nmap_ports(
     output: Any, raw_output: str
-) -> List[Tuple[int, str, str, str]]:
+) -> list[tuple[int, str, str, str]]:
     """Extract (port, protocol, state, service) tuples from nmap output."""
-    ports: List[Tuple[int, str, str, str]] = []
+    ports: list[tuple[int, str, str, str]] = []
     text = raw_output or ""
 
     if isinstance(output, dict):

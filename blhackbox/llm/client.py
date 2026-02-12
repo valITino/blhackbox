@@ -3,17 +3,17 @@
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 from langchain_core.language_models.chat_models import BaseChatModel
 
-from blhackbox.config import Settings, settings as default_settings
+from blhackbox.config import Settings
+from blhackbox.config import settings as default_settings
 from blhackbox.exceptions import LLMProviderError
 
 logger = logging.getLogger("blhackbox.llm.client")
 
 
-def get_llm(settings: Optional[Settings] = None) -> BaseChatModel:
+def get_llm(settings: Settings | None = None) -> BaseChatModel:
     """Return the first available LLM client based on provider priority.
 
     Tries providers in the order specified by LLM_PROVIDER_PRIORITY.
@@ -41,7 +41,7 @@ def get_llm(settings: Optional[Settings] = None) -> BaseChatModel:
     )
 
 
-def _build_provider(name: str, cfg: Settings) -> Optional[BaseChatModel]:
+def _build_provider(name: str, cfg: Settings) -> BaseChatModel | None:
     """Instantiate a LangChain chat model for the given provider name."""
     name = name.lower().strip()
 

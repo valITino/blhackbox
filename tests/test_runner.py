@@ -11,7 +11,7 @@ import respx
 from blhackbox.clients.hexstrike_client import HexStrikeClient
 from blhackbox.config import Settings
 from blhackbox.core.runner import ReconRunner, save_session
-from blhackbox.models.base import ScanSession, Target
+from blhackbox.models.base import ScanSession
 
 
 @pytest.fixture
