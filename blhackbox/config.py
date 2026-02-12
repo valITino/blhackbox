@@ -46,6 +46,11 @@ class Settings(BaseSettings):
         description="Comma-separated LLM fallback order",
     )
 
+    # --- Orchestrator ---
+    max_iterations: int = Field(
+        default=10, description="Maximum orchestrator iterations per recon session"
+    )
+
     # --- General ---
     log_level: str = Field(default="INFO", description="Logging level")
     results_dir: Path = Field(default=Path("./results"), description="Directory for scan results")
