@@ -341,18 +341,36 @@ def report(session: str, fmt: str, output: str | None) -> None:
 
 
 async def _do_report(session_id: str, fmt: str, output: str | None) -> None:
+    import re
     from pathlib import Path
 
     from blhackbox.models.base import ScanSession
 
+    # Sanitize session_id to prevent path traversal and glob injection
+    safe_session_id = re.sub(r"[^a-zA-Z0-9_\-]", "", session_id)
+    if not safe_session_id:
+        rich_console.print("[error]Invalid session ID.[/error]")
+        raise SystemExit(1)
+
     # Try to load session from file
     session_path = Path(session_id)
-    if not session_path.exists():
-        # Search results dir
+    if session_path.exists():
+        # Verify the resolved path is within an expected directory
+        resolved = session_path.resolve()
+        results_resolved = settings.results_dir.resolve()
+        cwd_resolved = Path.cwd().resolve()
+        if not (
+            str(resolved).startswith(str(results_resolved))
+            or str(resolved).startswith(str(cwd_resolved))
+        ):
+            rich_console.print("[error]Session file path is outside allowed directories.[/error]")
+            raise SystemExit(1)
+    else:
+        # Search results dir using sanitized session ID
         results_dir = settings.results_dir
-        matches = list(results_dir.glob(f"*{session_id}*"))
+        matches = list(results_dir.glob(f"*{safe_session_id}*"))
         if not matches:
-            rich_console.print(f"[error]Session '{session_id}' not found.[/error]")
+            rich_console.print(f"[error]Session '{safe_session_id}' not found.[/error]")
             raise SystemExit(1)
         session_path = matches[0]
 

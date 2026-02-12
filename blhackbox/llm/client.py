@@ -70,7 +70,7 @@ def _build_provider(name: str, cfg: Settings) -> BaseChatModel | None:
         )
 
     if name == "ollama":
-        from langchain_community.chat_models import ChatOllama
+        from langchain_ollama import ChatOllama
 
         return ChatOllama(
             model=cfg.ollama_model,

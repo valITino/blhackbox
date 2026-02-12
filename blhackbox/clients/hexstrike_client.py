@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import logging
+import re
 from typing import Any
+from urllib.parse import urlparse
 
 import httpx
 from tenacity import (
@@ -29,6 +31,30 @@ from blhackbox.models.hexstrike import (
 
 logger = logging.getLogger("blhackbox.clients.hexstrike")
 
+# URL path segment validation to prevent SSRF and path traversal
+_SAFE_PATH_SEGMENT = re.compile(r"^[a-zA-Z0-9_\-]+$")
+_ALLOWED_SCHEMES = frozenset({"http", "https"})
+
+
+def _validate_path_segment(value: str, context: str) -> str:
+    """Validate that a value is safe for use in a URL path segment."""
+    if not _SAFE_PATH_SEGMENT.match(value):
+        raise ValueError(
+            f"Invalid characters in {context}: {value!r}. "
+            "Only alphanumeric characters, hyphens, and underscores are allowed."
+        )
+    return value
+
+
+def _validate_base_url(url: str) -> str:
+    """Validate that the base URL uses an allowed scheme and has a valid host."""
+    parsed = urlparse(url)
+    if parsed.scheme not in _ALLOWED_SCHEMES:
+        raise ValueError(f"URL scheme must be http or https, got: {parsed.scheme!r}")
+    if not parsed.hostname:
+        raise ValueError(f"URL must have a valid hostname: {url!r}")
+    return url.rstrip("/")
+
 
 class HexStrikeClient:
     """Async client for interacting with the HexStrike AI API.
@@ -39,7 +65,7 @@ class HexStrikeClient:
 
     def __init__(self, settings: Settings | None = None) -> None:
         self._settings = settings or default_settings
-        self._base_url = self._settings.hexstrike_url.rstrip("/")
+        self._base_url = _validate_base_url(self._settings.hexstrike_url)
         self._client: httpx.AsyncClient | None = None
 
     # -- lifecycle -----------------------------------------------------------
@@ -99,9 +125,11 @@ class HexStrikeClient:
         Returns:
             Typed response with output, errors, and execution time.
         """
-        url = f"/api/tools/{category}/{tool}"
+        safe_category = _validate_path_segment(category, "tool category")
+        safe_tool = _validate_path_segment(tool, "tool name")
+        url = f"/api/tools/{safe_category}/{safe_tool}"
         payload = params or {}
-        logger.info("Running tool %s/%s with params: %s", category, tool, payload)
+        logger.info("Running tool %s/%s with params: %s", safe_category, safe_tool, payload)
 
         try:
             resp = await self.client.post(url, json=payload)
@@ -216,11 +244,12 @@ class HexStrikeClient:
             target: The scan target.
             params: Extra agent-specific parameters.
         """
-        url = f"/api/agents/{agent_name}/run"
+        safe_agent = _validate_path_segment(agent_name, "agent name")
+        url = f"/api/agents/{safe_agent}/run"
         payload: dict[str, Any] = {"target": target}
         if params:
             payload.update(params)
-        logger.info("Running agent '%s' against %s", agent_name, target)
+        logger.info("Running agent '%s' against %s", safe_agent, target)
 
         try:
             resp = await self.client.post(url, json=payload)

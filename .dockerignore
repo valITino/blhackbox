@@ -1,0 +1,67 @@
+# Version control
+.git
+.gitignore
+.gitmodules
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Testing and CI
+tests/
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# Docker (avoid recursive build context)
+docker-compose.yml
+Dockerfile
+DOCKER.md
+
+# Documentation
+README.md
+LICENSE
+*.md
+
+# Results and data (may contain sensitive scan data)
+results/
+wordlists/
+neo4j_data/
+neo4j_logs/
+
+# GitHub workflows
+.github/
+
+# Makefile (not needed in container)
+Makefile
+
+# Scripts (not needed in production image)
+scripts/
+
+# hexstrike submodule (built separately)
+hexstrike/

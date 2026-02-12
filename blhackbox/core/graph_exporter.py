@@ -218,6 +218,6 @@ def _to_text(data: Any) -> str:
         for v in data.values():
             parts.append(_to_text(v))
         return " ".join(parts)
-    if isinstance(data, (list, tuple)):
+    if isinstance(data, list | tuple):
         return " ".join(_to_text(item) for item in data)
     return str(data)

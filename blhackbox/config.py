@@ -28,7 +28,9 @@ class Settings(BaseSettings):
     # --- Neo4j ---
     neo4j_uri: str = Field(default="bolt://neo4j:7687", description="Neo4j Bolt URI")
     neo4j_user: str = Field(default="neo4j", description="Neo4j username")
-    neo4j_password: str = Field(default="changeme_neo4j_password", description="Neo4j password")
+    neo4j_password: str = Field(
+        default="", description="Neo4j password (set via NEO4J_PASSWORD env var)"
+    )
 
     # --- LLM ---
     openai_api_key: str = Field(default="", description="OpenAI API key")
