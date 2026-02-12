@@ -10,7 +10,7 @@
 |---|---|
 | **Image** | `crhacky/blhackbox` |
 | **Registry** | [Docker Hub](https://hub.docker.com/r/crhacky/blhackbox) |
-| **Base** | `python:3.12-slim-bookworm` |
+| **Base** | `python:3.13-slim-bookworm` |
 | **Arch** | `linux/amd64` |
 | **License** | MIT |
 
@@ -110,7 +110,7 @@ docker compose --profile ollama up -d
 
 ## Image Details
 
-- **Base**: `python:3.12-slim-bookworm`
+- **Base**: `python:3.13-slim-bookworm`
 - **System libs**: Cairo, Pango, GDK-Pixbuf (for PDF report generation via WeasyPrint)
 - **User**: Runs as non-root `blhackbox` user
 - **Entrypoint**: `blhackbox` CLI
@@ -119,8 +119,8 @@ docker compose --profile ollama up -d
 ### Layer Structure
 
 ```
-python:3.12-slim-bookworm
-  └─ system dependencies (apt)
+python:3.13-slim-bookworm
+  └─ system dependencies (apt, with security upgrades)
       └─ pip dependencies (requirements.txt)
           └─ application code
               └─ non-root user setup
