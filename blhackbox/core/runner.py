@@ -6,7 +6,7 @@ import json
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 from blhackbox.clients.hexstrike_client import HexStrikeClient
 from blhackbox.config import settings

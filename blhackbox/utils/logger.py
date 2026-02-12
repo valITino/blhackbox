@@ -68,12 +68,13 @@ def print_banner() -> None:
 
 def print_warning_banner() -> None:
     """Print a red warning banner before any scanning activity."""
+    divider = "=" * 70
     console.print(
-        "\n[error]"
-        "=" * 70 + "\n"
-        "  WARNING: You are about to perform active security testing.\n"
-        "  Ensure you have WRITTEN AUTHORIZATION from the target owner.\n"
-        "  Unauthorized testing is ILLEGAL and may result in prosecution.\n"
-        "=" * 70
-        "[/error]\n"
+        f"\n[error]"
+        f"{divider}\n"
+        f"  WARNING: You are about to perform active security testing.\n"
+        f"  Ensure you have WRITTEN AUTHORIZATION from the target owner.\n"
+        f"  Unauthorized testing is ILLEGAL and may result in prosecution.\n"
+        f"{divider}"
+        f"[/error]\n"
     )

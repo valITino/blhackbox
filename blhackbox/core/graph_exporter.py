@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import Any, Dict, List
+from typing import Any
 
 from blhackbox.core.knowledge_graph import KnowledgeGraphClient
 from blhackbox.models.base import Finding, ScanSession
@@ -41,7 +41,7 @@ class GraphExporter:
         ops += 1
 
         for finding in session.findings:
-            ops += await self._export_finding(target, finding)
+            ops += await self.export_finding(target, finding)
 
         logger.info("Exported session %s: %d graph operations", session.id, ops)
         return ops
@@ -74,7 +74,7 @@ class GraphExporter:
 
     # -- internal handlers ---------------------------------------------------
 
-    async def _export_finding(self, target: str, finding: Finding) -> int:
+    async def export_finding(self, target: str, finding: Finding) -> int:
         """Export a Finding model into the graph."""
         ops = 0
 

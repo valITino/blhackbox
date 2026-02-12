@@ -4,19 +4,13 @@ from __future__ import annotations
 
 import asyncio
 import json
-import sys
 from typing import Optional
 
 import click
-from rich.console import Console
 from rich.table import Table
 
 import blhackbox
 from blhackbox.config import settings
-from blhackbox.exceptions import (
-    AuthorizationRequiredError,
-    BlhackboxError,
-)
 from blhackbox.utils.logger import (
     console as rich_console,
     get_logger,
@@ -30,7 +24,7 @@ logger = get_logger("cli")
 
 def _run_async(coro):  # type: ignore[no-untyped-def]
     """Run an async coroutine from synchronous Click handlers."""
-    return asyncio.get_event_loop().run_until_complete(coro)
+    return asyncio.run(coro)
 
 
 # ---------------------------------------------------------------------------
@@ -119,7 +113,15 @@ async def _do_recon(target: str, ai: bool, output: Optional[str]) -> None:
 
     from pathlib import Path
 
-    out_path = save_session(session, Path(output).parent if output else None)
+    if output:
+        # User specified an exact output path; save to its parent dir then rename
+        out_path = save_session(session)
+        target_path = Path(output)
+        target_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.rename(target_path)
+        out_path = target_path
+    else:
+        out_path = save_session(session)
 
     # --- summary table ---
     table = Table(title=f"Recon Summary – {target}")

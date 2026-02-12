@@ -125,8 +125,10 @@ class TestGraphModels:
 
     def test_port_node(self) -> None:
         p = PortNode(number=443, protocol="tcp")
-        assert p.merge_value == 443
+        assert p.merge_value == "443/tcp"
+        assert p.merge_key == "port_id"
         assert p.properties["protocol"] == "tcp"
+        assert p.properties["number"] == 443
 
     def test_service_node(self) -> None:
         s = ServiceNode(name="http", version="2.4.41")

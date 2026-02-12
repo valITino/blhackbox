@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, List, Optional
 
-from neo4j import AsyncGraphDatabase, AsyncDriver, AsyncSession
+from neo4j import AsyncGraphDatabase, AsyncDriver
 
 from blhackbox.config import Settings, settings as default_settings
 from blhackbox.exceptions import GraphError

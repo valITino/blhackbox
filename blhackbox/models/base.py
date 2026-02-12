@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class Severity(str, Enum):
@@ -44,8 +44,7 @@ class Finding(BaseModel):
     raw_data: Dict[str, Any] = Field(default_factory=dict)
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
-    class Config:
-        use_enum_values = True
+    model_config = ConfigDict(use_enum_values=True)
 
 
 class ScanSession(BaseModel):

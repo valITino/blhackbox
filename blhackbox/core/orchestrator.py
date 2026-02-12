@@ -12,12 +12,11 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any, Dict, List, Optional, Set, TypedDict
+from typing import Any, TypedDict
 
 from langgraph.graph import END, StateGraph
 
 from blhackbox.clients.hexstrike_client import HexStrikeClient
-from blhackbox.config import settings
 from blhackbox.core.graph_exporter import GraphExporter
 from blhackbox.core.knowledge_graph import KnowledgeGraphClient
 from blhackbox.core.planner import Planner
@@ -183,7 +182,7 @@ async def analyze(state: OrchestratorState) -> OrchestratorState:
             # Export only the latest finding(s)
             if session.findings:
                 latest = session.findings[-1]
-                await exporter._export_finding(state["target"], latest)
+                await exporter.export_finding(state["target"], latest)
     except Exception as exc:
         logger.warning("Graph export failed (non-fatal): %s", exc)
 

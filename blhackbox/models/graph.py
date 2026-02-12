@@ -66,12 +66,14 @@ class IPAddressNode(GraphNode):
 
 class PortNode(GraphNode):
     label: str = "Port"
-    merge_key: str = "number"
+    merge_key: str = "port_id"
 
     def __init__(self, number: int, protocol: str = "tcp", **kwargs: Any) -> None:
         props = kwargs.pop("properties", {})
         props["protocol"] = protocol
-        super().__init__(merge_value=number, properties=props, **kwargs)
+        props["number"] = number
+        port_id = f"{number}/{protocol}"
+        super().__init__(merge_value=port_id, properties=props, **kwargs)
 
 
 class ServiceNode(GraphNode):
