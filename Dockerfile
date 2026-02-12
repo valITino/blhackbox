@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # ---- Build stage ----
-FROM python:3.12-slim-bookworm@sha256:ac212230555ffb7ec17c214fb4cf036ced11b30b5b460994376b0725c7f6c151 AS builder
+FROM python:3.14.3-slim-bookworm AS builder
 
 WORKDIR /build
 
@@ -23,7 +23,7 @@ COPY blhackbox/ ./blhackbox/
 RUN /opt/venv/bin/pip install --no-cache-dir .
 
 # ---- Runtime stage ----
-FROM python:3.12-slim-bookworm@sha256:ac212230555ffb7ec17c214fb4cf036ced11b30b5b460994376b0725c7f6c151
+FROM python:3.14.3-slim-bookworm
 
 LABEL maintainer="Blhackbox Contributors"
 LABEL org.opencontainers.image.source="https://github.com/crhacky/blhackbox"
