@@ -22,6 +22,14 @@ from blhackbox.core.graph_exporter import GraphExporter
 from blhackbox.core.knowledge_graph import KnowledgeGraphClient
 from blhackbox.core.planner import Planner
 from blhackbox.core.runner import save_session
+from blhackbox.exceptions import (
+    BlhackboxError,
+    GraphError,
+    HexStrikeAPIError,
+    HexStrikeConnectionError,
+    HexStrikeTimeoutError,
+    LLMProviderError,
+)
 from blhackbox.models.base import Finding, ScanSession, Severity, Target
 
 logger = logging.getLogger("blhackbox.core.orchestrator")
@@ -66,8 +74,11 @@ async def gather_state(state: OrchestratorState) -> OrchestratorState:
         state["findings_summary"] = (
             "\n".join(summary_parts) if summary_parts else "No findings yet."
         )
-    except Exception as exc:
+    except GraphError as exc:
         logger.warning("Graph query failed (continuing without): %s", exc)
+        state["findings_summary"] = _session_findings_summary(state["session"])
+    except OSError as exc:
+        logger.warning("Graph connection failed (continuing without): %s", exc)
         state["findings_summary"] = _session_findings_summary(state["session"])
 
     return state
@@ -84,7 +95,7 @@ async def plan(state: OrchestratorState) -> OrchestratorState:
             completed_tools=state["completed_tools"],
             findings_summary=state["findings_summary"],
         )
-    except Exception as exc:
+    except (LLMProviderError, BlhackboxError, ValueError, OSError) as exc:
         logger.error("Planner failed: %s", exc)
         state["pending_action"] = {"action": "stop", "reasoning": f"Planner error: {exc}"}
         state["should_stop"] = True
@@ -157,7 +168,13 @@ async def execute(state: OrchestratorState) -> OrchestratorState:
                 )
                 session.add_finding(finding)
 
-        except Exception as exc:
+        except (
+            HexStrikeAPIError,
+            HexStrikeConnectionError,
+            HexStrikeTimeoutError,
+            ValueError,
+            OSError,
+        ) as exc:
             error_msg = f"Execution error: {exc}"
             logger.error(error_msg)
             state["error"] = error_msg
@@ -185,7 +202,7 @@ async def analyze(state: OrchestratorState) -> OrchestratorState:
             if session.findings:
                 latest = session.findings[-1]
                 await exporter.export_finding(state["target"], latest)
-    except Exception as exc:
+    except (GraphError, OSError) as exc:
         logger.warning("Graph export failed (non-fatal): %s", exc)
 
     state["iteration"] += 1

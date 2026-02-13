@@ -10,35 +10,35 @@ from langchain_core.messages import HumanMessage, SystemMessage
 
 from blhackbox.llm.client import get_llm
 from blhackbox.llm.prompts import SYSTEM_PROMPT, build_user_prompt
+from blhackbox.utils.catalog import catalog_to_tool_list_string, load_tools_catalog
 
 logger = logging.getLogger("blhackbox.core.planner")
 
-# Default tools available via HexStrike
-DEFAULT_AVAILABLE_TOOLS = """
-Network:
-  - nmap: Port scanning and service detection
-  - rustscan: Fast port scanner
-  - masscan: High-speed port scanner
 
-Web:
-  - nuclei: Template-based vulnerability scanner
-  - ffuf: Web fuzzer (directories, parameters)
-  - httpx: HTTP probe and technology detection
-  - whatweb: Web technology identification
+def _build_default_tools_string() -> str:
+    """Build the default available-tools string from the catalogue JSON.
 
-DNS / Subdomains:
-  - subfinder: Subdomain discovery
-  - amass: In-depth subdomain enumeration
-  - dnsx: DNS query tool
-
-Intelligence:
-  - analyze-target: AI-driven comprehensive target analysis
-
-AI Agents:
-  - bug_bounty: Autonomous bug bounty agent
-  - recon: Dedicated recon agent
-  - cve_intel: CVE intelligence agent
-"""
+    Falls back to a minimal static string if the catalogue cannot be loaded.
+    """
+    try:
+        catalog = load_tools_catalog()
+        text = catalog_to_tool_list_string(catalog)
+        # Append the AI agents (these are not tools in the catalogue)
+        text += (
+            "AI Agents:\n"
+            "  - bug_bounty: Autonomous bug bounty agent\n"
+            "  - recon: Dedicated recon agent\n"
+            "  - cve_intel: CVE intelligence agent\n"
+        )
+        return text
+    except Exception:
+        logger.warning("Could not load tools catalogue; using minimal fallback")
+        return (
+            "Network:\n  - nmap: Port scanning and service detection\n"
+            "Web:\n  - nuclei: Template-based vulnerability scanner\n"
+            "Dns:\n  - subfinder: Subdomain discovery\n"
+            "Intelligence:\n  - analyze-target: AI-driven comprehensive target analysis\n"
+        )
 
 
 class Planner:
@@ -54,13 +54,16 @@ class Planner:
         iteration: int,
         completed_tools: list[str],
         findings_summary: str,
-        available_tools: str = DEFAULT_AVAILABLE_TOOLS,
+        available_tools: str | None = None,
     ) -> dict[str, Any]:
         """Ask the LLM to decide the next action.
 
         Returns a dict with keys: action, category, tool, params, reasoning
         or: action=stop, reasoning.
         """
+        if available_tools is None:
+            available_tools = _build_default_tools_string()
+
         user_msg = build_user_prompt(
             target=target,
             iteration=iteration,
