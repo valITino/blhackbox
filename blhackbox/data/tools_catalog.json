@@ -1,0 +1,68 @@
+[
+  {
+    "category": "network",
+    "tool_name": "nmap",
+    "description": "Port scanning and service detection",
+    "phase": "active"
+  },
+  {
+    "category": "network",
+    "tool_name": "rustscan",
+    "description": "Fast port scanner with adaptive timing",
+    "phase": "active"
+  },
+  {
+    "category": "network",
+    "tool_name": "masscan",
+    "description": "High-speed port scanner for large ranges",
+    "phase": "active"
+  },
+  {
+    "category": "web",
+    "tool_name": "nuclei",
+    "description": "Template-based vulnerability scanner",
+    "phase": "active"
+  },
+  {
+    "category": "web",
+    "tool_name": "ffuf",
+    "description": "Web fuzzer for directories and parameters",
+    "phase": "active"
+  },
+  {
+    "category": "web",
+    "tool_name": "httpx",
+    "description": "HTTP probe and technology detection",
+    "phase": "active"
+  },
+  {
+    "category": "web",
+    "tool_name": "whatweb",
+    "description": "Web technology identification",
+    "phase": "active"
+  },
+  {
+    "category": "dns",
+    "tool_name": "subfinder",
+    "description": "Subdomain discovery via passive sources",
+    "phase": "passive"
+  },
+  {
+    "category": "dns",
+    "tool_name": "amass",
+    "description": "In-depth subdomain enumeration",
+    "phase": "passive"
+  },
+  {
+    "category": "dns",
+    "tool_name": "dnsx",
+    "description": "DNS query and resolution tool",
+    "phase": "passive"
+  },
+  {
+    "category": "intelligence",
+    "tool_name": "analyze-target",
+    "description": "AI-driven comprehensive target analysis",
+    "phase": "passive"
+  }
+]

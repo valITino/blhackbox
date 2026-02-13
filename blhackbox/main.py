@@ -4,12 +4,18 @@ from __future__ import annotations
 
 import asyncio
 import json
+from typing import Any
 
 import click
 from rich.table import Table
 
 import blhackbox
 from blhackbox.config import settings
+from blhackbox.utils.catalog import (
+    get_full_pentest_order,
+    load_tools_catalog,
+    resolve_tool_names,
+)
 from blhackbox.utils.logger import (
     console as rich_console,
 )
@@ -56,6 +62,33 @@ def version() -> None:
 
 
 # ---------------------------------------------------------------------------
+# catalog
+# ---------------------------------------------------------------------------
+
+
+@cli.command()
+def catalog() -> None:
+    """Display the available HexStrike tools catalogue."""
+    tools = load_tools_catalog()
+
+    table = Table(title="HexStrike Tool Catalogue")
+    table.add_column("Category", style="cyan")
+    table.add_column("Tool", style="green")
+    table.add_column("Description", style="white")
+    table.add_column("Phase", style="yellow")
+
+    for entry in tools:
+        table.add_row(
+            entry.get("category", ""),
+            entry.get("tool_name", ""),
+            entry.get("description", ""),
+            entry.get("phase", ""),
+        )
+
+    rich_console.print(table)
+
+
+# ---------------------------------------------------------------------------
 # recon
 # ---------------------------------------------------------------------------
 
@@ -74,8 +107,27 @@ def version() -> None:
     default=False,
     help="Use the AI orchestrator (LangGraph) for autonomous planning.",
 )
+@click.option(
+    "--attacks",
+    default=None,
+    help="Comma-separated tool or category names to run (bypasses planner).",
+)
+@click.option(
+    "--full",
+    "full_pentest",
+    is_flag=True,
+    default=False,
+    help="Run all catalogue tools in order (passive first, then active).",
+)
 @click.option("--output", "-o", type=click.Path(), help="Override output file path.")
-def recon(target: str, authorized: bool, ai: bool, output: str | None) -> None:
+def recon(
+    target: str,
+    authorized: bool,
+    ai: bool,
+    attacks: str | None,
+    full_pentest: bool,
+    output: str | None,
+) -> None:
     """Run reconnaissance against a target via HexStrike."""
     if not authorized:
         rich_console.print(
@@ -84,15 +136,100 @@ def recon(target: str, authorized: bool, ai: bool, output: str | None) -> None:
         )
         raise SystemExit(1)
 
+    # Mutual exclusivity: --ai, --attacks, --full
+    mode_count = sum([ai, attacks is not None, full_pentest])
+    if mode_count > 1:
+        rich_console.print(
+            "[error]ERROR: --ai, --attacks, and --full are mutually exclusive.[/error]"
+        )
+        raise SystemExit(1)
+
     print_banner()
     print_warning_banner()
 
-    _run_async(_do_recon(target, ai, output))
+    if attacks is not None:
+        # Resolve tool names from the catalogue
+        cat = load_tools_catalog()
+        names = [n.strip() for n in attacks.split(",") if n.strip()]
+        try:
+            tool_list = resolve_tool_names(cat, names)
+        except ValueError as exc:
+            rich_console.print(f"[error]{exc}[/error]")
+            raise SystemExit(1) from exc
+        _run_async(_do_multi_tool_recon(target, tool_list, output))
+    elif full_pentest:
+        cat = load_tools_catalog()
+        tool_list = get_full_pentest_order(cat)
+        # Cap at max_iterations to avoid unbounded runs
+        cap = settings.max_iterations
+        if len(tool_list) > cap:
+            rich_console.print(
+                f"[warning]Capping full pentest to {cap} tools "
+                f"(max_iterations setting).[/warning]"
+            )
+            tool_list = tool_list[:cap]
+        _run_async(_do_multi_tool_recon(target, tool_list, output))
+    else:
+        _run_async(_do_recon(target, ai, output))
+
+
+async def _do_multi_tool_recon(
+    target: str,
+    tool_list: list[dict[str, str]],
+    output: str | None,
+) -> None:
+    """Run multiple tools sequentially with a progress display."""
+    from rich.progress import Progress, SpinnerColumn, TextColumn
+
+    from blhackbox.clients.hexstrike_client import HexStrikeClient
+    from blhackbox.core.runner import ReconRunner
+    from blhackbox.models.base import ScanSession, Target
+
+    session = ScanSession(target=Target(value=target))
+
+    async with HexStrikeClient() as client:
+        healthy = await client.health_check()
+        if not healthy:
+            rich_console.print(
+                "[error]Cannot reach HexStrike at "
+                f"{settings.hexstrike_url}. Is it running?[/error]"
+            )
+            raise SystemExit(1)
+
+        runner = ReconRunner(client)
+        total = len(tool_list)
+
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=rich_console,
+        ) as progress:
+            task = progress.add_task("Running tools…", total=total)
+            for i, entry in enumerate(tool_list, 1):
+                cat = entry["category"]
+                tool = entry["tool_name"]
+                progress.update(task, description=f"[{i}/{total}] {cat}/{tool}")
+                try:
+                    single = await runner.run_single_tool(
+                        cat, tool, {"target": target}
+                    )
+                    for finding in single.findings:
+                        session.add_finding(finding)
+                    session.mark_tool_done(f"{cat}/{tool}")
+                except Exception as exc:
+                    logger.warning("Tool %s/%s failed: %s", cat, tool, exc)
+                    rich_console.print(
+                        f"[warning]Tool {cat}/{tool} failed: {exc}[/warning]"
+                    )
+                progress.advance(task)
+
+    session.finish()
+    _save_and_summarize(session, target, output)
 
 
 async def _do_recon(target: str, ai: bool, output: str | None) -> None:
     from blhackbox.clients.hexstrike_client import HexStrikeClient
-    from blhackbox.core.runner import ReconRunner, save_session
+    from blhackbox.core.runner import ReconRunner
 
     if ai:
         # Phase 3 – AI orchestrator
@@ -112,10 +249,20 @@ async def _do_recon(target: str, ai: bool, output: str | None) -> None:
             runner = ReconRunner(client)
             session = await runner.run_recon(target)
 
+    _save_and_summarize(session, target, output)
+
+
+def _save_and_summarize(
+    session: Any,
+    target: str,
+    output: str | None,
+) -> None:
+    """Save the session to disk and print a summary table."""
     from pathlib import Path
 
+    from blhackbox.core.runner import save_session
+
     if output:
-        # User specified an exact output path; save to its parent dir then rename
         out_path = save_session(session)
         target_path = Path(output)
         target_path.parent.mkdir(parents=True, exist_ok=True)

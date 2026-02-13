@@ -66,6 +66,9 @@ blhackbox = "blhackbox.main:cli"
 [tool.setuptools.packages.find]
 include = ["blhackbox*"]
 
+[tool.setuptools.package-data]
+"blhackbox.data" = ["*.json"]
+
 [tool.ruff]
 target-version = "py311"
 line-length = 100
