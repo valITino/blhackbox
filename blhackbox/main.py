@@ -536,6 +536,155 @@ async def _do_report(session_id: str, fmt: str, output: str | None) -> None:
 
 
 # ---------------------------------------------------------------------------
+# exploit (post-report guidance)
+# ---------------------------------------------------------------------------
+
+
+@cli.command()
+@click.option(
+    "--session",
+    "-s",
+    required=True,
+    help="Session ID or results JSON file path.",
+)
+@click.option(
+    "--authorized",
+    is_flag=True,
+    default=False,
+    help="Confirm you have written authorization for this assessment.",
+)
+@click.option(
+    "--allow-poc",
+    is_flag=True,
+    default=False,
+    help="Include descriptive proof-of-concept approaches (not raw exploit code).",
+)
+@click.option("--output", "-o", type=click.Path(), help="Output file path for guidance JSON.")
+def exploit(session: str, authorized: bool, allow_poc: bool, output: str | None) -> None:
+    """Generate post-report exploit guidance for session findings.
+
+    Requires --authorized.  Default mode produces risk descriptions and
+    remediation advice only.  Pass --allow-poc for descriptive PoC approaches
+    (still not raw exploit code).
+
+    This feature is opt-in and intended for authorized penetration testers.
+    """
+    if not authorized:
+        rich_console.print(
+            "[error]ERROR: You must pass --authorized to confirm you have written "
+            "permission for this assessment.[/error]"
+        )
+        raise SystemExit(1)
+
+    rich_console.print(
+        "\n[warning]"
+        "========================================================================\n"
+        "  EXPLOIT GUIDANCE – AUTHORIZED USE ONLY\n"
+        "  This feature generates vulnerability exploitation guidance.\n"
+        "  You have confirmed written authorization for this assessment.\n"
+        "  Misuse of this output may violate applicable laws.\n"
+        "========================================================================\n"
+        "[/warning]"
+    )
+
+    _run_async(_do_exploit(session, allow_poc, output))
+
+
+async def _do_exploit(session_id: str, allow_poc: bool, output: str | None) -> None:
+    import re
+    from pathlib import Path
+
+    from blhackbox.core.exploit_generator import ExploitGenerator
+    from blhackbox.models.base import ScanSession
+
+    # --- load session (same logic as report command) ---
+    safe_session_id = re.sub(r"[^a-zA-Z0-9_\-]", "", session_id)
+    if not safe_session_id:
+        rich_console.print("[error]Invalid session ID.[/error]")
+        raise SystemExit(1)
+
+    session_path = Path(session_id)
+    if session_path.exists():
+        resolved = session_path.resolve()
+        results_resolved = settings.results_dir.resolve()
+        cwd_resolved = Path.cwd().resolve()
+        if not (
+            str(resolved).startswith(str(results_resolved))
+            or str(resolved).startswith(str(cwd_resolved))
+        ):
+            rich_console.print("[error]Session file path is outside allowed directories.[/error]")
+            raise SystemExit(1)
+    else:
+        results_dir = settings.results_dir
+        matches = list(results_dir.glob(f"*{safe_session_id}*"))
+        if not matches:
+            rich_console.print(f"[error]Session '{safe_session_id}' not found.[/error]")
+            raise SystemExit(1)
+        session_path = matches[0]
+
+    session_data = ScanSession.model_validate_json(session_path.read_text())
+
+    if not session_data.findings:
+        rich_console.print("[warning]No findings in session – nothing to analyse.[/warning]")
+        return
+
+    # --- generate guidance ---
+    generator = ExploitGenerator(allow_poc=allow_poc)
+    rich_console.print("[info]Generating exploit guidance via LLM…[/info]")
+
+    guidance = await generator.generate(session_data.findings)
+
+    if not guidance:
+        rich_console.print("[warning]LLM returned no actionable guidance.[/warning]")
+        return
+
+    # --- save output ---
+    guidance_json = json.dumps(guidance, indent=2)
+
+    if output:
+        out_path = Path(output)
+    else:
+        out_path = session_path.with_name(
+            session_path.stem + "_exploit_guidance.json"
+        )
+
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Verify path stays within expected directories
+    resolved = out_path.resolve()
+    results_resolved = settings.results_dir.resolve()
+    cwd_resolved = Path.cwd().resolve()
+    if not (
+        str(resolved).startswith(str(results_resolved))
+        or str(resolved).startswith(str(cwd_resolved))
+    ):
+        rich_console.print("[error]Output path is outside allowed directories.[/error]")
+        raise SystemExit(1)
+
+    out_path.write_text(guidance_json, encoding="utf-8")
+
+    # --- display summary ---
+    table = Table(title="Exploit Guidance Summary")
+    table.add_column("Finding", style="cyan")
+    table.add_column("Exploitability", style="yellow")
+    table.add_column("Remediation", style="green", max_width=60)
+
+    for entry in guidance:
+        table.add_row(
+            entry.get("title", "?")[:50],
+            entry.get("exploitability", "?"),
+            entry.get("remediation", "?")[:60],
+        )
+
+    rich_console.print(table)
+    rich_console.print(f"\n[success]Guidance saved to: {out_path}[/success]")
+    if allow_poc:
+        rich_console.print(
+            "[warning]PoC approaches included – handle this output securely.[/warning]"
+        )
+
+
+# ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
 
