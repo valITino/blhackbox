@@ -7,7 +7,7 @@ help: ## Show this help
 		awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-18s\033[0m %s\n", $$1, $$2}'
 
 build: ## Build all containers
-	$(COMPOSE) build
+	NEO4J_PASSWORD=build-placeholder $(COMPOSE) build
 
 up: ## Start all services
 	$(COMPOSE) up -d
