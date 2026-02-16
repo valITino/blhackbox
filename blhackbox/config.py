@@ -31,16 +31,21 @@ class Settings(BaseSettings):
     neo4j_password: str = Field(
         default="", description="Neo4j password (set via NEO4J_PASSWORD env var)"
     )
+    neo4j_database: str = Field(default="neo4j", description="Neo4j database name")
+    aura_instanceid: str = Field(default="", description="Neo4j Aura instance ID (informational)")
+    aura_instancename: str = Field(
+        default="", description="Neo4j Aura instance name (informational)"
+    )
 
     # --- LLM ---
     openai_api_key: str = Field(default="", description="OpenAI API key")
-    openai_model: str = Field(default="gpt-4o", description="OpenAI model name")
+    openai_model: str = Field(default="o3", description="OpenAI model name")
     anthropic_api_key: str = Field(default="", description="Anthropic API key")
     anthropic_model: str = Field(
-        default="claude-sonnet-4-20250514", description="Anthropic model name"
+        default="claude-opus-4-20250514", description="Anthropic model name"
     )
     ollama_url: str = Field(default="http://ollama:11434", description="Ollama API URL")
-    ollama_model: str = Field(default="llama3", description="Ollama model name")
+    ollama_model: str = Field(default="llama3.3", description="Ollama model name")
     llm_provider_priority: str = Field(
         default="openai,anthropic,ollama",
         description="Comma-separated LLM fallback order",

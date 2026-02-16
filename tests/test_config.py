@@ -28,3 +28,27 @@ class TestSettings:
     def test_max_iterations_override(self) -> None:
         s = Settings(max_iterations=20)
         assert s.max_iterations == 20
+
+    def test_neo4j_database_default(self) -> None:
+        s = Settings()
+        assert s.neo4j_database == "neo4j"
+
+    def test_neo4j_database_override(self) -> None:
+        s = Settings(neo4j_database="custom_db")
+        assert s.neo4j_database == "custom_db"
+
+    def test_aura_fields_default_empty(self) -> None:
+        s = Settings()
+        assert s.aura_instanceid == ""
+        assert s.aura_instancename == ""
+
+    def test_aura_fields_override(self) -> None:
+        s = Settings(aura_instanceid="abc123", aura_instancename="Blhackbox")
+        assert s.aura_instanceid == "abc123"
+        assert s.aura_instancename == "Blhackbox"
+
+    def test_default_model_names(self) -> None:
+        s = Settings()
+        assert s.openai_model == "o3"
+        assert s.anthropic_model == "claude-opus-4-20250514"
+        assert s.ollama_model == "llama3.3"

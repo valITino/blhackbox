@@ -100,15 +100,16 @@ docker compose --profile ollama up -d
 | `HEXSTRIKE_URL` | `http://hexstrike:8888` | HexStrike API endpoint |
 | `HEXSTRIKE_TIMEOUT` | `120` | Request timeout (seconds) |
 | `HEXSTRIKE_MAX_RETRIES` | `3` | Max retries with exponential backoff |
-| `NEO4J_URI` | `bolt://neo4j:7687` | Neo4j connection string |
+| `NEO4J_URI` | `bolt://neo4j:7687` | Neo4j connection string (use `neo4j+s://...` for Aura) |
 | `NEO4J_USER` | `neo4j` | Neo4j username |
 | `NEO4J_PASSWORD` | - | Neo4j password (**required**, min 8 chars) |
+| `NEO4J_DATABASE` | `neo4j` | Neo4j database name |
 | `OPENAI_API_KEY` | - | OpenAI key for AI orchestrator |
-| `OPENAI_MODEL` | `gpt-4o` | OpenAI model name |
+| `OPENAI_MODEL` | `o3` | OpenAI model name (most capable reasoning model) |
 | `ANTHROPIC_API_KEY` | - | Anthropic key for AI orchestrator |
-| `ANTHROPIC_MODEL` | `claude-sonnet-4-20250514` | Anthropic model name |
+| `ANTHROPIC_MODEL` | `claude-opus-4-20250514` | Anthropic model name (most capable Claude model) |
 | `OLLAMA_URL` | `http://ollama:11434` | Ollama endpoint |
-| `OLLAMA_MODEL` | `llama3` | Ollama model name |
+| `OLLAMA_MODEL` | `llama3.3` | Ollama model name |
 | `LLM_PROVIDER_PRIORITY` | `openai,anthropic,ollama` | LLM fallback order |
 | `MAX_ITERATIONS` | `10` | Max orchestrator iterations per session |
 | `LOG_LEVEL` | `INFO` | Logging verbosity |
