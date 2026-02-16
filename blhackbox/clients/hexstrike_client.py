@@ -127,7 +127,7 @@ class HexStrikeClient:
         """
         safe_category = _validate_path_segment(category, "tool category")
         safe_tool = _validate_path_segment(tool, "tool name")
-        url = f"/api/tools/{safe_category}/{safe_tool}"
+        url = f"/api/tools/{safe_tool}"
         payload = params or {}
         logger.info("Running tool %s/%s with params: %s", safe_category, safe_tool, payload)
 

@@ -43,7 +43,7 @@ class TestReconRunner:
 
     async def test_run_single_tool(self, mock_settings: Settings) -> None:
         with respx.mock:
-            respx.post("http://testhost:8888/api/tools/network/nmap").respond(
+            respx.post("http://testhost:8888/api/tools/nmap").respond(
                 200,
                 json={
                     "success": True,
