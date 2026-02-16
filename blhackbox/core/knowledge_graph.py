@@ -262,7 +262,8 @@ class KnowledgeGraphClient:
         """Retrieve all findings linked to a target."""
         cypher = """
         MATCH (root)-[:HAS_FINDING]->(f:Finding)
-        WHERE root.name = $target OR root.address = $target
+        WHERE (root:Domain AND root.name = $target)
+           OR (root:IPAddress AND root.address = $target)
         RETURN f
         ORDER BY f.severity DESC
         """

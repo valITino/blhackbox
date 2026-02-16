@@ -131,42 +131,50 @@ async def execute(state: OrchestratorState) -> OrchestratorState:
                 if "target" not in params:
                     params["target"] = state["target"]
 
-                result = await client.run_tool(category, tool, params)
                 tool_id = f"{category}/{tool}"
-                state["completed_tools"].append(tool_id)
-                session.mark_tool_done(tool_id)
 
-                finding = Finding(
-                    target=state["target"],
-                    tool=tool_id,
-                    category=category,
-                    title=f"Tool Output: {tool}",
-                    description=(
-                        result.raw_output
-                        or json.dumps(result.output, indent=2, default=str)
-                    )[:5000],
-                    severity=Severity.INFO,
-                    raw_data={"output": result.output, "errors": result.errors},
-                )
-                session.add_finding(finding)
-
-            elif action["action"] == "run_agent":
-                agent_name = action.get("agent", "recon")
-                result = await client.run_agent(agent_name, state["target"])
-                agent_id = f"agent/{agent_name}"
-                state["completed_tools"].append(agent_id)
-                session.mark_tool_done(agent_id)
-
-                finding = Finding(
-                    target=state["target"],
-                    tool=agent_id,
-                    category="agent",
-                    title=f"Agent Output: {agent_name}",
-                    description=json.dumps(result.results, indent=2, default=str)[:5000],
-                    severity=Severity.INFO,
-                    raw_data=result.results,
-                )
-                session.add_finding(finding)
+                # Route intelligence/analyze-target to the dedicated endpoint
+                if category == "intelligence" and tool == "analyze-target":
+                    analysis = await client.analyze_target(
+                        target=state["target"],
+                        analysis_type=params.get("analysis_type", "comprehensive"),
+                    )
+                    state["completed_tools"].append(tool_id)
+                    session.mark_tool_done(tool_id)
+                    finding = Finding(
+                        target=state["target"],
+                        tool=tool_id,
+                        category=category,
+                        title=f"AI Analysis: {state['target']}",
+                        description=json.dumps(
+                            analysis.results, indent=2, default=str
+                        )[:5000],
+                        severity=Severity.INFO,
+                        raw_data={
+                            "results": analysis.results,
+                            "recommendations": analysis.recommendations,
+                            "risk_score": analysis.risk_score,
+                            "errors": analysis.errors,
+                        },
+                    )
+                    session.add_finding(finding)
+                else:
+                    result = await client.run_tool(category, tool, params)
+                    state["completed_tools"].append(tool_id)
+                    session.mark_tool_done(tool_id)
+                    finding = Finding(
+                        target=state["target"],
+                        tool=tool_id,
+                        category=category,
+                        title=f"Tool Output: {tool}",
+                        description=(
+                            result.raw_output
+                            or json.dumps(result.output, indent=2, default=str)
+                        )[:5000],
+                        severity=Severity.INFO,
+                        raw_data={"output": result.output, "errors": result.errors},
+                    )
+                    session.add_finding(finding)
 
         except (
             HexStrikeAPIError,
@@ -175,18 +183,24 @@ async def execute(state: OrchestratorState) -> OrchestratorState:
             ValueError,
             OSError,
         ) as exc:
-            error_msg = f"Execution error: {exc}"
-            logger.error(error_msg)
+            # Distinguish 404 (tool not available) from other errors
+            is_not_found = (
+                isinstance(exc, HexStrikeAPIError) and exc.status_code == 404
+            )
+            if is_not_found:
+                error_msg = f"Tool not available on server: {exc}"
+                logger.warning(error_msg)
+            else:
+                error_msg = f"Execution error: {exc}"
+                logger.error(error_msg)
             state["error"] = error_msg
             # Track the failed tool so the planner doesn't retry it
-            if action["action"] == "run_tool":
-                failed_id = f"{action.get('category', 'unknown')}/{action.get('tool', 'unknown')}"
-            else:
-                failed_id = f"agent/{action.get('agent', 'unknown')}"
-            state["completed_tools"].append(f"{failed_id} (FAILED)")
+            failed_id = f"{action.get('category', 'unknown')}/{action.get('tool', 'unknown')}"
+            fail_tag = "NOT AVAILABLE" if is_not_found else "FAILED"
+            state["completed_tools"].append(f"{failed_id} ({fail_tag})")
             finding = Finding(
                 target=state["target"],
-                tool=action.get("tool", action.get("agent", "unknown")),
+                tool=action.get("tool", "unknown"),
                 category="error",
                 title="Execution Error",
                 description=error_msg,

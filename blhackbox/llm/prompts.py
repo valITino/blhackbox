@@ -20,16 +20,11 @@ the assessment.
 
 ## Available Tool Categories (via HexStrike API)
 - **network**: nmap, rustscan, masscan – port scanning and service detection
-- **web**: nuclei, ffuf, httpx, whatweb – web vulnerability scanning and fuzzing
-- **intelligence**: analyze-target – AI-driven comprehensive analysis
-- **dns**: subfinder, amass, dnsx – subdomain enumeration and DNS recon
-- **osint**: various OSINT gathering tools
-
-## Available AI Agents (via HexStrike)
-- **bug_bounty**: Autonomous bug bounty hunting agent
-- **ctf**: CTF challenge solver agent
-- **cve_intel**: CVE intelligence and analysis agent
-- **recon**: Dedicated reconnaissance agent
+- **web**: nuclei, ffuf, httpx, gobuster, nikto, katana – web scanning and fuzzing
+- **intelligence**: analyze-target, smart-scan, technology-detection – AI analysis
+- **dns**: subfinder, amass, fierce, dnsenum – subdomain enumeration and DNS recon
+- **cloud**: prowler, trivy, checkov – cloud security scanning
+- **forensics**: exiftool, binwalk, steghide – forensics and analysis
 
 ## Decision Rules
 1. Start with passive reconnaissance (DNS, WHOIS, certificate transparency).
@@ -44,18 +39,11 @@ the assessment.
 ## Response Format
 Respond with ONLY a valid JSON object (no markdown, no explanation):
 {
-    "action": "run_tool" | "run_agent" | "stop",
+    "action": "run_tool" | "stop",
     "category": "<tool category>",
     "tool": "<tool name>",
     "params": { ... },
     "reasoning": "<one sentence explaining why>"
-}
-
-If action is "run_agent", use:
-{
-    "action": "run_agent",
-    "agent": "<agent name>",
-    "reasoning": "<one sentence>"
 }
 
 If action is "stop", use:
