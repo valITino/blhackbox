@@ -98,11 +98,66 @@ Each iteration queries the knowledge graph for context, uses the LLM planner to 
 
 ### Prerequisites
 
-- Python >= 3.11 (3.13 used in Docker image)
-- Docker and Docker Compose
-- Git
+#### System Requirements
+
+- **Python** >= 3.11 (3.13 used in Docker image)
+- **Docker** and **Docker Compose** v2+
+- **Git** (with submodule support)
 
 > For detailed Docker setup, image tags, volumes, and troubleshooting, see [DOCKER.md](DOCKER.md).
+
+#### Neo4j Aura (Knowledge Graph Database)
+
+Blhackbox uses Neo4j as its persistent knowledge graph. You need a Neo4j instance — the easiest option is the free **Neo4j Aura** cloud tier:
+
+1. **Create a Neo4j Aura account** at [console.neo4j.io](https://console.neo4j.io/) — sign up with email, Google, or GitHub
+2. **Create a free AuraDB instance:**
+   - Click **"New Instance"** in the Aura console
+   - Select the **Free** tier (no credit card required)
+   - Choose a region close to you
+   - Set the instance name (e.g., `Blhackbox`)
+3. **Save your credentials immediately** — the auto-generated password is shown **only once** at creation time:
+   - **Connection URI** — e.g., `neo4j+s://xxxxxxxx.databases.neo4j.io`
+   - **Username** — typically `neo4j`
+   - **Password** — the generated password (store it securely)
+   - **Instance ID** — shown in the Aura console dashboard
+4. **Wait for the instance to be ready** (usually under a minute), then copy the connection details into your `.env` file
+
+> **Alternatively**, you can use the local Neo4j Docker container included in `docker-compose.yml` — no Aura account required. Just set `NEO4J_URI=bolt://neo4j:7687` and a strong `NEO4J_PASSWORD` in your `.env`.
+
+#### OpenAI Account (ChatGPT / GPT API)
+
+An OpenAI API key is required if you want to use OpenAI models (default provider) for the AI orchestrator:
+
+1. **Create an OpenAI account** at [platform.openai.com](https://platform.openai.com/)
+2. **Add billing** — go to **Settings > Billing** and add a payment method (API usage is pay-per-use)
+3. **Generate an API key** — go to **API Keys** ([platform.openai.com/api-keys](https://platform.openai.com/api-keys)), click **"Create new secret key"**, and copy it
+4. **Paste the key** into your `.env` file as `OPENAI_API_KEY`
+5. **Default model:** `o3` (OpenAI's most capable reasoning model)
+
+> Note: The `o3` model requires Tier 3+ API access. If you don't have access, set `OPENAI_MODEL=gpt-4o` as a fallback.
+
+#### Anthropic Account (Claude API)
+
+An Anthropic API key is required if you want to use Claude models for the AI orchestrator:
+
+1. **Create an Anthropic account** at [console.anthropic.com](https://console.anthropic.com/)
+2. **Add billing** — go to **Settings > Billing** and add a payment method
+3. **Generate an API key** — go to **API Keys** ([console.anthropic.com/settings/keys](https://console.anthropic.com/settings/keys)), click **"Create Key"**, and copy it
+4. **Paste the key** into your `.env` file as `ANTHROPIC_API_KEY`
+5. **Default model:** `claude-opus-4-20250514` (Anthropic's most capable model)
+
+#### Ollama (Optional — Local LLM)
+
+For offline or free local inference, you can use Ollama instead of cloud providers:
+
+1. **No account required** — Ollama runs entirely locally
+2. Start with `docker compose --profile ollama up -d`
+3. **Default model:** `llama3.3` (pulled automatically on first use)
+
+> **Provider priority:** By default, Blhackbox tries providers in this order: `openai → anthropic → ollama`. You only need **at least one** configured provider for the AI orchestrator. You can change the priority via `LLM_PROVIDER_PRIORITY` in `.env`.
+
+---
 
 ### 1. Clone and initialise
 
@@ -116,7 +171,22 @@ git submodule update --init --recursive
 
 ```bash
 cp .env.example .env
-# Edit .env — at minimum, set NEO4J_PASSWORD and one LLM API key
+```
+
+Edit `.env` and fill in your credentials:
+
+```bash
+# Neo4j — use your Aura connection details or keep defaults for local Docker
+NEO4J_URI=neo4j+s://xxxxxxxx.databases.neo4j.io   # Aura URI (or bolt://neo4j:7687 for local)
+NEO4J_USER=neo4j
+NEO4J_PASSWORD=your-neo4j-password                 # REQUIRED — min 8 characters
+NEO4J_DATABASE=neo4j
+AURA_INSTANCEID=your-aura-instance-id              # from Aura console (optional)
+AURA_INSTANCENAME=Blhackbox                        # your instance name (optional)
+
+# At least one LLM provider API key
+OPENAI_API_KEY=sk-...
+ANTHROPIC_API_KEY=sk-ant-...
 ```
 
 ### 3. Build and run
@@ -365,15 +435,18 @@ All settings are loaded from environment variables or `.env` via Pydantic Settin
 | `HEXSTRIKE_URL` | `http://hexstrike:8888` | HexStrike API base URL |
 | `HEXSTRIKE_TIMEOUT` | `120` | HTTP timeout (seconds) |
 | `HEXSTRIKE_MAX_RETRIES` | `3` | Max retries with exponential backoff |
-| `NEO4J_URI` | `bolt://neo4j:7687` | Neo4j connection URI |
+| `NEO4J_URI` | `bolt://neo4j:7687` | Neo4j connection URI (use `neo4j+s://...` for Aura) |
 | `NEO4J_USER` | `neo4j` | Neo4j username |
 | `NEO4J_PASSWORD` | *(required)* | Neo4j password (min 8 characters) |
+| `NEO4J_DATABASE` | `neo4j` | Neo4j database name |
+| `AURA_INSTANCEID` | *(optional)* | Neo4j Aura instance ID (informational) |
+| `AURA_INSTANCENAME` | *(optional)* | Neo4j Aura instance name (informational) |
 | `OPENAI_API_KEY` | *(optional)* | OpenAI API key for AI orchestrator |
-| `OPENAI_MODEL` | `gpt-4o` | OpenAI model name |
+| `OPENAI_MODEL` | `o3` | OpenAI model name (most capable reasoning model) |
 | `ANTHROPIC_API_KEY` | *(optional)* | Anthropic API key for AI orchestrator |
-| `ANTHROPIC_MODEL` | `claude-sonnet-4-20250514` | Anthropic model name |
+| `ANTHROPIC_MODEL` | `claude-opus-4-20250514` | Anthropic model name (most capable Claude model) |
 | `OLLAMA_URL` | `http://ollama:11434` | Ollama API URL (local LLM) |
-| `OLLAMA_MODEL` | `llama3` | Ollama model name |
+| `OLLAMA_MODEL` | `llama3.3` | Ollama model name |
 | `LLM_PROVIDER_PRIORITY` | `openai,anthropic,ollama` | Comma-separated fallback order |
 | `MAX_ITERATIONS` | `10` | Max orchestrator iterations per session |
 | `LOG_LEVEL` | `INFO` | Logging level |

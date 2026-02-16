@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 from langchain_core.language_models.chat_models import BaseChatModel
 
@@ -11,6 +12,14 @@ from blhackbox.config import settings as default_settings
 from blhackbox.exceptions import LLMProviderError
 
 logger = logging.getLogger("blhackbox.llm.client")
+
+
+def _is_openai_reasoning_model(model: str) -> bool:
+    """Check if an OpenAI model is an o-series reasoning model (o1, o3, etc.).
+
+    Reasoning models do not support the temperature parameter.
+    """
+    return model.startswith("o") and len(model) > 1 and model[1:2].isdigit()
 
 
 def get_llm(settings: Settings | None = None) -> BaseChatModel:
@@ -50,12 +59,16 @@ def _build_provider(name: str, cfg: Settings) -> BaseChatModel | None:
             return None
         from langchain_openai import ChatOpenAI
 
-        return ChatOpenAI(
-            model=cfg.openai_model,
-            api_key=cfg.openai_api_key,
-            temperature=0,
-            max_tokens=4096,
-        )
+        kwargs: dict[str, Any] = {
+            "model": cfg.openai_model,
+            "api_key": cfg.openai_api_key,
+            "max_tokens": 4096,
+        }
+        # o-series reasoning models (o1, o3, etc.) do not support temperature
+        if not _is_openai_reasoning_model(cfg.openai_model):
+            kwargs["temperature"] = 0
+
+        return ChatOpenAI(**kwargs)
 
     if name == "anthropic":
         if not cfg.anthropic_api_key:

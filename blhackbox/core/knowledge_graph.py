@@ -89,7 +89,7 @@ class KnowledgeGraphClient:
         props = node.to_cypher_properties()
         merge_value = props.pop(node.merge_key)
 
-        async with self.driver.session() as session:
+        async with self.driver.session(database=self._settings.neo4j_database) as session:
             await session.run(cypher, merge_value=merge_value, props=props)
         logger.debug("Merged %s(%s=%s)", label, merge_key, merge_value)
 
@@ -113,7 +113,7 @@ class KnowledgeGraphClient:
             f"MERGE (a)-[r:{rel_name}]->(b) "
             f"SET r += $props"
         )
-        async with self.driver.session() as session:
+        async with self.driver.session(database=self._settings.neo4j_database) as session:
             await session.run(
                 cypher,
                 a_val=source.merge_value,
@@ -243,7 +243,7 @@ class KnowledgeGraphClient:
         self, cypher: str, params: dict[str, Any] | None = None
     ) -> list[dict[str, Any]]:
         """Execute a raw Cypher query and return records as dicts."""
-        async with self.driver.session() as session:
+        async with self.driver.session(database=self._settings.neo4j_database) as session:
             result = await session.run(cypher, **(params or {}))
             records = await result.data()
         return records
@@ -271,7 +271,7 @@ class KnowledgeGraphClient:
 
     async def clear_all(self) -> None:
         """Delete all nodes and relationships. Use with caution."""
-        async with self.driver.session() as session:
+        async with self.driver.session(database=self._settings.neo4j_database) as session:
             await session.run("MATCH (n) DETACH DELETE n")
         logger.warning("All graph data cleared")
 

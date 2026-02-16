@@ -1,8 +1,38 @@
-"""Tests for the planner's response parsing."""
+"""Tests for the planner's response parsing and LLM client helpers."""
 
 from __future__ import annotations
 
 from blhackbox.core.planner import _parse_llm_response
+from blhackbox.llm.client import _is_openai_reasoning_model
+
+
+class TestIsOpenAIReasoningModel:
+    def test_o3_is_reasoning(self) -> None:
+        assert _is_openai_reasoning_model("o3") is True
+
+    def test_o1_is_reasoning(self) -> None:
+        assert _is_openai_reasoning_model("o1") is True
+
+    def test_o3_mini_is_reasoning(self) -> None:
+        assert _is_openai_reasoning_model("o3-mini") is True
+
+    def test_o1_preview_is_reasoning(self) -> None:
+        assert _is_openai_reasoning_model("o1-preview") is True
+
+    def test_gpt4o_is_not_reasoning(self) -> None:
+        assert _is_openai_reasoning_model("gpt-4o") is False
+
+    def test_gpt4_is_not_reasoning(self) -> None:
+        assert _is_openai_reasoning_model("gpt-4") is False
+
+    def test_ollama_model_not_reasoning(self) -> None:
+        assert _is_openai_reasoning_model("llama3.3") is False
+
+    def test_empty_string(self) -> None:
+        assert _is_openai_reasoning_model("") is False
+
+    def test_single_char_o(self) -> None:
+        assert _is_openai_reasoning_model("o") is False
 
 
 class TestParseLLMResponse:
