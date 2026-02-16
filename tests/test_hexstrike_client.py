@@ -33,7 +33,7 @@ class TestHexStrikeClient:
 
     async def test_run_tool(self, mock_settings: Settings) -> None:
         with respx.mock:
-            respx.post("http://testhost:8888/api/tools/network/nmap").respond(
+            respx.post("http://testhost:8888/api/tools/nmap").respond(
                 200,
                 json={
                     "success": True,
@@ -56,7 +56,7 @@ class TestHexStrikeClient:
 
     async def test_run_tool_api_error(self, mock_settings: Settings) -> None:
         with respx.mock:
-            respx.post("http://testhost:8888/api/tools/network/nmap").respond(
+            respx.post("http://testhost:8888/api/tools/nmap").respond(
                 400, text="Bad request"
             )
 

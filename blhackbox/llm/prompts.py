@@ -38,6 +38,8 @@ the assessment.
 4. Avoid redundant scans — check what has already been done.
 5. Stop after a reasonable number of iterations (max 10) or when no new
    information is likely to be discovered.
+6. NEVER retry a tool marked as FAILED. Pick a different tool or move to the
+   next phase. If all tools in a category have failed, skip that category.
 
 ## Response Format
 Respond with ONLY a valid JSON object (no markdown, no explanation):

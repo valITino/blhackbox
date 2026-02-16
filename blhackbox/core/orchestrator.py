@@ -178,6 +178,12 @@ async def execute(state: OrchestratorState) -> OrchestratorState:
             error_msg = f"Execution error: {exc}"
             logger.error(error_msg)
             state["error"] = error_msg
+            # Track the failed tool so the planner doesn't retry it
+            if action["action"] == "run_tool":
+                failed_id = f"{action.get('category', 'unknown')}/{action.get('tool', 'unknown')}"
+            else:
+                failed_id = f"agent/{action.get('agent', 'unknown')}"
+            state["completed_tools"].append(f"{failed_id} (FAILED)")
             finding = Finding(
                 target=state["target"],
                 tool=action.get("tool", action.get("agent", "unknown")),
@@ -216,6 +222,11 @@ def decide_continue(state: OrchestratorState) -> str:
     max_iter = state["max_iterations"]
     if state["iteration"] >= max_iter:
         logger.info("Max iterations (%d) reached, stopping", max_iter)
+        return "end"
+    # Stop early if the last 3 actions all failed
+    recent = state["session"].findings[-3:]
+    if len(recent) >= 3 and all(f.category == "error" for f in recent):
+        logger.info("Stopping after 3 consecutive tool failures")
         return "end"
     return "continue"
 
