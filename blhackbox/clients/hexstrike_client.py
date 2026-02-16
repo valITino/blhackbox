@@ -145,14 +145,20 @@ class HexStrikeClient:
             raise HexStrikeAPIError(resp.status_code, detail)
 
         data = resp.json()
+        # HexStrike returns stdout/stderr/command; map to our model fields
+        output = data.get("output") or data.get("result") or data.get("stdout")
+        raw_output = data.get("raw_output") or data.get("stdout", "")
+        errors = data.get("errors", [])
+        if not errors and data.get("stderr"):
+            errors = [data["stderr"]]
         return HexStrikeToolResponse(
             success=data.get("success", True),
             tool=tool,
             category=category,
-            output=data.get("output", data.get("result")),
-            raw_output=data.get("raw_output", ""),
+            output=output,
+            raw_output=raw_output,
             execution_time=data.get("execution_time"),
-            errors=data.get("errors", []),
+            errors=errors,
         )
 
     # -- intelligence --------------------------------------------------------
@@ -191,13 +197,21 @@ class HexStrikeClient:
             raise HexStrikeAPIError(resp.status_code, resp.text[:500])
 
         data = resp.json()
+        # HexStrike returns target_profile; map to our model fields
+        profile = data.get("target_profile", {})
+        results = data.get("results") or profile
+        risk_score = (
+            data.get("risk_score")
+            or profile.get("risk_level")
+            or profile.get("confidence_score")
+        )
         return HexStrikeAnalysisResponse(
             success=data.get("success", True),
             target=target,
             analysis_type=analysis_type,
-            results=data.get("results", {}),
+            results=results,
             recommendations=data.get("recommendations", []),
-            risk_score=data.get("risk_score"),
+            risk_score=risk_score,
             errors=data.get("errors", []),
         )
 

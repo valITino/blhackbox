@@ -1,5 +1,35 @@
 [
   {
+    "category": "dns",
+    "tool_name": "subfinder",
+    "description": "Subdomain discovery via passive sources",
+    "phase": "passive"
+  },
+  {
+    "category": "dns",
+    "tool_name": "amass",
+    "description": "In-depth subdomain enumeration",
+    "phase": "passive"
+  },
+  {
+    "category": "dns",
+    "tool_name": "fierce",
+    "description": "DNS reconnaissance and enumeration",
+    "phase": "passive"
+  },
+  {
+    "category": "dns",
+    "tool_name": "dnsenum",
+    "description": "DNS enumeration and zone transfer testing",
+    "phase": "passive"
+  },
+  {
+    "category": "intelligence",
+    "tool_name": "analyze-target",
+    "description": "AI-driven comprehensive target analysis",
+    "phase": "passive"
+  },
+  {
     "category": "network",
     "tool_name": "nmap",
     "description": "Port scanning and service detection",
@@ -19,6 +49,12 @@
   },
   {
     "category": "web",
+    "tool_name": "httpx",
+    "description": "HTTP probe and technology detection",
+    "phase": "active"
+  },
+  {
+    "category": "web",
     "tool_name": "nuclei",
     "description": "Template-based vulnerability scanner",
     "phase": "active"
@@ -31,38 +67,32 @@
   },
   {
     "category": "web",
-    "tool_name": "httpx",
-    "description": "HTTP probe and technology detection",
+    "tool_name": "gobuster",
+    "description": "Directory and file brute-forcing",
     "phase": "active"
   },
   {
     "category": "web",
-    "tool_name": "whatweb",
-    "description": "Web technology identification",
+    "tool_name": "nikto",
+    "description": "Web server vulnerability scanner",
     "phase": "active"
   },
   {
-    "category": "dns",
-    "tool_name": "subfinder",
-    "description": "Subdomain discovery via passive sources",
-    "phase": "passive"
+    "category": "web",
+    "tool_name": "dirsearch",
+    "description": "Web path discovery with extensions",
+    "phase": "active"
   },
   {
-    "category": "dns",
-    "tool_name": "amass",
-    "description": "In-depth subdomain enumeration",
-    "phase": "passive"
+    "category": "web",
+    "tool_name": "katana",
+    "description": "Web crawler for endpoint discovery",
+    "phase": "active"
   },
   {
-    "category": "dns",
-    "tool_name": "dnsx",
-    "description": "DNS query and resolution tool",
-    "phase": "passive"
-  },
-  {
-    "category": "intelligence",
-    "tool_name": "analyze-target",
-    "description": "AI-driven comprehensive target analysis",
-    "phase": "passive"
+    "category": "web",
+    "tool_name": "wafw00f",
+    "description": "Web application firewall detection",
+    "phase": "active"
   }
 ]

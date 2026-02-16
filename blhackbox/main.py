@@ -685,6 +685,26 @@ async def _do_exploit(session_id: str, allow_poc: bool, output: str | None) -> N
 
 
 # ---------------------------------------------------------------------------
+# mcp serve
+# ---------------------------------------------------------------------------
+
+
+@cli.command("mcp")
+def mcp_serve() -> None:
+    """Start the Blhackbox MCP server (stdio transport).
+
+    Connect any MCP-compatible LLM to Blhackbox for autonomous pentesting.
+    """
+    _run_async(_do_mcp_serve())
+
+
+async def _do_mcp_serve() -> None:
+    from blhackbox.mcp.server import run_server
+
+    await run_server()
+
+
+# ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
 

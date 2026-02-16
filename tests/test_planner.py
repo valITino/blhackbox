@@ -48,10 +48,13 @@ class TestParseLLMResponse:
         assert result["action"] == "stop"
 
     def test_markdown_fenced_json(self) -> None:
-        raw = '```json\n{"action": "run_agent", "agent": "recon", "reasoning": "test"}\n```'
+        raw = (
+            '```json\n{"action": "run_tool", "category": "dns",'
+            ' "tool": "subfinder", "reasoning": "test"}\n```'
+        )
         result = _parse_llm_response(raw)
-        assert result["action"] == "run_agent"
-        assert result["agent"] == "recon"
+        assert result["action"] == "run_tool"
+        assert result["tool"] == "subfinder"
 
     def test_json_with_surrounding_text(self) -> None:
         raw = 'Based on analysis: {"action": "stop", "reasoning": "complete"} is my answer.'

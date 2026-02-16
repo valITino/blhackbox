@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "blhackbox": {
+      "command": "blhackbox",
+      "args": ["mcp"],
+      "env": {}
+    }
+  }
+}

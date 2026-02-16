@@ -1,3 +1,3 @@
-"""Blhackbox – Intelligent orchestration layer for HexStrike AI."""
+"""Blhackbox – Autonomous pentesting intelligence with knowledge graph and MCP."""
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"

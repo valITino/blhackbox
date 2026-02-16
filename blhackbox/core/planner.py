@@ -23,13 +23,6 @@ def _build_default_tools_string() -> str:
     try:
         catalog = load_tools_catalog()
         text = catalog_to_tool_list_string(catalog)
-        # Append the AI agents (these are not tools in the catalogue)
-        text += (
-            "AI Agents:\n"
-            "  - bug_bounty: Autonomous bug bounty agent\n"
-            "  - recon: Dedicated recon agent\n"
-            "  - cve_intel: CVE intelligence agent\n"
-        )
         return text
     except Exception:
         logger.warning("Could not load tools catalogue; using minimal fallback")
@@ -114,7 +107,7 @@ def _parse_llm_response(raw: str) -> dict[str, Any]:
             return {"action": "stop", "reasoning": "Failed to parse planner response"}
 
     action = data.get("action", "stop")
-    if action not in ("run_tool", "run_agent", "stop"):
+    if action not in ("run_tool", "stop"):
         logger.warning("Unknown action '%s', stopping", action)
         return {"action": "stop", "reasoning": f"Unknown action: {action}"}
 
