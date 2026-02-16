@@ -4,8 +4,8 @@ services:
   # -------------------------------------------------------
   hexstrike:
     build:
-      context: ./hexstrike
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: hexstrike.Dockerfile
     container_name: hexstrike
     ports:
       - "127.0.0.1:8888:8888"

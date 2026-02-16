@@ -63,5 +63,5 @@ Makefile
 # Scripts (not needed in production image)
 scripts/
 
-# hexstrike submodule (built separately)
-hexstrike/
+# hexstrike submodule – only needed for hexstrike.Dockerfile build
+# (not excluded; the hexstrike service needs these files in its build context)
