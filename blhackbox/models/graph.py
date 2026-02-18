@@ -22,6 +22,7 @@ class RelationshipType(StrEnum):
     SUBDOMAIN_OF = "SUBDOMAIN_OF"
     LINKED_TO = "LINKED_TO"
     CONTAINS = "CONTAINS"
+    HAS_AGGREGATED_SESSION = "HAS_AGGREGATED_SESSION"
 
 
 # ---------------------------------------------------------------------------
@@ -142,6 +143,55 @@ class TechnologyNode(GraphNode):
         if category:
             props["category"] = category
         super().__init__(merge_value=name, properties=props, **kwargs)
+
+
+class AggregatedSessionNode(GraphNode):
+    """Represents an aggregated pentest session processed by the Ollama pipeline."""
+
+    label: str = "AggregatedSession"
+    merge_key: str = "session_id"
+
+    def __init__(
+        self,
+        session_id: str,
+        target: str = "",
+        scan_timestamp: str = "",
+        tools_run: list[str] | str = "",
+        agents_run: list[str] | str = "",
+        compression_ratio: float = 0.0,
+        ollama_model: str = "",
+        duration_seconds: float = 0.0,
+        warning: str = "",
+        **kwargs: Any,
+    ) -> None:
+        props = kwargs.pop("properties", {})
+        # Neo4j stores lists natively; accept either list[str] or
+        # comma-separated string for backward compatibility.
+        if isinstance(tools_run, list):
+            tools_run_val = tools_run
+        else:
+            tools_run_val = (
+                [t.strip() for t in tools_run.split(",") if t.strip()] if tools_run else []
+            )
+        if isinstance(agents_run, list):
+            agents_run_val = agents_run
+        else:
+            agents_run_val = (
+                [a.strip() for a in agents_run.split(",") if a.strip()] if agents_run else []
+            )
+        props.update(
+            {
+                "target": target,
+                "scan_timestamp": scan_timestamp,
+                "tools_run": tools_run_val,
+                "agents_run": agents_run_val,
+                "compression_ratio": compression_ratio,
+                "ollama_model": ollama_model,
+                "duration_seconds": duration_seconds,
+                "warning": warning,
+            }
+        )
+        super().__init__(merge_value=session_id, properties=props, **kwargs)
 
 
 # ---------------------------------------------------------------------------

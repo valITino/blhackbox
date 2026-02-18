@@ -1,8 +1,22 @@
-"""Unified LLM client with provider fallback (OpenAI -> Anthropic -> Ollama)."""
+"""Unified LLM client — DEPRECATED in blhackbox v2.0.
+
+The new architecture separates concerns:
+  - Claude operates externally as the MCP Host orchestrator
+  - Ollama runs locally as the preprocessing backend, accessed via
+    the blhackbox aggregator MCP server's agent classes
+
+The LLM provider fallback chain (OpenAI -> Anthropic -> Ollama) is no
+longer used.  Claude and Ollama serve distinct, non-interchangeable
+roles.  There is no fallback.
+
+This module is preserved for backwards compatibility with code that
+still imports ``get_llm``.
+"""
 
 from __future__ import annotations
 
 import logging
+import warnings
 from typing import Any
 
 from langchain_core.language_models.chat_models import BaseChatModel
@@ -25,9 +39,21 @@ def _is_openai_reasoning_model(model: str) -> bool:
 def get_llm(settings: Settings | None = None) -> BaseChatModel:
     """Return the first available LLM client based on provider priority.
 
+    .. deprecated:: 2.0
+        The LLM provider fallback chain is deprecated.  Claude operates
+        externally as the MCP Host.  Ollama is accessed directly via the
+        aggregator MCP server's agent classes using httpx.
+
     Tries providers in the order specified by LLM_PROVIDER_PRIORITY.
     Raises LLMProviderError if no provider is available.
     """
+    warnings.warn(
+        "get_llm() is deprecated in blhackbox v2.0. "
+        "Claude operates externally as the MCP Host; "
+        "Ollama is accessed via the aggregator MCP server's agent classes.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     cfg = settings or default_settings
     errors: list[str] = []
 

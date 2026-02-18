@@ -1,12 +1,64 @@
+# blhackbox v2.0 — Modular Docker Infrastructure
+#
+# Usage:
+#   docker compose up                     Start infrastructure + MCP Gateway
+#   docker compose --profile direct up    Start everything (MCP servers run in compose, no Gateway)
+#   docker compose build                  Build all images (including Gateway-managed ones)
+#
+# Claude Desktop:
+#   With Gateway:  {"mcpServers": {"blhackbox": {"transport": "sse", "url": "http://localhost:8080/mcp"}}}
+#   Without:       Use blhackbox-mcp.json directly
+
+networks:
+  blhackbox-net:
+    driver: bridge
+    name: blhackbox-net
+
+volumes:
+  hexstrike_data:
+  neo4j_data:
+  neo4j_logs:
+  ollama_data:
+  portainer_data:
+
 services:
-  # -------------------------------------------------------
-  # HexStrike AI MCP Server – the execution engine
-  # -------------------------------------------------------
+
+  # ── MCP GATEWAY ──────────────────────────────────────────────
+  # Docker MCP Gateway — single MCP entry point for Claude Desktop.
+  # Reads blhackbox-mcp-catalog.yaml and manages MCP server containers.
+  # Docs: https://github.com/docker/mcp-gateway
+  mcp-gateway:
+    image: docker/mcp-gateway:latest
+    container_name: blhackbox-mcp-gateway
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${MCP_GATEWAY_PORT:-8080}:8080"
+    volumes:
+      - ./blhackbox-mcp-catalog.yaml:/catalog.yaml:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: >
+      gateway run
+      --catalog /catalog.yaml
+      --port 8080
+      --transport sse
+    networks:
+      - blhackbox-net
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.0"
+
+  # ── HEXSTRIKE AI MCP SERVER ─────────────────────────────────
   hexstrike:
     build:
       context: .
-      dockerfile: hexstrike.Dockerfile
-    container_name: hexstrike
+      dockerfile: docker/hexstrike.Dockerfile
+    image: blhackbox-hexstrike:latest
+    container_name: blhackbox-hexstrike
+    profiles: [direct]
     ports:
       - "127.0.0.1:8888:8888"
     environment:
@@ -31,21 +83,81 @@ services:
       retries: 5
       start_period: 30s
 
-  # -------------------------------------------------------
-  # Neo4j – knowledge graph for attack surface modeling
-  # -------------------------------------------------------
+  # ── KALI LINUX MCP SERVER ───────────────────────────────────
+  # Community-adapted security tools via MCP (stdio transport).
+  # Uses cap_add for raw sockets (nmap SYN scans) instead of privileged mode.
+  kali-mcp:
+    build:
+      context: .
+      dockerfile: docker/kali-mcp.Dockerfile
+    image: blhackbox-kali-mcp:latest
+    container_name: blhackbox-kali-mcp
+    profiles: [direct]
+    environment:
+      - ALLOWED_TOOLS=nmap,nikto,gobuster,dirb,whatweb,wafw00f,masscan,hydra,sqlmap,wpscan,subfinder,amass,fierce,dnsenum,whois
+    networks:
+      - blhackbox-net
+    restart: unless-stopped
+    cap_add:
+      - NET_RAW       # nmap SYN scans, masscan
+      - NET_ADMIN      # nmap OS detection, traceroute
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: "2.0"
+    healthcheck:
+      test: ["CMD", "which", "nmap"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # ── BLHACKBOX AGGREGATOR MCP SERVER ─────────────────────────
+  # Custom blhackbox component — NOT an official Ollama product.
+  # Dispatches to Ollama preprocessing agents, returns AggregatedPayload.
+  aggregator:
+    build:
+      context: .
+      dockerfile: docker/aggregator.Dockerfile
+    image: blhackbox-aggregator:latest
+    container_name: blhackbox-aggregator
+    profiles: [direct]
+    environment:
+      - OLLAMA_URL=http://blhackbox-ollama:11434
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3.3}
+      - NEO4J_URI=${NEO4J_URI:-bolt://blhackbox-neo4j:7687}
+      - NEO4J_USER=${NEO4J_USER:-neo4j}
+      - NEO4J_PASSWORD=${NEO4J_PASSWORD:-}
+    networks:
+      - blhackbox-net
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: "1.0"
+
+  # ── NEO4J ───────────────────────────────────────────────────
+  # Knowledge graph for attack surface modeling.
   neo4j:
     image: neo4j:5-community
     container_name: blhackbox-neo4j
     ports:
-      - "127.0.0.1:7474:7474"   # HTTP browser – localhost only
-      - "127.0.0.1:7687:7687"   # Bolt protocol – localhost only
+      - "127.0.0.1:7474:7474"   # HTTP browser — localhost only
+      - "127.0.0.1:7687:7687"   # Bolt protocol — localhost only
     environment:
       - NEO4J_AUTH=${NEO4J_USER:-neo4j}/${NEO4J_PASSWORD:?NEO4J_PASSWORD must be set in .env}
       - NEO4J_PLUGINS=["apoc"]
       - NEO4J_apoc_export_file_enabled=true
       - NEO4J_apoc_import_file_enabled=true
       - NEO4J_dbms_security_procedures_unrestricted=apoc.*
+      - NEO4J_dbms_memory_heap_initial__size=512m
+      - NEO4J_dbms_memory_heap_max__size=1G
     volumes:
       - neo4j_data:/data
       - neo4j_logs:/logs
@@ -66,40 +178,69 @@ services:
       retries: 5
       start_period: 30s
 
-  # -------------------------------------------------------
-  # Blhackbox – the intelligence layer
-  # -------------------------------------------------------
+  # ── OLLAMA ──────────────────────────────────────────────────
+  # Local LLM inference backend for the aggregator MCP server.
+  ollama:
+    image: ollama/ollama:latest
+    container_name: blhackbox-ollama
+    ports:
+      - "127.0.0.1:11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - blhackbox-net
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+          cpus: "4.0"
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:11434/api/tags"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+    # GPU support — uncomment if NVIDIA GPU available:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+
+  # ── BLHACKBOX CLI ───────────────────────────────────────────
+  # The intelligence layer — CLI app for recon, reports, tests.
+  # Kept alive for interactive use (make shell, make test, make recon).
   blhackbox:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: docker/blhackbox.Dockerfile
+    image: blhackbox:latest
     container_name: blhackbox
     depends_on:
-      hexstrike:
-        condition: service_healthy
       neo4j:
         condition: service_healthy
     environment:
-      - HEXSTRIKE_URL=${HEXSTRIKE_URL:-http://hexstrike:8888}
+      - HEXSTRIKE_URL=${HEXSTRIKE_URL:-http://blhackbox-hexstrike:8888}
       - HEXSTRIKE_TIMEOUT=${HEXSTRIKE_TIMEOUT:-120}
       - HEXSTRIKE_MAX_RETRIES=${HEXSTRIKE_MAX_RETRIES:-3}
-      - NEO4J_URI=${NEO4J_URI:-bolt://neo4j:7687}
+      - NEO4J_URI=${NEO4J_URI:-bolt://blhackbox-neo4j:7687}
       - NEO4J_USER=${NEO4J_USER:-neo4j}
       - NEO4J_PASSWORD=${NEO4J_PASSWORD:?NEO4J_PASSWORD must be set in .env}
-      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-      - OPENAI_MODEL=${OPENAI_MODEL:-o3}
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
-      - ANTHROPIC_MODEL=${ANTHROPIC_MODEL:-claude-opus-4-20250514}
-      - OLLAMA_URL=${OLLAMA_URL:-http://ollama:11434}
+      - OLLAMA_URL=${OLLAMA_URL:-http://blhackbox-ollama:11434}
       - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3.3}
       - NEO4J_DATABASE=${NEO4J_DATABASE:-neo4j}
-      - LLM_PROVIDER_PRIORITY=${LLM_PROVIDER_PRIORITY:-openai,anthropic,ollama}
       - MAX_ITERATIONS=${MAX_ITERATIONS:-10}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - RESULTS_DIR=/app/results
       - WORDLISTS_DIR=/app/wordlists
     volumes:
-      - ./blhackbox:/app/blhackbox   # live-reload for development
+      - ./blhackbox:/app/blhackbox       # live-reload for development
+      - ./mcp_servers:/app/mcp_servers
       - ./results:/app/results
       - ./wordlists:/app/wordlists:ro
     tmpfs:
@@ -114,38 +255,29 @@ services:
         limits:
           memory: 1G
           cpus: "1.0"
-    # Keep container alive for interactive use
+    # Keep container alive for interactive use (make shell, make test)
     entrypoint: ["tail", "-f", "/dev/null"]
 
-  # -------------------------------------------------------
-  # Ollama – local LLM (optional, for offline use)
-  # -------------------------------------------------------
-  ollama:
-    image: ollama/ollama:latest
-    container_name: blhackbox-ollama
+  # ── PORTAINER CE ────────────────────────────────────────────
+  # Web UI for Docker container management.
+  # WARNING: Mounts Docker socket — anyone with access to the Portainer UI
+  # has effective root on the host. Restrict access in production.
+  # Docs: https://docs.portainer.io
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: blhackbox-portainer
+    restart: always
     ports:
-      - "127.0.0.1:11434:11434"
+      - "127.0.0.1:9443:9443"   # HTTPS
     volumes:
-      - ollama_data:/root/.ollama
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data
     networks:
       - blhackbox-net
-    profiles:
-      - ollama   # Only start with: docker compose --profile ollama up
-    restart: unless-stopped
     security_opt:
       - no-new-privileges:true
     deploy:
       resources:
         limits:
-          memory: 8G
-          cpus: "4.0"
-
-volumes:
-  hexstrike_data:
-  neo4j_data:
-  neo4j_logs:
-  ollama_data:
-
-networks:
-  blhackbox-net:
-    driver: bridge
+          memory: 256M
+          cpus: "0.5"
