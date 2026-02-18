@@ -203,14 +203,19 @@ services:
       timeout: 10s
       retries: 5
       start_period: 20s
-    # GPU support — uncomment if NVIDIA GPU available:
-    # deploy:
-    #   resources:
-    #     reservations:
-    #       devices:
-    #         - driver: nvidia
-    #           count: all
-    #           capabilities: [gpu]
+    # GPU support — to enable, add the following block INSIDE deploy.resources
+    # (merge with the existing limits above, do NOT duplicate the deploy key):
+    #
+    #   deploy:
+    #     resources:
+    #       limits:
+    #         memory: 8G
+    #         cpus: "4.0"
+    #       reservations:
+    #         devices:
+    #           - driver: nvidia
+    #             count: all
+    #             capabilities: [gpu]
 
   # ── BLHACKBOX CLI ───────────────────────────────────────────
   # The intelligence layer — CLI app for recon, reports, tests.
