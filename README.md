@@ -174,19 +174,22 @@ An Anthropic API key is only needed if you use the deprecated `--ai` orchestrato
 
 ---
 
-### Option A — Docker Pull (CLI image only)
+### Option A — Docker Pull (quickest)
 
-Pull the pre-built **blhackbox CLI image** from Docker Hub. This is the only image published to Docker Hub — all other service images (HexStrike, Kali MCP, Aggregator) are built locally from source.
+Pull the pre-built images directly from Docker Hub — all 4 service images are published under `crhacky/blhackbox` with tag prefixes:
 
 ```bash
-docker pull crhacky/blhackbox:latest
+docker pull crhacky/blhackbox:latest              # CLI
+docker pull crhacky/blhackbox:hexstrike-latest     # HexStrike MCP Server
+docker pull crhacky/blhackbox:kali-mcp-latest      # Kali Linux MCP Server
+docker pull crhacky/blhackbox:aggregator-latest    # Aggregator MCP Server
 
-# Verify the image works
-docker run --rm crhacky/blhackbox --help
-docker run --rm crhacky/blhackbox version
+# Verify the CLI image works
+docker run --rm crhacky/blhackbox:latest --help
+docker run --rm crhacky/blhackbox:latest version
 ```
 
-> This gives you the CLI image only. For the full stack (Neo4j, Ollama, HexStrike, Kali MCP, Aggregator, MCP Gateway), use Option B.
+> These are the individual service images. For the full running stack (Neo4j, Ollama, MCP Gateway, Portainer), use Option B.
 
 ### Option B — Clone and Build (full stack)
 
@@ -227,12 +230,11 @@ ANTHROPIC_API_KEY=sk-ant-...
 #### 3. Build and run
 
 ```bash
-make build       # Build the blhackbox CLI image
-make up          # Start infrastructure (Neo4j, Ollama, MCP Gateway, Portainer, blhackbox)
+make up          # Start infrastructure (pulls images from Docker Hub, starts Neo4j, Ollama, MCP Gateway, Portainer, blhackbox)
 make ollama-pull # Pull the Ollama model (required — preprocessing won't work without it)
 ```
 
-> **MCP servers (HexStrike, Kali, Aggregator):** By default these are managed by the MCP Gateway. To run them directly in compose instead, use `make up-direct`. These images must be built locally with `make build-all` — they are not published to Docker Hub.
+> **MCP servers (HexStrike, Kali, Aggregator):** By default these are managed by the MCP Gateway. To run them directly in compose instead, use `make up-direct`. For local development, use `make build-all` to build images from source instead of pulling from Docker Hub.
 
 #### 4. Run your first recon
 
@@ -364,7 +366,7 @@ make report SESSION=<id>       # Generate PDF report for a session
 blhackbox/
 ├── .github/workflows/
 │   ├── ci.yml                       # Lint, test, and pip-audit
-│   └── build-and-push.yml           # CLI image build and push to Docker Hub (blhackbox only)
+│   └── build-and-push.yml           # Build and push all 4 service images to Docker Hub
 ├── docker/                          # Dockerfiles (one per service)
 │   ├── blhackbox.Dockerfile         # Multi-stage CLI image (Python 3.13)
 │   ├── hexstrike.Dockerfile         # HexStrike MCP Server image
@@ -570,23 +572,26 @@ Runs on every push to `main`/`master` and all pull requests:
 
 Triggers on merged PRs, version tags (`v*`), and manual dispatch:
 
-1. Builds the **blhackbox CLI image only** from `docker/blhackbox.Dockerfile`
-2. Runs Docker Scout vulnerability scan
-3. Pushes to [Docker Hub](https://hub.docker.com/r/crhacky/blhackbox) with tags: `latest`, `x.y.z`, `x.y`, `main`, `<commit-sha>`
+1. Builds **all 4 service images** in parallel using a matrix strategy (CLI, HexStrike, Kali MCP, Aggregator)
+2. Pushes all images to [Docker Hub](https://hub.docker.com/r/crhacky/blhackbox) under `crhacky/blhackbox` with service-prefixed tags
+3. Runs Docker Scout vulnerability scan on the CLI image
 
-> **Only the `crhacky/blhackbox` CLI image is published to Docker Hub.** The other service images (HexStrike, Kali MCP, Aggregator) are built locally from their respective Dockerfiles in `docker/` — they are not pushed to any registry. Use `make build-all` to build them.
+Each service uses a tag prefix: CLI gets `latest`, `x.y.z`, etc.; HexStrike gets `hexstrike-latest`, `hexstrike-x.y.z`, etc.
 
 ```bash
-# Pull the latest CLI image
+# Pull all service images
 docker pull crhacky/blhackbox:latest
+docker pull crhacky/blhackbox:hexstrike-latest
+docker pull crhacky/blhackbox:kali-mcp-latest
+docker pull crhacky/blhackbox:aggregator-latest
 ```
 
 ```
 PR opened  ───>  CI (lint + test + audit)
                       │
-PR merged  ───>  CI  ───>  Build & Push  ───>  Docker Hub
+PR merged  ───>  CI  ───>  Build & Push (4 images)  ───>  Docker Hub
                            (on CI success)
-Tag v*     ──────────────>  Build & Push  ───>  Docker Hub
+Tag v*     ──────────────>  Build & Push (4 images)  ───>  Docker Hub
 ```
 
 ---

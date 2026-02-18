@@ -3,7 +3,7 @@
 # Usage:
 #   docker compose up                     Start infrastructure + MCP Gateway
 #   docker compose --profile direct up    Start everything (MCP servers run in compose, no Gateway)
-#   docker compose build                  Build all images (including Gateway-managed ones)
+#   docker compose build                  Build all images locally (for development)
 #
 # Claude Desktop:
 #   With Gateway:  {"mcpServers": {"blhackbox": {"transport": "sse", "url": "http://localhost:8080/mcp"}}}
@@ -56,7 +56,7 @@ services:
     build:
       context: .
       dockerfile: docker/hexstrike.Dockerfile
-    image: blhackbox-hexstrike:latest
+    image: crhacky/blhackbox:hexstrike-latest
     container_name: blhackbox-hexstrike
     profiles: [direct]
     ports:
@@ -90,7 +90,7 @@ services:
     build:
       context: .
       dockerfile: docker/kali-mcp.Dockerfile
-    image: blhackbox-kali-mcp:latest
+    image: crhacky/blhackbox:kali-mcp-latest
     container_name: blhackbox-kali-mcp
     profiles: [direct]
     environment:
@@ -122,7 +122,7 @@ services:
     build:
       context: .
       dockerfile: docker/aggregator.Dockerfile
-    image: blhackbox-aggregator:latest
+    image: crhacky/blhackbox:aggregator-latest
     container_name: blhackbox-aggregator
     profiles: [direct]
     environment:
@@ -224,7 +224,7 @@ services:
     build:
       context: .
       dockerfile: docker/blhackbox.Dockerfile
-    image: blhackbox:latest
+    image: crhacky/blhackbox:latest
     container_name: blhackbox
     depends_on:
       neo4j:
