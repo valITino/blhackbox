@@ -12,6 +12,7 @@ from blhackbox.config import Settings
 from blhackbox.config import settings as default_settings
 from blhackbox.exceptions import GraphError
 from blhackbox.models.graph import (
+    AggregatedSessionNode,
     DomainNode,
     FindingNode,
     GraphNode,
@@ -236,6 +237,43 @@ class KnowledgeGraphClient:
         sub = await self.merge_domain(subdomain)
         parent = await self.merge_domain(parent_domain)
         await self.create_relationship(sub, RelationshipType.SUBDOMAIN_OF, parent)
+
+    async def merge_aggregated_session(
+        self,
+        session_id: str,
+        target_value: str,
+        scan_timestamp: str = "",
+        tools_run: str = "",
+        agents_run: str = "",
+        compression_ratio: float = 0.0,
+        ollama_model: str = "",
+        duration_seconds: float = 0.0,
+        warning: str = "",
+    ) -> AggregatedSessionNode:
+        """Merge an AggregatedSession node and link it to a target."""
+        node = AggregatedSessionNode(
+            session_id=session_id,
+            target=target_value,
+            scan_timestamp=scan_timestamp,
+            tools_run=tools_run,
+            agents_run=agents_run,
+            compression_ratio=compression_ratio,
+            ollama_model=ollama_model,
+            duration_seconds=duration_seconds,
+            warning=warning,
+        )
+        await self.merge_node(node)
+
+        # Link to domain or IP
+        if _looks_like_ip(target_value):
+            parent = IPAddressNode(address=target_value)
+        else:
+            parent = DomainNode(name=target_value)
+        await self.merge_node(parent)
+        await self.create_relationship(
+            parent, RelationshipType.HAS_AGGREGATED_SESSION, node
+        )
+        return node
 
     # -- query helpers -------------------------------------------------------
 

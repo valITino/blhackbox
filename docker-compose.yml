@@ -67,6 +67,34 @@ services:
       start_period: 30s
 
   # -------------------------------------------------------
+  # Kali Linux MCP Server – community-adapted security tools
+  # Based on k3nn3dy-ai/kali-mcp (Docker + SSE + allowlist)
+  # -------------------------------------------------------
+  kali-mcp:
+    build:
+      context: ./kali-mcp
+      dockerfile: Dockerfile
+    container_name: blhackbox-kali-mcp
+    environment:
+      - ALLOWED_TOOLS=nmap,nikto,gobuster,dirb,whatweb,wafw00f,masscan,hydra,sqlmap,wpscan,subfinder,amass,fierce,dnsenum,whois
+    networks:
+      - blhackbox-net
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: "2.0"
+    healthcheck:
+      test: ["CMD", "which", "nmap"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # -------------------------------------------------------
   # Blhackbox – the intelligence layer
   # -------------------------------------------------------
   blhackbox:
@@ -86,20 +114,16 @@ services:
       - NEO4J_URI=${NEO4J_URI:-bolt://neo4j:7687}
       - NEO4J_USER=${NEO4J_USER:-neo4j}
       - NEO4J_PASSWORD=${NEO4J_PASSWORD:?NEO4J_PASSWORD must be set in .env}
-      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-      - OPENAI_MODEL=${OPENAI_MODEL:-o3}
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
-      - ANTHROPIC_MODEL=${ANTHROPIC_MODEL:-claude-opus-4-20250514}
       - OLLAMA_URL=${OLLAMA_URL:-http://ollama:11434}
       - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3.3}
       - NEO4J_DATABASE=${NEO4J_DATABASE:-neo4j}
-      - LLM_PROVIDER_PRIORITY=${LLM_PROVIDER_PRIORITY:-openai,anthropic,ollama}
       - MAX_ITERATIONS=${MAX_ITERATIONS:-10}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - RESULTS_DIR=/app/results
       - WORDLISTS_DIR=/app/wordlists
     volumes:
       - ./blhackbox:/app/blhackbox   # live-reload for development
+      - ./mcp_servers:/app/mcp_servers
       - ./results:/app/results
       - ./wordlists:/app/wordlists:ro
     tmpfs:
@@ -118,7 +142,8 @@ services:
     entrypoint: ["tail", "-f", "/dev/null"]
 
   # -------------------------------------------------------
-  # Ollama – local LLM (optional, for offline use)
+  # Ollama – local LLM preprocessing backend
+  # Required for the blhackbox aggregator MCP server
   # -------------------------------------------------------
   ollama:
     image: ollama/ollama:latest
@@ -129,8 +154,6 @@ services:
       - ollama_data:/root/.ollama
     networks:
       - blhackbox-net
-    profiles:
-      - ollama   # Only start with: docker compose --profile ollama up
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true

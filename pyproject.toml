@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "blhackbox"
-version = "1.1.0"
-description = "Autonomous pentesting intelligence layer with knowledge graph and MCP server"
+version = "2.0.0"
+description = "MCP-based autonomous pentesting with knowledge graph and Ollama preprocessing"
 readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.11"

@@ -22,6 +22,7 @@ class RelationshipType(StrEnum):
     SUBDOMAIN_OF = "SUBDOMAIN_OF"
     LINKED_TO = "LINKED_TO"
     CONTAINS = "CONTAINS"
+    HAS_AGGREGATED_SESSION = "HAS_AGGREGATED_SESSION"
 
 
 # ---------------------------------------------------------------------------
@@ -142,6 +143,41 @@ class TechnologyNode(GraphNode):
         if category:
             props["category"] = category
         super().__init__(merge_value=name, properties=props, **kwargs)
+
+
+class AggregatedSessionNode(GraphNode):
+    """Represents an aggregated pentest session processed by the Ollama pipeline."""
+
+    label: str = "AggregatedSession"
+    merge_key: str = "session_id"
+
+    def __init__(
+        self,
+        session_id: str,
+        target: str = "",
+        scan_timestamp: str = "",
+        tools_run: str = "",
+        agents_run: str = "",
+        compression_ratio: float = 0.0,
+        ollama_model: str = "",
+        duration_seconds: float = 0.0,
+        warning: str = "",
+        **kwargs: Any,
+    ) -> None:
+        props = kwargs.pop("properties", {})
+        props.update(
+            {
+                "target": target,
+                "scan_timestamp": scan_timestamp,
+                "tools_run": tools_run,
+                "agents_run": agents_run,
+                "compression_ratio": compression_ratio,
+                "ollama_model": ollama_model,
+                "duration_seconds": duration_seconds,
+                "warning": warning,
+            }
+        )
+        super().__init__(merge_value=session_id, properties=props, **kwargs)
 
 
 # ---------------------------------------------------------------------------

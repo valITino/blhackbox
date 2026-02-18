@@ -1,9 +1,35 @@
 {
   "mcpServers": {
+    "kali": {
+      "command": "docker",
+      "args": ["run", "-i", "--rm", "--network", "blhackbox_blhackbox-net", "blhackbox-kali-mcp"],
+      "description": "Kali Linux security tools — community MCP server adapted for blhackbox"
+    },
+    "hexstrike": {
+      "command": "python3",
+      "args": ["hexstrike/hexstrike_mcp.py"],
+      "env": {
+        "HEXSTRIKE_URL": "http://localhost:8888"
+      },
+      "description": "HexStrike AI MCP Server — github.com/0x4m4/hexstrike-ai (150+ tools, 12+ security execution agents)"
+    },
+    "blhackbox-aggregator": {
+      "command": "python3",
+      "args": ["mcp_servers/blhackbox_aggregator_mcp.py"],
+      "env": {
+        "OLLAMA_URL": "http://localhost:11434",
+        "OLLAMA_MODEL": "llama3.3",
+        "NEO4J_URI": "${NEO4J_URI}",
+        "NEO4J_USER": "${NEO4J_USER}",
+        "NEO4J_PASSWORD": "${NEO4J_PASSWORD}"
+      },
+      "description": "blhackbox custom aggregator MCP server — NOT an official Ollama product. Orchestrates local Ollama preprocessing agents to clean raw pentest data before Claude analysis."
+    },
     "blhackbox": {
       "command": "blhackbox",
       "args": ["mcp"],
-      "env": {}
+      "env": {},
+      "description": "blhackbox core MCP server — recon, tool execution, graph queries, report generation"
     }
   }
 }

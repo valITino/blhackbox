@@ -12,7 +12,7 @@ class TestCLI:
         runner = CliRunner()
         result = runner.invoke(cli, ["version"])
         assert result.exit_code == 0
-        assert "1.0.0" in result.output
+        assert "2.0.0" in result.output
 
     def test_recon_without_authorized(self) -> None:
         runner = CliRunner()

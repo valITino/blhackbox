@@ -1,3 +1,3 @@
-"""Blhackbox – Autonomous pentesting intelligence with knowledge graph and MCP."""
+"""Blhackbox – MCP-based autonomous pentesting with knowledge graph and Ollama preprocessing."""
 
-__version__ = "1.1.0"
+__version__ = "2.0.0"

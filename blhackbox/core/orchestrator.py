@@ -1,8 +1,13 @@
-"""LangGraph-based AI orchestrator for autonomous reconnaissance.
+"""LangGraph-based state machine for autonomous reconnaissance.
 
-The orchestrator builds a state graph with four nodes and one conditional edge:
+The orchestrator tracks scan stages (recon -> scan -> enumerate -> aggregate
+-> report) as a pure state machine.  It does NOT make LLM decisions internally
+— Claude operates externally as the MCP Host orchestrator, and Ollama is the
+local preprocessor accessed via the blhackbox aggregator MCP server.
+
+State graph nodes:
   1. gather_state  – query the knowledge graph for current findings
-  2. plan          – ask the LLM planner for the next action
+  2. plan          – select the next tool from the predefined tool sequence
   3. execute       – call HexStrike to run the selected tool/agent
   4. analyze       – store results in the knowledge graph, update state
   *  decide        – conditional edge: continue or stop
@@ -20,7 +25,6 @@ from blhackbox.clients.hexstrike_client import HexStrikeClient
 from blhackbox.config import settings
 from blhackbox.core.graph_exporter import GraphExporter
 from blhackbox.core.knowledge_graph import KnowledgeGraphClient
-from blhackbox.core.planner import Planner
 from blhackbox.core.runner import save_session
 from blhackbox.exceptions import (
     BlhackboxError,
@@ -28,11 +32,34 @@ from blhackbox.exceptions import (
     HexStrikeAPIError,
     HexStrikeConnectionError,
     HexStrikeTimeoutError,
-    LLMProviderError,
 )
 from blhackbox.models.base import Finding, ScanSession, Severity, Target
+from blhackbox.utils.catalog import get_full_pentest_order, load_tools_catalog
 
 logger = logging.getLogger("blhackbox.core.orchestrator")
+
+
+# ---------------------------------------------------------------------------
+# Default tool sequence for autonomous scanning
+# ---------------------------------------------------------------------------
+
+def _get_default_tool_sequence() -> list[dict[str, str]]:
+    """Build the default tool execution sequence from the catalogue.
+
+    Falls back to a minimal hardcoded sequence if the catalogue is unavailable.
+    """
+    try:
+        catalog = load_tools_catalog()
+        return get_full_pentest_order(catalog)
+    except Exception:
+        logger.warning("Could not load tools catalogue; using minimal fallback sequence")
+        return [
+            {"category": "dns", "tool_name": "subfinder"},
+            {"category": "network", "tool_name": "nmap"},
+            {"category": "web", "tool_name": "nikto"},
+            {"category": "web", "tool_name": "gobuster"},
+            {"category": "intelligence", "tool_name": "analyze-target"},
+        ]
 
 
 # ---------------------------------------------------------------------------
@@ -49,6 +76,7 @@ class OrchestratorState(TypedDict):
     max_iterations: int
     should_stop: bool
     error: str
+    tool_sequence: list[dict[str, str]]
 
 
 # ---------------------------------------------------------------------------
@@ -85,31 +113,45 @@ async def gather_state(state: OrchestratorState) -> OrchestratorState:
 
 
 async def plan(state: OrchestratorState) -> OrchestratorState:
-    """Use the LLM planner to decide the next action."""
-    planner = Planner(max_iterations=state["max_iterations"])
+    """Select the next tool from the predefined tool sequence.
 
-    try:
-        decision = await planner.decide_next(
-            target=state["target"],
-            iteration=state["iteration"],
-            completed_tools=state["completed_tools"],
-            findings_summary=state["findings_summary"],
-        )
-    except (LLMProviderError, BlhackboxError, ValueError, OSError) as exc:
-        logger.error("Planner failed: %s", exc)
-        state["pending_action"] = {"action": "stop", "reasoning": f"Planner error: {exc}"}
-        state["should_stop"] = True
-        return state
+    No LLM is involved — the state machine walks through the tool sequence
+    in order, skipping tools that have already been executed or failed.
+    """
+    iteration = state["iteration"]
+    tool_sequence = state["tool_sequence"]
+    completed = set(state["completed_tools"])
 
-    state["pending_action"] = decision
-    if decision.get("action") == "stop":
+    # Find the next tool that hasn't been run yet
+    action: dict[str, Any] | None = None
+    for entry in tool_sequence:
+        tool_id = f"{entry['category']}/{entry['tool_name']}"
+        # Skip already completed or failed tools
+        if any(tool_id in c for c in completed):
+            continue
+        action = {
+            "action": "run_tool",
+            "category": entry["category"],
+            "tool": entry["tool_name"],
+            "params": {},
+            "reasoning": f"Next tool in sequence: {tool_id}",
+        }
+        break
+
+    if action is None or iteration >= state["max_iterations"]:
+        state["pending_action"] = {
+            "action": "stop",
+            "reasoning": "All tools in sequence completed or max iterations reached",
+        }
         state["should_stop"] = True
+    else:
+        state["pending_action"] = action
 
     logger.info(
-        "Planner decision (iter %d): %s – %s",
-        state["iteration"],
-        decision.get("action"),
-        decision.get("reasoning", ""),
+        "Plan (iter %d): %s – %s",
+        iteration,
+        state["pending_action"].get("action"),
+        state["pending_action"].get("reasoning", ""),
     )
     return state
 
@@ -180,6 +222,7 @@ async def execute(state: OrchestratorState) -> OrchestratorState:
             HexStrikeAPIError,
             HexStrikeConnectionError,
             HexStrikeTimeoutError,
+            BlhackboxError,
             ValueError,
             OSError,
         ) as exc:
@@ -278,9 +321,18 @@ def build_orchestrator_graph() -> StateGraph:
 async def run_orchestrated_recon(target: str) -> ScanSession:
     """Run the full autonomous recon workflow.
 
+    Uses a predefined tool sequence (from the catalogue) instead of an LLM
+    planner.  Claude operates as the external MCP Host orchestrator.
+
     Returns a completed ScanSession with all findings.
     """
     session = ScanSession(target=Target(value=target))
+    tool_sequence = _get_default_tool_sequence()
+
+    # Cap to max_iterations
+    cap = settings.max_iterations
+    if len(tool_sequence) > cap:
+        tool_sequence = tool_sequence[:cap]
 
     initial_state: OrchestratorState = {
         "target": target,
@@ -289,9 +341,10 @@ async def run_orchestrated_recon(target: str) -> ScanSession:
         "completed_tools": [],
         "pending_action": {},
         "iteration": 0,
-        "max_iterations": settings.max_iterations,
+        "max_iterations": cap,
         "should_stop": False,
         "error": "",
+        "tool_sequence": tool_sequence,
     }
 
     graph = build_orchestrator_graph()
