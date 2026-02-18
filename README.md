@@ -41,44 +41,56 @@ Blhackbox is an intelligent orchestration and correlation layer that sits on top
 ## Architecture
 
 ```
-┌─────────────────┐     ┌─────────────────────────────────────┐
-│   AI Client     │     │         Blhackbox Layer              │
-│ (Claude/Cursor) │────>│  ┌─────────────────────────────┐    │
-└─────────────────┘     │  │   LangGraph Orchestrator     │    │
-                        │  │   (plan -> execute -> analyze)│    │
-                        │  └──────────────┬──────────────┘    │
-                        │                 v                    │
-                        │  ┌─────────────────────────────┐    │
-                        │  │    Knowledge Graph (Neo4j)   │    │
-                        │  │   Persistent attack surface  │    │
-                        │  └──────────────┬──────────────┘    │
-                        │                 v                    │
-                        │  ┌─────────────────────────────┐    │
-                        │  │   HexStrike API Client       │    │
-                        │  │   + Custom Module Bridge     │    │
-                        │  └──────────────┬──────────────┘    │
-                        │                 │                    │
-                        │  ┌─────────────────────────────┐    │
-                        │  │   Reporting Engine           │    │
-                        │  │   (PDF + HTML)               │    │
-                        │  └─────────────────────────────┘    │
-                        └─────────────────┼───────────────────┘
-                                          v
-                        ┌─────────────────────────────────────┐
-                        │     HexStrike MCP Server            │
-                        │  (150+ tools, 12+ AI agents)        │
-                        └─────────────────────────────────────┘
+┌─────────────────┐
+│   Claude         │   (External MCP Host — orchestrator & final analysis)
+│ (Claude Desktop/ │
+│  Cursor / CLI)   │
+└────────┬────────┘
+         │ MCP protocol
+         v
+┌──────────────────────────────────────────────────────────────┐
+│                    MCP Gateway (Docker)                       │
+│              Single entry point for all MCP servers           │
+└──┬─────────────────┬─────────────────┬───────────────────────┘
+   │                 │                 │
+   v                 v                 v
+┌──────────┐  ┌────────────┐  ┌───────────────────┐
+│ HexStrike│  │ Kali MCP   │  │ Aggregator MCP    │
+│ MCP      │  │ Server     │  │ Server            │
+│ (150+    │  │ (15 Kali   │  │ (Ollama-powered   │
+│  tools)  │  │  tools)    │  │  preprocessing)   │
+└──────────┘  └────────────┘  └────────┬──────────┘
+                                       │ HTTP /api/chat
+                                       v
+                              ┌────────────────────┐
+                              │  Ollama (REQUIRED)  │
+                              │  Local LLM backend  │
+                              │  (e.g. llama3.3)    │
+                              └────────────────────┘
+
+                        ┌────────────────────────────┐
+                        │    Neo4j Knowledge Graph    │
+                        │    Persistent attack surface│
+                        └────────────────────────────┘
+
+                        ┌────────────────────────────┐
+                        │    Blhackbox CLI            │
+                        │    Recon · Reports · Tools  │
+                        └────────────────────────────┘
 ```
 
-### Orchestrator Flow
+### How It Works (v2.0)
 
-The LangGraph state machine follows this cycle:
+In v2.0, Claude and Ollama serve distinct, non-interchangeable roles:
 
-```
-gather_state -> plan -> execute -> analyze -> decide (continue / stop)
-```
+1. **Claude** operates externally as the MCP Host — it orchestrates tool calls, performs final analysis, and generates reports
+2. **MCP Gateway** routes Claude's tool calls to the appropriate MCP server (HexStrike, Kali, Aggregator)
+3. **HexStrike MCP** and **Kali MCP** execute security tools and return raw output
+4. **Aggregator MCP** dispatches raw tool output to specialized Python agent classes (recon, network, vuln, web, error_log), each of which calls **Ollama** for local LLM preprocessing, then assembles the results into a structured `AggregatedPayload`
+5. **Ollama** is the mandatory local LLM inference backend — all preprocessing agents call it directly via `/api/chat`
+6. **Neo4j** stores the persistent knowledge graph of discovered assets and findings
 
-Each iteration queries the knowledge graph for context, uses the LLM planner to decide the next action, executes it via HexStrike, stores results back in the graph, and decides whether to continue or stop (up to `MAX_ITERATIONS`).
+> The old LLM provider fallback chain (`openai → anthropic → ollama`) from v1 is **deprecated**. Claude and Ollama now serve completely separate roles with no fallback between them.
 
 ---
 
@@ -87,7 +99,7 @@ Each iteration queries the knowledge graph for context, uses the LLM planner to 
 | Capability | Description |
 |---|---|
 | **Knowledge Graph** | Neo4j-powered persistent attack surface model with nodes for domains, IPs, ports, services, findings, and vulnerabilities |
-| **AI Orchestrator** | LangGraph-based autonomous tool/agent selection with multi-provider LLM support (OpenAI, Anthropic, Ollama) |
+| **AI Orchestrator** | Claude operates as the external MCP Host; Ollama powers local preprocessing agents via the Aggregator MCP server |
 | **Professional Reporting** | PDF and HTML reports with dark theme, interactive findings tables, and severity distribution charts |
 | **Custom Module Bridge** | Extend HexStrike with custom Python modules without modifying the upstream project |
 | **Tools Catalog** | Built-in catalog of 67+ tools across network, web, DNS, and intelligence categories |
@@ -125,44 +137,46 @@ Blhackbox uses Neo4j as its persistent knowledge graph. You need a Neo4j instanc
 
 > **Alternatively**, you can use the local Neo4j Docker container included in `docker-compose.yml` — no Aura account required. Just set `NEO4J_URI=bolt://blhackbox-neo4j:7687` and a strong `NEO4J_PASSWORD` in your `.env`.
 
-#### OpenAI Account (ChatGPT / GPT API)
+#### Ollama (Required — Local Preprocessing Backend)
 
-An OpenAI API key is required if you want to use OpenAI models (default provider) for the AI orchestrator:
+Ollama is **mandatory** in blhackbox v2.0. All preprocessing agents in the Aggregator MCP server call Ollama's `/api/chat` endpoint to parse and structure raw tool output before it reaches Claude for final analysis.
+
+1. **No account required** — Ollama runs entirely locally, no API key needed
+2. Ollama starts automatically with `docker compose up -d` (included in the default stack)
+3. After starting, pull a model: `make ollama-pull` (defaults to `llama3.3`)
+4. **Default model:** `llama3.3`
+
+> **Important:** Without Ollama running and a model pulled, the Aggregator MCP server cannot preprocess tool output. The preprocessing pipeline will return empty results.
+
+#### OpenAI Account (Optional — deprecated `--ai` mode)
+
+An OpenAI API key is only needed if you use the deprecated `--ai` orchestrator mode:
 
 1. **Create an OpenAI account** at [platform.openai.com](https://platform.openai.com/)
 2. **Add billing** — go to **Settings > Billing** and add a payment method (API usage is pay-per-use)
 3. **Generate an API key** — go to **API Keys** ([platform.openai.com/api-keys](https://platform.openai.com/api-keys)), click **"Create new secret key"**, and copy it
 4. **Paste the key** into your `.env` file as `OPENAI_API_KEY`
-5. **Default model:** `o3` (OpenAI's most capable reasoning model)
+5. **Default model:** `o3`
 
-> Note: The `o3` model requires Tier 3+ API access. If you don't have access, set `OPENAI_MODEL=gpt-4o` as a fallback.
+> Note: In v2.0, Claude operates externally as the MCP Host. The OpenAI key is only used by the deprecated `get_llm()` fallback chain in `--ai` mode.
 
-#### Anthropic Account (Claude API)
+#### Anthropic Account (Optional — deprecated `--ai` mode)
 
-An Anthropic API key is required if you want to use Claude models for the AI orchestrator:
+An Anthropic API key is only needed if you use the deprecated `--ai` orchestrator mode:
 
 1. **Create an Anthropic account** at [console.anthropic.com](https://console.anthropic.com/)
 2. **Add billing** — go to **Settings > Billing** and add a payment method
 3. **Generate an API key** — go to **API Keys** ([console.anthropic.com/settings/keys](https://console.anthropic.com/settings/keys)), click **"Create Key"**, and copy it
 4. **Paste the key** into your `.env` file as `ANTHROPIC_API_KEY`
-5. **Default model:** `claude-opus-4-20250514` (Anthropic's most capable model)
+5. **Default model:** `claude-opus-4-20250514`
 
-#### Ollama (Optional — Local LLM)
-
-For offline or free local inference, you can use Ollama instead of cloud providers:
-
-1. **No account required** — Ollama runs entirely locally
-2. Ollama starts automatically with `docker compose up -d` (included in the default stack)
-3. Pull a model: `make ollama-pull` (defaults to `llama3.3`)
-4. **Default model:** `llama3.3`
-
-> **Provider priority:** By default, Blhackbox tries providers in this order: `openai → anthropic → ollama`. You only need **at least one** configured provider for the AI orchestrator. You can change the priority via `LLM_PROVIDER_PRIORITY` in `.env`.
+> Note: In v2.0, Claude is the MCP Host and does not need an API key configured inside blhackbox — it connects externally via MCP protocol. The Anthropic key here is only used by the deprecated `get_llm()` fallback chain.
 
 ---
 
-### Option A — Docker Pull (quickest)
+### Option A — Docker Pull (CLI image only)
 
-Pull the pre-built image directly from Docker Hub — no clone required:
+Pull the pre-built **blhackbox CLI image** from Docker Hub. This is the only image published to Docker Hub — all other service images (HexStrike, Kali MCP, Aggregator) are built locally from source.
 
 ```bash
 docker pull crhacky/blhackbox:latest
@@ -172,7 +186,7 @@ docker run --rm crhacky/blhackbox --help
 docker run --rm crhacky/blhackbox version
 ```
 
-> This gives you the CLI image only. For the full stack (Neo4j, HexStrike, Ollama, MCP Gateway), use Option B.
+> This gives you the CLI image only. For the full stack (Neo4j, Ollama, HexStrike, Kali MCP, Aggregator, MCP Gateway), use Option B.
 
 ### Option B — Clone and Build (full stack)
 
@@ -201,7 +215,11 @@ NEO4J_DATABASE=neo4j
 AURA_INSTANCEID=your-aura-instance-id              # from Aura console (optional)
 AURA_INSTANCENAME=Blhackbox                        # your instance name (optional)
 
-# At least one LLM provider API key
+# Ollama — REQUIRED (local preprocessing backend)
+OLLAMA_URL=http://blhackbox-ollama:11434            # default, no change needed for Docker
+OLLAMA_MODEL=llama3.3                               # model used by all preprocessing agents
+
+# Cloud LLM keys — OPTIONAL (only for deprecated --ai orchestrator mode)
 OPENAI_API_KEY=sk-...
 ANTHROPIC_API_KEY=sk-ant-...
 ```
@@ -211,9 +229,10 @@ ANTHROPIC_API_KEY=sk-ant-...
 ```bash
 make build       # Build the blhackbox CLI image
 make up          # Start infrastructure (Neo4j, Ollama, MCP Gateway, Portainer, blhackbox)
+make ollama-pull # Pull the Ollama model (required — preprocessing won't work without it)
 ```
 
-> **MCP servers (HexStrike, Kali, Aggregator):** By default these are managed by the MCP Gateway. To run them directly in compose instead, use `make up-direct`.
+> **MCP servers (HexStrike, Kali, Aggregator):** By default these are managed by the MCP Gateway. To run them directly in compose instead, use `make up-direct`. These images must be built locally with `make build-all` — they are not published to Docker Hub.
 
 #### 4. Run your first recon
 
@@ -345,7 +364,7 @@ make report SESSION=<id>       # Generate PDF report for a session
 blhackbox/
 ├── .github/workflows/
 │   ├── ci.yml                       # Lint, test, and pip-audit
-│   └── build-and-push.yml           # Docker image build and push to Docker Hub
+│   └── build-and-push.yml           # CLI image build and push to Docker Hub (blhackbox only)
 ├── docker/                          # Dockerfiles (one per service)
 │   ├── blhackbox.Dockerfile         # Multi-stage CLI image (Python 3.13)
 │   ├── hexstrike.Dockerfile         # HexStrike MCP Server image
@@ -367,8 +386,8 @@ blhackbox/
 │   ├── main.py                      # CLI entry point (Click)
 │   ├── config.py                    # Pydantic settings
 │   ├── exceptions.py                # Custom exception hierarchy
-│   ├── agents/                      # AI agent implementations
-│   │   ├── base_agent.py            # Abstract base agent
+│   ├── agents/                      # Ollama preprocessing agents
+│   │   ├── base_agent.py            # Abstract base agent (calls Ollama /api/chat)
 │   │   ├── web_agent.py             # Web reconnaissance agent
 │   │   ├── vuln_agent.py            # Vulnerability analysis agent
 │   │   ├── network_agent.py         # Network reconnaissance agent
@@ -394,7 +413,7 @@ blhackbox/
 │   │   ├── planner.py               # LLM-based action planner
 │   │   └── exploit_generator.py     # Exploit generation module
 │   ├── llm/
-│   │   ├── client.py                # Multi-provider LLM client
+│   │   ├── client.py                # Multi-provider LLM client (DEPRECATED in v2.0)
 │   │   ├── prompts.py               # System/user prompts
 │   │   └── exploit_prompts.py       # Exploit-related prompts
 │   ├── mcp/
@@ -480,13 +499,13 @@ All settings are loaded from environment variables or `.env` via Pydantic Settin
 | `NEO4J_DATABASE` | `neo4j` | Neo4j database name |
 | `AURA_INSTANCEID` | *(optional)* | Neo4j Aura instance ID (informational) |
 | `AURA_INSTANCENAME` | *(optional)* | Neo4j Aura instance name (informational) |
-| `OPENAI_API_KEY` | *(optional)* | OpenAI API key for AI orchestrator |
-| `OPENAI_MODEL` | `o3` | OpenAI model name (most capable reasoning model) |
-| `ANTHROPIC_API_KEY` | *(optional)* | Anthropic API key for AI orchestrator |
-| `ANTHROPIC_MODEL` | `claude-opus-4-20250514` | Anthropic model name (most capable Claude model) |
-| `OLLAMA_URL` | `http://blhackbox-ollama:11434` | Ollama API URL (local LLM) |
-| `OLLAMA_MODEL` | `llama3.3` | Ollama model name |
-| `LLM_PROVIDER_PRIORITY` | `openai,anthropic,ollama` | Comma-separated fallback order |
+| `OLLAMA_URL` | `http://blhackbox-ollama:11434` | Ollama API URL (**required** — local preprocessing backend) |
+| `OLLAMA_MODEL` | `llama3.3` | Ollama model name (**required** — used by all preprocessing agents) |
+| `OPENAI_API_KEY` | *(optional)* | OpenAI API key (deprecated `--ai` mode only) |
+| `OPENAI_MODEL` | `o3` | OpenAI model name (deprecated `--ai` mode only) |
+| `ANTHROPIC_API_KEY` | *(optional)* | Anthropic API key (deprecated `--ai` mode only) |
+| `ANTHROPIC_MODEL` | `claude-opus-4-20250514` | Anthropic model name (deprecated `--ai` mode only) |
+| `LLM_PROVIDER_PRIORITY` | `openai,anthropic,ollama` | Deprecated — fallback chain from v1 (no longer used in v2.0) |
 | `MAX_ITERATIONS` | `10` | Max orchestrator iterations per session |
 | `LOG_LEVEL` | `INFO` | Logging level |
 | `RESULTS_DIR` | `./results` | Directory for scan output and reports |
@@ -551,12 +570,14 @@ Runs on every push to `main`/`master` and all pull requests:
 
 Triggers on merged PRs, version tags (`v*`), and manual dispatch:
 
-1. Builds multi-stage Docker image from `docker/blhackbox.Dockerfile`
+1. Builds the **blhackbox CLI image only** from `docker/blhackbox.Dockerfile`
 2. Runs Docker Scout vulnerability scan
 3. Pushes to [Docker Hub](https://hub.docker.com/r/crhacky/blhackbox) with tags: `latest`, `x.y.z`, `x.y`, `main`, `<commit-sha>`
 
+> **Only the `crhacky/blhackbox` CLI image is published to Docker Hub.** The other service images (HexStrike, Kali MCP, Aggregator) are built locally from their respective Dockerfiles in `docker/` — they are not pushed to any registry. Use `make build-all` to build them.
+
 ```bash
-# Pull the latest image directly
+# Pull the latest CLI image
 docker pull crhacky/blhackbox:latest
 ```
 
