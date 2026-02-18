@@ -41,12 +41,12 @@ htmlcov/
 # Docker (avoid recursive build context)
 docker-compose.yml
 Dockerfile
-DOCKER.md
 
-# Documentation
-README.md
-LICENSE
-*.md
+# Documentation (root-level only — do NOT use a bare *.md glob here;
+# it would strip blhackbox/prompts/**/*.md which are required at runtime)
+/README.md
+/DOCKER.md
+/LICENSE
 
 # Results and data (may contain sensitive scan data)
 results/

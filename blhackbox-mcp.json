@@ -2,7 +2,7 @@
   "mcpServers": {
     "kali": {
       "command": "docker",
-      "args": ["run", "-i", "--rm", "--network", "blhackbox_blhackbox-net", "blhackbox-kali-mcp"],
+      "args": ["run", "-i", "--rm", "--network", "blhackbox-net", "blhackbox-kali-mcp"],
       "description": "Kali Linux security tools — community MCP server adapted for blhackbox"
     },
     "hexstrike": {
