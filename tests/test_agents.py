@@ -115,7 +115,8 @@ class TestAgentNames:
 class TestPromptLoading:
     def test_recon_prompt_loaded(self) -> None:
         agent = ReconAgent()
-        assert "reconnaissance" in agent.system_prompt.lower() or "recon" in agent.system_prompt.lower()
+        prompt_lower = agent.system_prompt.lower()
+        assert "reconnaissance" in prompt_lower or "recon" in prompt_lower
         assert "JSON" in agent.system_prompt
 
     def test_network_prompt_loaded(self) -> None:

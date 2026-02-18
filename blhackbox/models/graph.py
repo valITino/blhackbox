@@ -170,11 +170,15 @@ class AggregatedSessionNode(GraphNode):
         if isinstance(tools_run, list):
             tools_run_val = tools_run
         else:
-            tools_run_val = [t.strip() for t in tools_run.split(",") if t.strip()] if tools_run else []
+            tools_run_val = (
+                [t.strip() for t in tools_run.split(",") if t.strip()] if tools_run else []
+            )
         if isinstance(agents_run, list):
             agents_run_val = agents_run
         else:
-            agents_run_val = [a.strip() for a in agents_run.split(",") if a.strip()] if agents_run else []
+            agents_run_val = (
+                [a.strip() for a in agents_run.split(",") if a.strip()] if agents_run else []
+            )
         props.update(
             {
                 "target": target,

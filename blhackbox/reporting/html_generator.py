@@ -465,7 +465,9 @@ AGGREGATED_HTML_TEMPLATE = """\
                 <pre>{{ vuln.description | truncate_text(3000) }}</pre>
                 {% if vuln.references %}
                 <p><strong>References:</strong>
-                {% for ref in vuln.references %}{{ ref }}{% if not loop.last %}, {% endif %}{% endfor %}
+                {% for ref in vuln.references %}
+                    {{ ref }}{% if not loop.last %}, {% endif %}
+                {% endfor %}
                 </p>
                 {% endif %}
             </div>
@@ -478,7 +480,8 @@ AGGREGATED_HTML_TEMPLATE = """\
         <div class="finding">
             <div class="finding-title">{{ host.ip }}</div>
             <div class="finding-body">
-                <pre>{% for p in host.ports %}{{ p.port }}/{{ p.state }} {{ p.service }} {{ p.version }}
+                <pre>{% for p in host.ports %}
+{{ p.port }}/{{ p.state }} {{ p.service }} {{ p.version }}
 {% endfor %}</pre>
             </div>
         </div>
@@ -512,7 +515,9 @@ AGGREGATED_HTML_TEMPLATE = """\
             </div>
             <div class="stat-card">
                 <div class="label">Aggregation Duration</div>
-                <div class="value">{{ "%.1f"|format(payload.metadata.aggregation_duration_seconds) }}s</div>
+                <div class="value">
+                    {{ "%.1f"|format(payload.metadata.aggregation_duration_seconds) }}s
+                </div>
             </div>
         </div>
 

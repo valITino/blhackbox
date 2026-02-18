@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
-from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -13,12 +12,12 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "mcp_servers"))
 
 from mcp_servers.blhackbox_aggregator_mcp import (
+    _TOOLS,
     _build_error_log,
     _build_main_findings,
     _classify_raw_outputs,
     _do_aggregate,
     _looks_like_ip,
-    _TOOLS,
 )
 
 

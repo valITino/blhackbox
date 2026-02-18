@@ -2,10 +2,6 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
-
-import pytest
-
 from blhackbox.models.aggregated_payload import (
     AggregatedMetadata,
     AggregatedPayload,
@@ -15,8 +11,8 @@ from blhackbox.models.aggregated_payload import (
     MainFindings,
     NetworkFindings,
     ReconFindings,
-    VulnFindings,
     VulnerabilityEntry,
+    VulnFindings,
     WebFindings,
 )
 
