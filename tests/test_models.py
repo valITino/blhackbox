@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from blhackbox.models.base import Finding, ScanSession, Severity, Target
 from blhackbox.models.graph import (
+    AggregatedSessionNode,
     DomainNode,
     FindingNode,
     GraphRelationship,
@@ -160,3 +161,29 @@ class TestGraphModels:
         assert rel.rel_type == RelationshipType.RESOLVES_TO
         assert rel.source.merge_value == "example.com"
         assert rel.target.merge_value == "1.2.3.4"
+
+    def test_aggregated_session_node_with_lists(self) -> None:
+        node = AggregatedSessionNode(
+            session_id="sess-1",
+            target="example.com",
+            tools_run=["nmap", "nikto"],
+            agents_run=["ReconAgent", "NetworkAgent"],
+        )
+        assert node.merge_value == "sess-1"
+        assert node.properties["tools_run"] == ["nmap", "nikto"]
+        assert node.properties["agents_run"] == ["ReconAgent", "NetworkAgent"]
+
+    def test_aggregated_session_node_with_strings(self) -> None:
+        node = AggregatedSessionNode(
+            session_id="sess-2",
+            target="10.0.0.1",
+            tools_run="nmap,nikto",
+            agents_run="ReconAgent,NetworkAgent",
+        )
+        assert node.properties["tools_run"] == ["nmap", "nikto"]
+        assert node.properties["agents_run"] == ["ReconAgent", "NetworkAgent"]
+
+    def test_aggregated_session_node_empty(self) -> None:
+        node = AggregatedSessionNode(session_id="sess-3")
+        assert node.properties["tools_run"] == []
+        assert node.properties["agents_run"] == []

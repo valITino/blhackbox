@@ -146,7 +146,7 @@ def _classify_raw_outputs(raw_outputs: dict[str, str]) -> dict[str, str]:
     # Keyword-based classification
     recon_tools = {
         "subfinder", "amass", "whois", "fierce", "dnsenum", "dnsrecon",
-        "theHarvester", "shodan", "censys", "crtsh", "ct", "osint",
+        "theharvester", "shodan", "censys", "crtsh", "ct", "osint",
         "hexstrike_recon", "recon",
     }
     network_tools = {
@@ -248,21 +248,14 @@ async def _do_aggregate(args: dict[str, Any]) -> str:
         r if isinstance(r, dict) else {} for r in results
     ]
 
-    # Build the structured findings
-    main_findings = MainFindings(
-        recon=ReconFindings(**recon_data) if recon_data else ReconFindings(),
-        network=NetworkFindings(**network_data) if network_data else NetworkFindings(),
-        vulnerabilities=VulnFindings(**vuln_data) if vuln_data else VulnFindings(),
-        web=WebFindings(**web_data) if web_data else WebFindings(),
+    # Build the structured findings — wrap in try/except because Ollama may
+    # return data that doesn't match the Pydantic schema (wrong types, etc.)
+    main_findings = _build_main_findings(
+        recon_data, network_data, vuln_data, web_data, warnings
     )
 
     # Build error log
-    error_log_entries: list[ErrorLogEntry] = []
-    for entry in error_data.get("error_log", []):
-        try:
-            error_log_entries.append(ErrorLogEntry(**entry))
-        except Exception:
-            logger.warning("Could not parse error log entry: %s", entry)
+    error_log_entries = _build_error_log(error_data)
 
     # Optionally run the StructureAgent for final merge/cleanup
     # (only if we got data from multiple agents)
@@ -280,19 +273,19 @@ async def _do_aggregate(args: dict[str, Any]) -> str:
             agents_run.append("StructureAgent")
             if merged and "main_findings" in merged:
                 mf = merged["main_findings"]
-                main_findings = MainFindings(
-                    recon=ReconFindings(**mf.get("recon", {})) if mf.get("recon") else main_findings.recon,
-                    network=NetworkFindings(**mf.get("network", {})) if mf.get("network") else main_findings.network,
-                    vulnerabilities=VulnFindings(**mf.get("vulnerabilities", {})) if mf.get("vulnerabilities") else main_findings.vulnerabilities,
-                    web=WebFindings(**mf.get("web", {})) if mf.get("web") else main_findings.web,
+                merged_findings = _build_main_findings(
+                    mf.get("recon", {}),
+                    mf.get("network", {}),
+                    mf.get("vulnerabilities", {}),
+                    mf.get("web", {}),
+                    warnings,
+                    fallback=main_findings,
                 )
+                main_findings = merged_findings
                 if "error_log" in merged:
-                    error_log_entries = []
-                    for entry in merged["error_log"]:
-                        try:
-                            error_log_entries.append(ErrorLogEntry(**entry))
-                        except Exception:
-                            pass
+                    merged_log = _build_error_log(merged)
+                    if merged_log:
+                        error_log_entries = merged_log
         except Exception as exc:
             logger.warning("StructureAgent failed (using unmerged data): %s", exc)
             warnings.append(f"StructureAgent failed: {exc}")
@@ -333,6 +326,52 @@ async def _do_aggregate(args: dict[str, Any]) -> str:
             logger.warning("Neo4j storage failed (non-fatal): %s", exc)
 
     return json.dumps(payload.to_dict(), indent=2, default=str)
+
+
+def _build_main_findings(
+    recon_data: dict[str, Any],
+    network_data: dict[str, Any],
+    vuln_data: dict[str, Any],
+    web_data: dict[str, Any],
+    warnings: list[str],
+    fallback: MainFindings | None = None,
+) -> MainFindings:
+    """Safely construct MainFindings from agent output dicts.
+
+    Wraps each sub-model construction in try/except to handle malformed
+    data from Ollama (wrong types, unexpected nesting, etc.).
+    """
+    fb = fallback or MainFindings()
+
+    def _safe_build(model_cls: type, data: dict, fallback_val: Any, label: str) -> Any:
+        if not data:
+            return fallback_val
+        try:
+            return model_cls(**data)
+        except Exception as exc:
+            logger.warning("Could not parse %s data: %s", label, exc)
+            warnings.append(f"{label} parse failed: {exc}")
+            return fallback_val
+
+    return MainFindings(
+        recon=_safe_build(ReconFindings, recon_data, fb.recon, "recon"),
+        network=_safe_build(NetworkFindings, network_data, fb.network, "network"),
+        vulnerabilities=_safe_build(VulnFindings, vuln_data, fb.vulnerabilities, "vuln"),
+        web=_safe_build(WebFindings, web_data, fb.web, "web"),
+    )
+
+
+def _build_error_log(error_data: dict[str, Any]) -> list[ErrorLogEntry]:
+    """Safely construct ErrorLogEntry list from agent output."""
+    entries: list[ErrorLogEntry] = []
+    for entry in error_data.get("error_log", []):
+        if not isinstance(entry, dict):
+            continue
+        try:
+            entries.append(ErrorLogEntry(**entry))
+        except Exception:
+            logger.warning("Could not parse error log entry: %s", entry)
+    return entries
 
 
 async def _run_agent(

@@ -156,8 +156,8 @@ class AggregatedSessionNode(GraphNode):
         session_id: str,
         target: str = "",
         scan_timestamp: str = "",
-        tools_run: str = "",
-        agents_run: str = "",
+        tools_run: list[str] | str = "",
+        agents_run: list[str] | str = "",
         compression_ratio: float = 0.0,
         ollama_model: str = "",
         duration_seconds: float = 0.0,
@@ -165,12 +165,22 @@ class AggregatedSessionNode(GraphNode):
         **kwargs: Any,
     ) -> None:
         props = kwargs.pop("properties", {})
+        # Neo4j stores lists natively; accept either list[str] or
+        # comma-separated string for backward compatibility.
+        if isinstance(tools_run, list):
+            tools_run_val = tools_run
+        else:
+            tools_run_val = [t.strip() for t in tools_run.split(",") if t.strip()] if tools_run else []
+        if isinstance(agents_run, list):
+            agents_run_val = agents_run
+        else:
+            agents_run_val = [a.strip() for a in agents_run.split(",") if a.strip()] if agents_run else []
         props.update(
             {
                 "target": target,
                 "scan_timestamp": scan_timestamp,
-                "tools_run": tools_run,
-                "agents_run": agents_run,
+                "tools_run": tools_run_val,
+                "agents_run": agents_run_val,
                 "compression_ratio": compression_ratio,
                 "ollama_model": ollama_model,
                 "duration_seconds": duration_seconds,

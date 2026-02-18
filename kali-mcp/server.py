@@ -14,6 +14,7 @@ import asyncio
 import json
 import logging
 import os
+import shlex
 import shutil
 from datetime import UTC, datetime
 from typing import Any
@@ -121,15 +122,23 @@ async def _run_tool(args: dict[str, Any]) -> str:
             "error": f"Tool '{tool_name}' is not installed in this container",
         })
 
-    # Build and execute command
-    cmd = f"{tool_name} {tool_args}"
-    logger.info("Executing: %s (timeout: %ds)", cmd, timeout)
+    # Build and execute command — use create_subprocess_exec (NOT shell)
+    # to prevent command injection via tool_args.
+    try:
+        cmd_parts = [tool_name] + shlex.split(tool_args)
+    except ValueError as exc:
+        return json.dumps({
+            "error": f"Invalid arguments (failed to parse): {exc}",
+            "tool_name": tool_name,
+        })
+
+    logger.info("Executing: %s (timeout: %ds)", cmd_parts, timeout)
 
     timestamp = datetime.now(UTC).isoformat()
 
     try:
-        proc = await asyncio.create_subprocess_shell(
-            cmd,
+        proc = await asyncio.create_subprocess_exec(
+            *cmd_parts,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )

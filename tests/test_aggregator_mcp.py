@@ -13,6 +13,8 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "mcp_servers"))
 
 from mcp_servers.blhackbox_aggregator_mcp import (
+    _build_error_log,
+    _build_main_findings,
     _classify_raw_outputs,
     _do_aggregate,
     _looks_like_ip,
@@ -60,6 +62,16 @@ class TestClassifyRawOutputs:
         assert "output" in classified["recon"]
         assert "output" in classified["web"]
 
+    def test_theharvester_classified_as_recon(self) -> None:
+        """theHarvester (any case) should be classified as recon."""
+        classified = _classify_raw_outputs({"theHarvester": "emails found"})
+        assert "emails found" in classified["recon"]
+
+    def test_case_insensitive_classification(self) -> None:
+        """Tool names are lowercased before matching."""
+        classified = _classify_raw_outputs({"NMAP": "scan output"})
+        assert "scan output" in classified["network"]
+
 
 class TestLooksLikeIP:
     def test_valid_ip(self) -> None:
@@ -70,6 +82,72 @@ class TestLooksLikeIP:
         assert _looks_like_ip("example.com") is False
         assert _looks_like_ip("256.1.1.1") is False
         assert _looks_like_ip("not.an.ip") is False
+
+
+class TestBuildMainFindings:
+    def test_valid_data(self) -> None:
+        warnings: list[str] = []
+        result = _build_main_findings(
+            {"subdomains": ["a.example.com"], "ips": ["10.0.0.1"]},
+            {"hosts": []},
+            {"vulnerabilities": []},
+            {"endpoints": ["/admin"]},
+            warnings,
+        )
+        assert result.recon.subdomains == ["a.example.com"]
+        assert result.web.endpoints == ["/admin"]
+        assert not warnings
+
+    def test_malformed_data_falls_back(self) -> None:
+        """If Ollama returns wrong types, fall back to defaults without crashing."""
+        warnings: list[str] = []
+        result = _build_main_findings(
+            {"subdomains": "not a list"},  # wrong type
+            {},
+            {},
+            {},
+            warnings,
+        )
+        # Should fall back to default ReconFindings, not crash
+        assert result.recon.subdomains == []
+        assert len(warnings) == 1
+        assert "recon" in warnings[0].lower()
+
+    def test_empty_dicts_use_defaults(self) -> None:
+        warnings: list[str] = []
+        result = _build_main_findings({}, {}, {}, {}, warnings)
+        assert result.recon.subdomains == []
+        assert result.network.hosts == []
+        assert not warnings
+
+
+class TestBuildErrorLog:
+    def test_valid_entries(self) -> None:
+        entries = _build_error_log({
+            "error_log": [
+                {"type": "timeout", "count": 3, "locations": ["10.0.0.1"]},
+            ]
+        })
+        assert len(entries) == 1
+        assert entries[0].type == "timeout"
+        assert entries[0].count == 3
+
+    def test_malformed_entry_skipped(self) -> None:
+        entries = _build_error_log({
+            "error_log": [
+                {"type": "timeout", "count": 3},
+                "not a dict",  # should be skipped
+                {"count": "not_a_number"},  # wrong type, skipped
+            ]
+        })
+        # First entry is valid, second is not a dict (skipped),
+        # third has wrong type for count (Pydantic may coerce or reject)
+        assert len(entries) >= 1
+        assert entries[0].type == "timeout"
+
+    def test_empty_error_log(self) -> None:
+        entries = _build_error_log({})
+        assert entries == []
 
 
 class TestDoAggregate:
