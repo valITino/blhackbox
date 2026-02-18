@@ -1,0 +1,52 @@
+# blhackbox MCP Server Catalog for Docker MCP Gateway
+# This is a private catalog — NOT part of the Docker MCP public catalog.
+#
+# The Gateway reads this at startup and manages MCP server container lifecycles.
+# Images must be pre-built: docker compose build kali-mcp hexstrike aggregator
+#
+# Docs: https://github.com/docker/mcp-gateway
+
+version: 2
+name: blhackbox
+displayName: blhackbox Pentest MCP Servers
+
+registry:
+
+  kali:
+    title: Kali Linux MCP
+    description: "Kali Linux security tools — community MCP server adapted for blhackbox"
+    image: blhackbox-kali-mcp:latest
+    network: blhackbox-net
+    env:
+      - name: ALLOWED_TOOLS
+        value: "nmap,nikto,gobuster,dirb,whatweb,wafw00f,masscan,hydra,sqlmap,wpscan,subfinder,amass,fierce,dnsenum,whois"
+
+  hexstrike:
+    title: HexStrike AI MCP
+    description: "HexStrike AI MCP Server — 150+ tools, 12+ security execution agents"
+    image: blhackbox-hexstrike:latest
+    network: blhackbox-net
+    env:
+      - name: HEXSTRIKE_URL
+        value: "http://blhackbox-hexstrike:8888"
+
+  blhackbox-aggregator:
+    title: blhackbox Aggregator
+    description: >
+      Custom Ollama preprocessing aggregator — NOT an official Ollama product.
+      Dispatches raw pentest output to specialized Python agent classes
+      that call Ollama /api/chat, assembles AggregatedPayload for Claude.
+    image: blhackbox-aggregator:latest
+    network: blhackbox-net
+    env:
+      - name: OLLAMA_URL
+        value: "http://blhackbox-ollama:11434"
+      - name: OLLAMA_MODEL
+        value: "${OLLAMA_MODEL:-llama3.3}"
+      - name: NEO4J_URI
+        value: "${NEO4J_URI:-bolt://blhackbox-neo4j:7687}"
+      - name: NEO4J_USER
+        value: "${NEO4J_USER:-neo4j}"
+    secrets:
+      - name: NEO4J_PASSWORD
+        env: NEO4J_PASSWORD

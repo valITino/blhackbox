@@ -70,6 +70,8 @@ include = ["blhackbox*"]
 
 [tool.setuptools.package-data]
 "blhackbox.data" = ["*.json"]
+"blhackbox.prompts" = ["*.md"]
+"blhackbox.prompts.agents" = ["*.md"]
 
 [tool.ruff]
 target-version = "py311"

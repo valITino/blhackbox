@@ -34,23 +34,9 @@ FROM python:3.13-slim-bookworm
 
 LABEL maintainer="Blhackbox Contributors"
 LABEL org.opencontainers.image.source="https://github.com/crhacky/blhackbox"
-LABEL org.opencontainers.image.description="Blhackbox - HexStrike Hybrid Autonomous Pentesting Framework"
+LABEL org.opencontainers.image.description="Blhackbox - MCP-based Autonomous Pentesting Framework"
 
 # Runtime system dependencies only (no compilers, no git)
-# apt-get upgrade applies all available security patches for system packages:
-#   - libexpat1 (CVE-2024-45492, CVE-2024-45491, CVE-2024-8176, CVE-2024-45490, CVE-2023-52425)
-#   - openssl (CVE-2024-5535, CVE-2025-9230, CVE-2025-69421, CVE-2025-69420, CVE-2024-4741)
-#   - krb5 (CVE-2024-37371, CVE-2024-37370, CVE-2025-24528, CVE-2025-3576)
-#   - glibc (CVE-2024-33599, CVE-2025-4802, CVE-2024-2961)
-#   - systemd (CVE-2023-50868, CVE-2023-50387, CVE-2025-4598)
-#   - perl (CVE-2023-31484, CVE-2025-40909, CVE-2024-56406)
-#   - sqlite3 (CVE-2025-6965, CVE-2023-7104)
-#   - pam (CVE-2025-6020, CVE-2024-22365)
-#   - gnupg2 (CVE-2025-68973)
-#   - gnutls28 (CVE-2025-6395, CVE-2025-32990, CVE-2025-32988, CVE-2024-28834, CVE-2024-12243)
-#   - libtasn1-6 (CVE-2024-12133)
-#   - libcap2 (CVE-2025-1390)
-#   - shadow (CVE-2023-4641)
 RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
     libpango-1.0-0 \
     libpangocairo-1.0-0 \
