@@ -2,7 +2,7 @@
 # This is a private catalog — NOT part of the Docker MCP public catalog.
 #
 # The Gateway reads this at startup and manages MCP server container lifecycles.
-# Images must be pre-built: docker compose build kali-mcp hexstrike aggregator
+# Images are pulled from Docker Hub: docker pull crhacky/blhackbox:<service>-latest
 #
 # Docs: https://github.com/docker/mcp-gateway
 
@@ -15,7 +15,7 @@ registry:
   kali:
     title: Kali Linux MCP
     description: "Kali Linux security tools — community MCP server adapted for blhackbox"
-    image: blhackbox-kali-mcp:latest
+    image: crhacky/blhackbox:kali-mcp-latest
     network: blhackbox-net
     env:
       - name: ALLOWED_TOOLS
@@ -24,7 +24,7 @@ registry:
   hexstrike:
     title: HexStrike AI MCP
     description: "HexStrike AI MCP Server — 150+ tools, 12+ security execution agents"
-    image: blhackbox-hexstrike:latest
+    image: crhacky/blhackbox:hexstrike-latest
     network: blhackbox-net
     env:
       - name: HEXSTRIKE_URL
@@ -36,7 +36,7 @@ registry:
       Custom Ollama preprocessing aggregator — NOT an official Ollama product.
       Dispatches raw pentest output to specialized Python agent classes
       that call Ollama /api/chat, assembles AggregatedPayload for Claude.
-    image: blhackbox-aggregator:latest
+    image: crhacky/blhackbox:aggregator-latest
     network: blhackbox-net
     env:
       - name: OLLAMA_URL
