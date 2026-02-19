@@ -1,4 +1,4 @@
-# blhackbox v2.0 — Modular Docker Infrastructure
+# blhackbox v2.0 -- Modular Docker Infrastructure
 #
 # Usage:
 #   docker compose pull                     Pull all pre-built images from Docker Hub
@@ -24,7 +24,7 @@ volumes:
 
 services:
 
-  # ── MCP GATEWAY ─────────────────────────────────────────────────────
+  # -- MCP GATEWAY ---------------------------------------------------------
   # Single entry point for all MCP clients (Claude Desktop, Claude Code,
   # OpenAI). Routes tool calls to the correct MCP server container.
   # Docs: https://github.com/docker/mcp-gateway
@@ -51,7 +51,7 @@ services:
       - hexstrike
       - ollama-mcp
 
-  # ── KALI MCP SERVER ─────────────────────────────────────────────────
+  # -- KALI MCP SERVER -----------------------------------------------------
   kali-mcp:
     image: crhacky/blhackbox:kali-mcp
     build:
@@ -63,7 +63,7 @@ services:
     networks:
       - blhackbox_net
 
-  # ── HEXSTRIKE MCP SERVER ────────────────────────────────────────────
+  # -- HEXSTRIKE MCP SERVER ------------------------------------------------
   # Source: https://github.com/0x4m4/hexstrike-ai
   hexstrike:
     image: crhacky/blhackbox:hexstrike
@@ -82,9 +82,9 @@ services:
     networks:
       - blhackbox_net
 
-  # ── OLLAMA MCP SERVER (CUSTOM) ──────────────────────────────────────
+  # -- OLLAMA MCP SERVER (CUSTOM) ------------------------------------------
   # blhackbox custom component. NOT an official Ollama product.
-  # Thin MCP orchestrator — calls the 3 agent containers in sequence
+  # Thin MCP orchestrator -- calls the 3 agent containers in sequence
   # via HTTP, assembles the AggregatedPayload, and returns it to Claude.
   # Does NOT call Ollama directly.
   ollama-mcp:
@@ -113,7 +113,7 @@ services:
     networks:
       - blhackbox_net
 
-  # ── AGENT 1: INGESTION ──────────────────────────────────────────────
+  # -- AGENT 1: INGESTION -------------------------------------------------
   # Parses and structures raw Kali + HexStrike tool output.
   # Calls Ollama /api/chat with ingestion system prompt.
   agent-ingestion:
@@ -137,7 +137,7 @@ services:
     networks:
       - blhackbox_net
 
-  # ── AGENT 2: PROCESSING ─────────────────────────────────────────────
+  # -- AGENT 2: PROCESSING ------------------------------------------------
   # Deduplicates, extracts errors, compresses data into efficient blobs.
   # Annotates error_log entries with security_relevance.
   agent-processing:
@@ -161,7 +161,7 @@ services:
     networks:
       - blhackbox_net
 
-  # ── AGENT 3: SYNTHESIS ──────────────────────────────────────────────
+  # -- AGENT 3: SYNTHESIS --------------------------------------------------
   # Merges Agent 1 + Agent 2 output into final AggregatedPayload.
   # Adds metadata, resolves conflicts, sends back to Claude.
   agent-synthesis:
@@ -185,8 +185,8 @@ services:
     networks:
       - blhackbox_net
 
-  # ── OLLAMA ──────────────────────────────────────────────────────────
-  # Standard Ollama image — zero custom configuration.
+  # -- OLLAMA --------------------------------------------------------------
+  # Standard Ollama image -- zero custom configuration.
   # All 3 agent containers call this via /api/chat independently.
   ollama:
     image: ollama/ollama:latest
@@ -195,14 +195,14 @@ services:
     volumes:
       - ollama_models:/root/.ollama
     healthcheck:
-      test: ["CMD", "ollama", "list"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
+      test: ["CMD-SHELL", "curl -sf http://localhost:11434/ || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 120s
     networks:
       - blhackbox_net
-    # GPU support — uncomment if NVIDIA GPU available:
+    # GPU support -- uncomment if NVIDIA GPU available:
     # deploy:
     #   resources:
     #     reservations:
@@ -211,7 +211,7 @@ services:
     #           count: all
     #           capabilities: [gpu]
 
-  # ── NEO4J (OPTIONAL) ────────────────────────────────────────────────
+  # -- NEO4J (OPTIONAL) ----------------------------------------------------
   # Enable with: docker compose --profile neo4j up
   # Provides cross-session persistence and relationship querying.
   # Not needed for single-engagement use.
@@ -240,8 +240,8 @@ services:
     networks:
       - blhackbox_net
 
-  # ── CLAUDE CODE (OPTIONAL) ──────────────────────────────────────────
-  # MCP client running inside Docker — no host install needed.
+  # -- CLAUDE CODE (OPTIONAL) ----------------------------------------------
+  # MCP client running inside Docker -- no host install needed.
   # Enable with: docker compose --profile claude-code up -d
   # Then run:    docker compose run --rm claude-code
   # Connects to MCP Gateway via the internal Docker network.
@@ -260,10 +260,10 @@ services:
     networks:
       - blhackbox_net
 
-  # ── PORTAINER CE ────────────────────────────────────────────────────
-  # Web UI for container management — https://localhost:9443
+  # -- PORTAINER CE --------------------------------------------------------
+  # Web UI for container management -- https://localhost:9443
   # Source: https://github.com/portainer/portainer
-  # WARNING: mounts Docker socket — grants effective root on host.
+  # WARNING: mounts Docker socket -- grants effective root on host.
   # Never expose port 9443 to the public internet.
   portainer:
     image: portainer/portainer-ce:latest
