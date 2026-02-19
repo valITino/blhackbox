@@ -77,30 +77,22 @@ can be restarted independently, and has its own log stream.
 
 ## Quick Start
 
-### 1. Clone and configure
-
 ```bash
 git clone https://github.com/valITino/blhackbox.git
 cd blhackbox
-git submodule update --init --recursive
-cp .env.example .env
-# Edit .env with your API keys
+cp .env.example .env          # add your API keys
+docker compose pull            # pulls ALL images (custom + official) in one go
+docker compose up -d           # start core stack (9 containers)
+make ollama-pull               # download the Ollama model (required)
 ```
 
-### 2. Start the stack
+That's it. All 10 Docker images are pre-built on Docker Hub — no local builds,
+no submodules, no Python install needed. `docker compose pull` fetches
+everything in parallel.
 
-```bash
-# Core stack (9 containers)
-docker compose up -d
+> **With Neo4j** (cross-session memory): `docker compose --profile neo4j up -d`
 
-# Full stack with Neo4j (10 containers)
-docker compose --profile neo4j up -d
-
-# Pull the Ollama model
-make ollama-pull
-```
-
-### 3. Connect Claude Desktop
+### Connect Claude Desktop
 
 Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 
@@ -115,13 +107,19 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 }
 ```
 
-### 4. Run scans
+Claude will use the pentest playbook to autonomously run recon tools,
+scan networks, process results through the Ollama pipeline, and write
+a professional pentest report.
 
-Claude will use the pentest playbook to autonomously:
-1. Run recon tools (Kali + HexStrike)
-2. Scan networks and enumerate services
-3. Process results through the Ollama pipeline
-4. Write a professional pentest report
+### Build from Source (optional)
+
+Only needed if you want to modify Dockerfiles or agent code:
+
+```bash
+git submodule update --init --recursive   # fetch kali-mcp + hexstrike source
+docker compose build                      # build all 6 custom images locally
+docker compose up -d
+```
 
 ## Ollama MCP Server — Preprocessing Pipeline
 
@@ -171,6 +169,7 @@ blhackbox mcp
 ## Makefile Shortcuts
 
 ```bash
+make pull                  # Pull all pre-built images from Docker Hub
 make up                    # Start core stack (9 containers)
 make up-full               # Start with Neo4j (10 containers)
 make down                  # Stop all services
