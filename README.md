@@ -140,6 +140,7 @@ DOCKER MCP GATEWAY (localhost:8080 / mcp-gateway:8080)
 ## Prerequisites
 
 - **Docker** and **Docker Compose** installed on your machine
+- **NVIDIA Container Toolkit** (GPU acceleration is enabled by default — see [GPU Support](#gpu-support-for-ollama) to disable if no NVIDIA GPU)
 - At least **16 GB RAM** recommended (Ollama + all containers)
 - An **API key** for your AI client:
   - Claude Desktop or Claude Code: `ANTHROPIC_API_KEY` from [console.anthropic.com](https://console.anthropic.com)
@@ -698,18 +699,26 @@ Useful for recurring engagements against the same targets.
 
 ## GPU Support for Ollama
 
-To enable NVIDIA GPU acceleration, uncomment the GPU block in `docker-compose.yml`
-under the `ollama` service:
+NVIDIA GPU acceleration is **enabled by default** in `docker-compose.yml` under
+the `ollama` service. This requires the
+[NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html)
+to be installed on the host.
+
+**If you do NOT have an NVIDIA GPU**, comment out the `deploy` block in
+`docker-compose.yml` under the `ollama` service:
 
 ```yaml
-deploy:
-  resources:
-    reservations:
-      devices:
-        - driver: nvidia
-          count: all
-          capabilities: [gpu]
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
 ```
+
+Ollama will fall back to CPU-only inference automatically when the GPU block is
+removed.
 
 ---
 
