@@ -22,9 +22,9 @@
 - [Components](#components)
 - [Prerequisites](#prerequisites)
 - [Installation](#installation)
-- [Tutorial 1: Claude Desktop](#tutorial-1-claude-desktop)
-- [Tutorial 2: Claude Code](#tutorial-2-claude-code)
-- [Tutorial 3: ChatGPT / OpenAI](#tutorial-3-chatgpt--openai)
+- [Tutorial 1: Claude Code (Docker)](#tutorial-1-claude-code-docker)
+- [Tutorial 2: Claude Desktop (Host Install)](#tutorial-2-claude-desktop-host-install)
+- [Tutorial 3: ChatGPT / OpenAI (Host Install)](#tutorial-3-chatgpt--openai-host-install)
 - [How Prompts Flow Through the System](#how-prompts-flow-through-the-system)
 - [Ollama Preprocessing Pipeline](#ollama-mcp-server--preprocessing-pipeline)
 - [CLI Reference](#cli-reference)
@@ -63,13 +63,16 @@ YOU (the user)
   |  Type a prompt like: "Run a full recon on example.com"
   |
   v
-MCP HOST (Claude Desktop / Claude Code / ChatGPT)
+MCP HOST
+  |  Claude Code (Docker container on blhackbox_net)    <-- fully Dockerized
+  |  Claude Desktop (host install, connects via localhost) <-- GUI, not Dockerizable
+  |  ChatGPT / OpenAI (host install, connects via localhost)
   |
   |  The AI reads your prompt and decides which tools to use.
   |  It connects to the MCP Gateway (single entry point).
   |
   v
-DOCKER MCP GATEWAY (localhost:8080)
+DOCKER MCP GATEWAY (localhost:8080 / mcp-gateway:8080)
   |
   |  Routes each MCP tool call to the correct server container.
   |
@@ -128,6 +131,7 @@ DOCKER MCP GATEWAY (localhost:8080)
 | **Agent: Processing** | Deduplicates, compresses, annotates errors with security relevance | 8002 |
 | **Agent: Synthesis** | Merges everything into the final `AggregatedPayload` | 8003 |
 | **Ollama** | Local LLM inference backend (llama3.3 by default) | 11434 |
+| **Claude Code** | (Optional) Anthropic CLI MCP client running in Docker | — |
 | **Portainer** | Web UI for managing and monitoring all containers | 9443 |
 | **Neo4j** | (Optional) Cross-session knowledge graph for recurring engagements | 7474/7687 |
 
@@ -180,11 +184,124 @@ make status
 
 ---
 
-## Tutorial 1: Claude Desktop
+## Which MCP Clients Can Run in Docker?
 
-Claude Desktop is Anthropic's desktop app. It has built-in MCP support, meaning
-it can connect to blhackbox's MCP Gateway and use all the security tools directly
-from the chat window.
+| Client | Docker? | Why |
+|--------|---------|-----|
+| **Claude Code** | **Yes** — runs as a container on `blhackbox_net` | CLI tool. Works headless in a container. |
+| **Claude Desktop** | No — must install on host | GUI app. Needs a display server. |
+| **ChatGPT / OpenAI** | No — must install on host | Web/GUI app. No headless MCP client available. |
+
+> **Recommendation:** Use **Tutorial 1 (Claude Code)** if you want a fully
+> Dockerized setup where nothing is installed on your host except Docker itself.
+
+---
+
+## Tutorial 1: Claude Code (Docker)
+
+Claude Code is Anthropic's CLI tool for developers. It supports MCP natively
+and **runs entirely inside a Docker container** — no Node.js, no npm, no host
+install. The container connects to the MCP Gateway over the internal Docker
+network.
+
+### Step 1: Start the blhackbox stack
+
+Follow the [Installation](#installation) steps above if you haven't already.
+Make sure your `.env` file has your `ANTHROPIC_API_KEY` set.
+
+All containers must be running (`make status` to verify).
+
+### Step 2: Build and launch Claude Code
+
+```bash
+make claude-code
+```
+
+Or manually:
+
+```bash
+docker compose --profile claude-code build claude-code
+docker compose run --rm claude-code
+```
+
+This builds a container with Claude Code pre-installed and pre-configured to
+connect to the MCP Gateway on the internal Docker network. No Node.js, no npm,
+no manual config files needed.
+
+The container drops you into an interactive Claude Code session. The MCP
+connection to blhackbox is already configured — Claude Code connects to
+`http://mcp-gateway:8080/sse` over the Docker network automatically.
+
+### Step 4: Verify the connection
+
+Once inside the Claude Code session, type:
+
+```
+/mcp
+```
+
+You should see `blhackbox` listed as a connected MCP server with all available
+tools from Kali, HexStrike, and the Ollama pipeline.
+
+### Step 5: Run your first pentest
+
+Inside the Claude Code session, type your prompt:
+
+```
+Run a full recon and vulnerability scan on example.com --authorized
+```
+
+**What happens next (the full prompt flow):**
+
+1. Claude Code reads your prompt and decides which tools to call. It picks
+   from the **Kali MCP Server** tools (nmap, nikto, subfinder, etc.) and
+   **HexStrike MCP Server** tools (150+ security tools, AI agents).
+2. Each tool call goes through the **MCP Gateway** over the Docker network,
+   which routes it to the correct container.
+3. Raw text output from each tool returns to Claude Code through the gateway.
+4. Claude Code collects all raw outputs across multiple phases (recon,
+   scanning, enumeration) — potentially 10-20+ tool calls.
+5. Claude Code calls `process_scan_results()` on the **Ollama MCP Server**,
+   passing all raw outputs as a single batch.
+6. The Ollama MCP Server pipelines the data through 3 agents:
+   - **Ingestion** (port 8001): calls Ollama LLM -> structured data
+   - **Processing** (port 8002): calls Ollama LLM -> deduplicated + compressed
+   - **Synthesis** (port 8003): calls Ollama LLM -> final `AggregatedPayload`
+7. The `AggregatedPayload` returns to Claude Code.
+8. Claude Code writes the **final pentest report** directly in your terminal.
+
+You will see each tool call and its output printed in the terminal as Claude
+Code works through the phases. The final report is output at the end.
+
+> **Alternative — host install:** If you prefer to install Claude Code on your
+> host instead of using Docker, run `npm install -g @anthropic-ai/claude-code`,
+> create a `.mcp.json` in your project root with
+> `{"mcpServers":{"blhackbox":{"transport":"sse","url":"http://localhost:8080/sse"}}}`,
+> and run `claude`. The only difference is the URL uses `localhost` instead of
+> the Docker network hostname.
+
+### Monitoring (optional)
+
+In a separate terminal, watch tool calls in real time:
+
+```bash
+make gateway-logs          # every MCP call as it happens
+make logs-agent-ingestion  # Ingestion Agent processing
+make logs-agent-synthesis  # Synthesis Agent building the payload
+```
+
+---
+
+## Tutorial 2: Claude Desktop (Host Install)
+
+Claude Desktop is Anthropic's GUI app with built-in MCP support. It connects
+to blhackbox's MCP Gateway and uses all the security tools directly from the
+chat window.
+
+> **Why not Docker?** Claude Desktop is a graphical application that needs a
+> display server (macOS/Windows/Linux desktop). It cannot run headless in a
+> Docker container. You install it on your host machine and it connects to the
+> blhackbox containers running in Docker.
 
 ### Step 1: Install Claude Desktop
 
@@ -215,6 +332,9 @@ Add the following:
   }
 }
 ```
+
+> **Note:** Claude Desktop runs on your host, so it connects via `localhost`.
+> The MCP Gateway port (8080) is exposed to the host by docker-compose.
 
 Save the file and **restart Claude Desktop**.
 
@@ -272,109 +392,17 @@ their logs, and resource usage in a web UI.
 
 ---
 
-## Tutorial 2: Claude Code
-
-Claude Code is Anthropic's CLI tool for developers. It also supports MCP,
-so it can connect to blhackbox and run pentests from your terminal.
-
-### Step 1: Install Claude Code
-
-```bash
-npm install -g @anthropic-ai/claude-code
-```
-
-### Step 2: Start the blhackbox stack
-
-Follow the [Installation](#installation) steps above if you haven't already.
-All containers must be running.
-
-### Step 3: Configure Claude Code to connect to blhackbox
-
-Create or edit your Claude Code MCP config. In your project root (or globally),
-create `.mcp.json`:
-
-```json
-{
-  "mcpServers": {
-    "blhackbox": {
-      "transport": "sse",
-      "url": "http://localhost:8080/sse"
-    }
-  }
-}
-```
-
-Alternatively, you can add the server via the CLI:
-
-```bash
-claude mcp add blhackbox --transport sse --url http://localhost:8080/sse
-```
-
-### Step 4: Verify the connection
-
-Start Claude Code:
-
-```bash
-claude
-```
-
-Once inside the Claude Code session, type:
-
-```
-/mcp
-```
-
-You should see `blhackbox` listed as a connected MCP server with all available
-tools from Kali, HexStrike, and the Ollama pipeline.
-
-### Step 5: Run your first pentest
-
-Inside the Claude Code session, type your prompt:
-
-```
-Run a full recon and vulnerability scan on example.com --authorized
-```
-
-**What happens next (the full prompt flow):**
-
-1. Claude Code reads your prompt and decides which tools to call. It picks
-   from the **Kali MCP Server** tools (nmap, nikto, subfinder, etc.) and
-   **HexStrike MCP Server** tools (150+ security tools, AI agents).
-2. Each tool call goes through the **MCP Gateway** (localhost:8080), which
-   routes it to the correct Docker container.
-3. Raw text output from each tool returns to Claude Code through the gateway.
-4. Claude Code collects all raw outputs across multiple phases (recon,
-   scanning, enumeration) — potentially 10-20+ tool calls.
-5. Claude Code calls `process_scan_results()` on the **Ollama MCP Server**,
-   passing all raw outputs as a single batch.
-6. The Ollama MCP Server pipelines the data through 3 agents:
-   - **Ingestion** (port 8001): calls Ollama LLM -> structured data
-   - **Processing** (port 8002): calls Ollama LLM -> deduplicated + compressed
-   - **Synthesis** (port 8003): calls Ollama LLM -> final `AggregatedPayload`
-7. The `AggregatedPayload` returns to Claude Code.
-8. Claude Code writes the **final pentest report** directly in your terminal.
-
-You will see each tool call and its output printed in the terminal as Claude
-Code works through the phases. The final report is output at the end.
-
-### Monitoring (optional)
-
-In a separate terminal, watch tool calls in real time:
-
-```bash
-make gateway-logs          # every MCP call as it happens
-make logs-agent-ingestion  # Ingestion Agent processing
-make logs-agent-synthesis  # Synthesis Agent building the payload
-```
-
----
-
-## Tutorial 3: ChatGPT / OpenAI
+## Tutorial 3: ChatGPT / OpenAI (Host Install)
 
 ChatGPT (and OpenAI-compatible clients) can also connect to blhackbox through
 the MCP Gateway. The flow is identical — the AI decides which tools to call,
 blhackbox executes them in Docker containers, and the Ollama pipeline processes
 the results.
+
+> **Why not Docker?** There is no standard headless MCP client for
+> OpenAI that can be packaged as a Docker image. ChatGPT Desktop is a GUI app
+> (same limitation as Claude Desktop), and the OpenAI API alone is not an MCP
+> client. You need a host-installed MCP client that supports the OpenAI API.
 
 ### Step 1: Set up an OpenAI-compatible MCP client
 
@@ -412,6 +440,9 @@ Transport: SSE
 The exact configuration depends on your client. The MCP Gateway exposes the
 same tools regardless of which AI is connecting — Kali tools, HexStrike tools,
 and the Ollama processing pipeline are all available.
+
+> **Note:** Like Claude Desktop, OpenAI clients run on your host and connect
+> via `localhost:8080`. Only the blhackbox backend runs in Docker.
 
 ### Step 4: Verify the connection
 
@@ -598,6 +629,7 @@ make pull                  # Pull all pre-built images from Docker Hub
 make up                    # Start core stack (9 containers)
 make up-full               # Start with Neo4j (10 containers)
 make down                  # Stop all services
+make claude-code           # Build and launch Claude Code in Docker
 make test                  # Run tests
 make lint                  # Run linter
 make status                # Health status of all containers
@@ -636,11 +668,18 @@ All custom images are published to `crhacky/blhackbox`:
 | `crhacky/blhackbox:agent-processing` | Agent 2: Processing |
 | `crhacky/blhackbox:agent-synthesis` | Agent 3: Synthesis |
 
+MCP client container (built locally from `docker/claude-code.Dockerfile`):
+
+| Tag | Description |
+|-----|-------------|
+| `blhackbox-claude-code` | Claude Code CLI client (connects to gateway on Docker network) |
+
 Official images pulled directly:
 - `ollama/ollama:latest`
 - `neo4j:5`
 - `portainer/portainer-ce:latest`
 - `docker/mcp-gateway:latest`
+- `node:22-slim` (base for Claude Code container)
 
 ---
 
@@ -696,7 +735,8 @@ blhackbox/
 │   ├── ollama-mcp.Dockerfile
 │   ├── agent-ingestion.Dockerfile
 │   ├── agent-processing.Dockerfile
-│   └── agent-synthesis.Dockerfile
+│   ├── agent-synthesis.Dockerfile
+│   └── claude-code.Dockerfile          # MCP client container
 ├── kali-mcp/                        # adapted community Kali MCP server
 ├── mcp_servers/
 │   └── ollama_mcp_server.py         # thin MCP orchestrator

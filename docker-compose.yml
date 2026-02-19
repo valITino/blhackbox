@@ -240,6 +240,26 @@ services:
     networks:
       - blhackbox_net
 
+  # ── CLAUDE CODE (OPTIONAL) ──────────────────────────────────────────
+  # MCP client running inside Docker — no host install needed.
+  # Enable with: docker compose --profile claude-code up -d
+  # Then run:    docker compose run --rm claude-code
+  # Connects to MCP Gateway via the internal Docker network.
+  claude-code:
+    build:
+      context: .
+      dockerfile: docker/claude-code.Dockerfile
+    container_name: blhackbox-claude-code
+    profiles: ["claude-code"]
+    stdin_open: true
+    tty: true
+    environment:
+      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY}"
+    depends_on:
+      - mcp-gateway
+    networks:
+      - blhackbox_net
+
   # ── PORTAINER CE ────────────────────────────────────────────────────
   # Web UI for container management — https://localhost:9443
   # Source: https://github.com/portainer/portainer
