@@ -5,6 +5,8 @@
 FROM python:3.13-slim
 WORKDIR /app
 COPY hexstrike/ /app/hexstrike/
+RUN test -f hexstrike/requirements.txt \
+    || { echo "ERROR: hexstrike/requirements.txt not found. Run 'git submodule update --init' first." >&2; exit 1; }
 RUN pip install --no-cache-dir -r hexstrike/requirements.txt
 EXPOSE 8888
 CMD ["python3", "hexstrike/hexstrike_server.py", "--port", "8888"]
