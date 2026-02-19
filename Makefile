@@ -1,5 +1,6 @@
 .PHONY: help up up-full down logs test test-local lint format clean \
        pull status portainer gateway-logs ollama-pull ollama-shell \
+       claude-code \
        neo4j-browser logs-ollama-mcp logs-kali logs-hexstrike \
        logs-agent-ingestion logs-agent-processing logs-agent-synthesis \
        restart-ollama-mcp restart-kali restart-hexstrike restart-agents \
@@ -45,6 +46,11 @@ clean: ## Remove containers, volumes, and build artifacts
 	$(COMPOSE) --profile neo4j down -v --remove-orphans
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 	rm -rf dist/ build/ *.egg-info
+
+# ── Claude Code (Docker) ──────────────────────────────────────────
+claude-code: ## Build and launch Claude Code in a Docker container
+	$(COMPOSE) --profile claude-code build claude-code
+	$(COMPOSE) run --rm claude-code
 
 # ── Ollama ──────────────────────────────────────────────────────
 ollama-pull: ## Pull default Ollama model into container
