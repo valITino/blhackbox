@@ -1,7 +1,7 @@
 """Base FastAPI agent server for blhackbox Ollama preprocessing agents.
 
 Each agent subclass exposes POST /process that accepts raw data,
-calls Ollama /api/chat with a task-specific system prompt, and
+calls Ollama via the official ``ollama`` Python package, and
 returns structured JSON.
 
 These run as separate Docker containers, NOT inside the ollama-mcp server.
@@ -14,14 +14,14 @@ import logging
 import os
 from pathlib import Path
 
-import httpx
 import uvicorn
 from fastapi import FastAPI, HTTPException
+from ollama import AsyncClient, ResponseError
 from pydantic import BaseModel
 
 logger = logging.getLogger("blhackbox.agent_server")
 
-OLLAMA_URL = os.getenv("OLLAMA_URL", "http://ollama:11434")
+OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://ollama:11434")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.3")
 
 # Prompt directory — resolved at container build time
@@ -74,32 +74,27 @@ class BaseAgentServer:
         @app.post("/process")
         async def process(req: ProcessRequest) -> dict:
             try:
-                async with httpx.AsyncClient(timeout=180.0) as client:
-                    response = await client.post(
-                        f"{OLLAMA_URL}/api/chat",
-                        json={
-                            "model": OLLAMA_MODEL,
-                            "messages": [
-                                {"role": "system", "content": system_prompt},
-                                {"role": "user", "content": str(req.data)},
-                            ],
-                            "stream": False,
-                            "format": "json",
-                        },
-                    )
-                    response.raise_for_status()
-            except httpx.ConnectError as exc:
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Ollama unreachable at {OLLAMA_URL}",
-                ) from exc
-            except httpx.HTTPStatusError as exc:
+                client = AsyncClient(host=OLLAMA_HOST)
+                response = await client.chat(
+                    model=OLLAMA_MODEL,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": str(req.data)},
+                    ],
+                    format="json",
+                )
+            except ResponseError as exc:
                 raise HTTPException(
                     status_code=502,
-                    detail=f"Ollama returned {exc.response.status_code}",
+                    detail=f"Ollama error: {exc}",
+                ) from exc
+            except Exception as exc:
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Ollama unreachable at {OLLAMA_HOST}: {exc}",
                 ) from exc
 
-            content = response.json().get("message", {}).get("content", "")
+            content = response.message.content or ""
             if not content:
                 return {}
 

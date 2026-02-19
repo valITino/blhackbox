@@ -125,9 +125,12 @@ Claude will use the pentest playbook to autonomously:
 
 ## Ollama MCP Server — Preprocessing Pipeline
 
-The Ollama MCP server is a thin orchestrator that calls 3 agent containers
-in sequence via HTTP. Each agent container is a FastAPI server that calls
-Ollama's `/api/chat` endpoint with a task-specific system prompt.
+The Ollama MCP server is a thin orchestrator built with
+[FastMCP](https://github.com/modelcontextprotocol/python-sdk) that calls 3
+agent containers in sequence via HTTP. Each agent container is a FastAPI server
+that calls Ollama via the official
+[`ollama` Python package](https://github.com/ollama/ollama-python) with a
+task-specific system prompt.
 
 1. **Ingestion Agent** (`agent-ingestion:8001`) — Parses raw tool output into structured typed data
 2. **Processing Agent** (`agent-processing:8002`) — Deduplicates, compresses, annotates error_log with security_relevance

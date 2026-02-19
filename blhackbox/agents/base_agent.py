@@ -2,11 +2,12 @@
 
 Each agent is a plain Python class that:
 1. Loads a task-specific system prompt from a .md file at runtime
-2. Sends the prompt + raw pentest data to Ollama's POST /api/chat endpoint
+2. Sends the prompt + raw pentest data to Ollama via the official ``ollama``
+   Python package
 3. Parses the JSON response into a Python dict
 
-There is no agent framework involved — just httpx HTTP calls to a standard
-Ollama instance running unchanged as a Docker container.
+There is no agent framework involved — just ``ollama.AsyncClient`` calls to a
+standard Ollama instance running unchanged as a Docker container.
 """
 
 from __future__ import annotations
@@ -16,7 +17,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
-import httpx
+from ollama import AsyncClient, ResponseError
 
 logger = logging.getLogger("blhackbox.agents.base")
 
@@ -34,10 +35,10 @@ class BaseAgent:
 
     def __init__(
         self,
-        ollama_url: str = "http://localhost:11434",
+        ollama_host: str = "http://localhost:11434",
         model: str = "llama3.3",
     ) -> None:
-        self.ollama_url = ollama_url.rstrip("/")
+        self.ollama_host = ollama_host.rstrip("/")
         self.model = model
         # Load system prompt from prompts/agents/<classname>.md at runtime
         prompt_file = _PROMPTS_DIR / f"{self.__class__.__name__.lower()}.md"
@@ -57,32 +58,31 @@ class BaseAgent:
         rather than raising — the caller is responsible for degraded handling.
         """
         try:
-            async with httpx.AsyncClient(timeout=120.0) as client:
-                response = await client.post(
-                    f"{self.ollama_url}/api/chat",
-                    json={
-                        "model": self.model,
-                        "messages": [
-                            {"role": "system", "content": self.system_prompt},
-                            {"role": "user", "content": str(data)},
-                        ],
-                        "stream": False,
-                        "format": "json",  # forces Ollama to respond in valid JSON
-                    },
-                )
-                response.raise_for_status()
-        except (httpx.HTTPError, OSError) as exc:
+            client = AsyncClient(host=self.ollama_host)
+            response = await client.chat(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": self.system_prompt},
+                    {"role": "user", "content": str(data)},
+                ],
+                format="json",
+            )
+        except ResponseError as exc:
+            logger.error(
+                "%s: Ollama error: %s", self.__class__.__name__, exc
+            )
+            return {}
+        except Exception as exc:
             logger.error(
                 "%s: Ollama request failed: %s", self.__class__.__name__, exc
             )
             return {}
 
-        return self._parse(response.json())
+        return self._parse(response)
 
-    def _parse(self, response: dict[str, Any]) -> dict[str, Any]:
+    def _parse(self, response: Any) -> dict[str, Any]:
         """Extract and parse the JSON content from Ollama's response."""
-        message = response.get("message", {})
-        content = message.get("content", "")
+        content = response.message.content or ""
 
         if not content:
             logger.warning(

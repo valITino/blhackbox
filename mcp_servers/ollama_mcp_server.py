@@ -9,12 +9,13 @@ of the 3 agent containers (Ingestion, Processing, Synthesis) via HTTP in
 sequence, assembles the final AggregatedPayload, and returns it to Claude.
 
 It does NOT call Ollama directly — each agent container handles its own
-Ollama /api/chat calls independently.
+Ollama calls independently via the official ``ollama`` Python package.
+
+Uses FastMCP for automatic tool schema generation and protocol handling.
 """
 
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
 import os
@@ -23,16 +24,14 @@ import time
 from typing import Any
 
 import httpx
-from mcp.server import Server
-from mcp.server.stdio import stdio_server
-from mcp.types import TextContent, Tool
+from mcp.server.fastmcp import FastMCP
 
 # Ensure the blhackbox package is importable when run as a standalone script
 _project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _project_root not in sys.path:
     sys.path.insert(0, _project_root)
 
-from blhackbox.models.aggregated_payload import (
+from blhackbox.models.aggregated_payload import (  # noqa: E402
     AggregatedMetadata,
     AggregatedPayload,
     ErrorLogEntry,
@@ -60,65 +59,10 @@ AGENT_SYNTHESIS_URL = os.environ.get(
 )
 
 # ---------------------------------------------------------------------------
-# MCP Server
+# FastMCP Server
 # ---------------------------------------------------------------------------
 
-_server = Server("blhackbox-ollama-mcp")
-
-_TOOLS: list[Tool] = [
-    Tool(
-        name="process_scan_results",
-        description=(
-            "Process raw pentest tool output through three sequential agent "
-            "containers (Ingestion -> Processing -> Synthesis) and return a "
-            "structured AggregatedPayload. Each agent calls Ollama's /api/chat "
-            "independently. THIS IS NOT AN OLLAMA PRODUCT — it is a custom "
-            "blhackbox component that uses Ollama as its LLM backend."
-        ),
-        inputSchema={
-            "type": "object",
-            "properties": {
-                "raw_outputs": {
-                    "type": "object",
-                    "description": (
-                        "Dict mapping tool names to their raw output strings. "
-                        'E.g. {"nmap": "...", "nikto": "...", "hexstrike": "..."}'
-                    ),
-                },
-                "target": {
-                    "type": "string",
-                    "description": "The target domain, IP, or URL being assessed",
-                },
-                "session_id": {
-                    "type": "string",
-                    "description": "Unique session identifier for this assessment",
-                },
-            },
-            "required": ["raw_outputs", "target", "session_id"],
-        },
-    ),
-]
-
-
-@_server.list_tools()
-async def handle_list_tools() -> list[Tool]:
-    return _TOOLS
-
-
-@_server.call_tool()
-async def handle_call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
-    try:
-        result = await _dispatch(name, arguments)
-        return [TextContent(type="text", text=result)]
-    except Exception as exc:
-        logger.exception("Ollama MCP tool %s failed", name)
-        return [TextContent(type="text", text=f"Error: {exc}")]
-
-
-async def _dispatch(name: str, args: dict[str, Any]) -> str:
-    if name == "process_scan_results":
-        return await _do_process_scan_results(args)
-    return f"Unknown tool: {name}"
+mcp = FastMCP("blhackbox-ollama-mcp")
 
 
 # ---------------------------------------------------------------------------
@@ -158,12 +102,29 @@ async def _call_agent(
         return {}
 
 
-async def _do_process_scan_results(args: dict[str, Any]) -> str:
-    """Call Ingestion -> Processing -> Synthesis agent containers sequentially."""
-    raw_outputs: dict[str, str] = args.get("raw_outputs", {})
-    target: str = args.get("target", "unknown")
-    session_id: str = args.get("session_id", "unknown")
+@mcp.tool()
+async def process_scan_results(
+    raw_outputs: dict[str, str],
+    target: str,
+    session_id: str,
+) -> str:
+    """Process raw pentest tool output through three sequential agent containers.
 
+    Calls Ingestion -> Processing -> Synthesis agent containers via HTTP and
+    returns a structured AggregatedPayload. Each agent container calls Ollama
+    independently. THIS IS NOT AN OLLAMA PRODUCT — it is a custom blhackbox
+    component that uses Ollama as its LLM backend.
+
+    Args:
+        raw_outputs: Dict mapping tool names to their raw output strings.
+            E.g. {"nmap": "...", "nikto": "...", "hexstrike": "..."}
+        target: The target domain, IP, or URL being assessed.
+        session_id: Unique session identifier for this assessment.
+
+    Returns:
+        JSON string of the AggregatedPayload containing findings, error_log,
+        and metadata from the preprocessing pipeline.
+    """
     start_time = time.monotonic()
     warnings: list[str] = []
 
@@ -378,22 +339,5 @@ def _looks_like_ip(value: str) -> bool:
 # Entry point
 # ---------------------------------------------------------------------------
 
-
-async def run_server() -> None:
-    """Start the blhackbox Ollama MCP server on stdio."""
-    logger.info(
-        "Starting blhackbox Ollama MCP Server (agents: %s, %s, %s)",
-        AGENT_INGESTION_URL,
-        AGENT_PROCESSING_URL,
-        AGENT_SYNTHESIS_URL,
-    )
-    async with stdio_server() as (read_stream, write_stream):
-        await _server.run(
-            read_stream,
-            write_stream,
-            _server.create_initialization_options(),
-        )
-
-
 if __name__ == "__main__":
-    asyncio.run(run_server())
+    mcp.run(transport="stdio")

@@ -53,9 +53,9 @@ docker pull crhacky/blhackbox:agent-synthesis
 ## Architecture
 
 In v2, **Claude (or OpenAI) IS the orchestrator** natively via MCP. The Ollama
-MCP server is a thin orchestrator that calls 3 separate agent containers via
-HTTP. Each agent container runs a FastAPI server and calls Ollama's `/api/chat`
-independently.
+MCP server is a thin orchestrator built with FastMCP that calls 3 separate
+agent containers via HTTP. Each agent container runs a FastAPI server and calls
+Ollama via the official `ollama` Python package independently.
 
 ```
 Claude (MCP Host) ──> MCP Gateway ──┬──> Kali MCP (security tools)
@@ -72,8 +72,8 @@ Claude (MCP Host) ──> MCP Gateway ──┬──> Kali MCP (security tools)
 Neo4j (optional)    Portainer (Docker UI)
 ```
 
-> **Ollama is required.** All 3 agent containers call Ollama's `/api/chat`
-> endpoint. Without it, the aggregation pipeline returns empty results.
+> **Ollama is required.** All 3 agent containers call Ollama via the official
+> `ollama` Python package. Without it, the aggregation pipeline returns empty results.
 
 ---
 
@@ -164,7 +164,7 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 
 - **Base**: `python:3.13-slim`
 - **Entrypoint**: `ollama_mcp_server.py`
-- **Role**: Thin MCP orchestrator — calls 3 agent containers via HTTP, does NOT call Ollama directly
+- **Role**: Thin MCP orchestrator (built with FastMCP) — calls 3 agent containers via HTTP, does NOT call Ollama directly
 - **NOT an official Ollama product**
 
 ### Agent Containers (`agent-ingestion`, `agent-processing`, `agent-synthesis`)
@@ -172,7 +172,7 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 - **Base**: `python:3.13-slim`
 - **Entrypoint**: FastAPI server (`uvicorn`)
 - **Ports**: 8001, 8002, 8003 respectively (internal only)
-- **Depends on**: Ollama container (each calls `/api/chat` independently)
+- **Depends on**: Ollama container (each calls Ollama via the official `ollama` Python package)
 - **Health endpoint**: `GET /health` — returns immediately without calling Ollama
 - Prompts baked in from `blhackbox/prompts/agents/` at build time
 - Can be overridden via volume mount for tuning without rebuilding

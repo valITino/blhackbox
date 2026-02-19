@@ -1,12 +1,14 @@
 """Tests for the BaseAgentServer FastAPI agent containers.
 
 Each agent runs as a separate Docker container with a FastAPI server.
-These tests verify the server creation, routing, and Ollama integration.
+These tests verify the server creation, routing, and Ollama integration
+via the official ``ollama`` Python package.
 """
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, patch
 
 from fastapi.testclient import TestClient
 
@@ -65,22 +67,19 @@ class TestProcessEndpoint:
         server = BaseAgentServer("ingestionagent")
         client = TestClient(server.app)
 
-        mock_ollama_response = {
-            "message": {
-                "content": '{"hosts": [], "subdomains": ["test.example.com"]}'
-            }
-        }
+        mock_response = SimpleNamespace(
+            message=SimpleNamespace(
+                content='{"hosts": [], "subdomains": ["test.example.com"]}'
+            )
+        )
 
-        with patch("blhackbox.agents.base_agent_server.httpx.AsyncClient") as mock_cls:
-            mock_client = AsyncMock()
-            mock_cls.return_value.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_cls.return_value.__aexit__ = AsyncMock(return_value=None)
+        mock_ollama_client = AsyncMock()
+        mock_ollama_client.chat.return_value = mock_response
 
-            mock_resp = MagicMock()
-            mock_resp.json.return_value = mock_ollama_response
-            mock_resp.raise_for_status = MagicMock()
-            mock_client.post.return_value = mock_resp
-
+        with patch(
+            "blhackbox.agents.base_agent_server.AsyncClient",
+            return_value=mock_ollama_client,
+        ):
             response = client.post("/process", json={
                 "data": "nmap output",
                 "session_id": "test-session",
@@ -93,18 +92,40 @@ class TestProcessEndpoint:
         server = BaseAgentServer("ingestionagent")
         client = TestClient(server.app)
 
-        mock_ollama_response = {"message": {"content": ""}}
+        mock_response = SimpleNamespace(
+            message=SimpleNamespace(content="")
+        )
 
-        with patch("blhackbox.agents.base_agent_server.httpx.AsyncClient") as mock_cls:
-            mock_client = AsyncMock()
-            mock_cls.return_value.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_cls.return_value.__aexit__ = AsyncMock(return_value=None)
+        mock_ollama_client = AsyncMock()
+        mock_ollama_client.chat.return_value = mock_response
 
-            mock_resp = MagicMock()
-            mock_resp.json.return_value = mock_ollama_response
-            mock_resp.raise_for_status = MagicMock()
-            mock_client.post.return_value = mock_resp
+        with patch(
+            "blhackbox.agents.base_agent_server.AsyncClient",
+            return_value=mock_ollama_client,
+        ):
+            response = client.post("/process", json={
+                "data": "test",
+                "session_id": "s1",
+                "target": "t1",
+            })
+            assert response.status_code == 200
+            assert response.json() == {}
 
+    def test_process_none_content(self) -> None:
+        server = BaseAgentServer("ingestionagent")
+        client = TestClient(server.app)
+
+        mock_response = SimpleNamespace(
+            message=SimpleNamespace(content=None)
+        )
+
+        mock_ollama_client = AsyncMock()
+        mock_ollama_client.chat.return_value = mock_response
+
+        with patch(
+            "blhackbox.agents.base_agent_server.AsyncClient",
+            return_value=mock_ollama_client,
+        ):
             response = client.post("/process", json={
                 "data": "test",
                 "session_id": "s1",

@@ -3,10 +3,13 @@
 Tests the ollama_mcp_server.py which acts as a thin orchestrator that calls
 3 agent containers (Ingestion, Processing, Synthesis) via HTTP and assembles
 the final AggregatedPayload.
+
+Uses FastMCP for automatic tool schema generation.
 """
 
 from __future__ import annotations
 
+import asyncio
 import sys
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
@@ -18,28 +21,31 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "mcp_servers"))
 
 from mcp_servers.ollama_mcp_server import (  # noqa: E402
-    _TOOLS,
     _build_error_log,
     _build_findings,
     _call_agent,
     _looks_like_ip,
+    mcp,
 )
 
 # ---------------------------------------------------------------------------
-# Tool definitions
+# Tool definitions (FastMCP auto-generated)
 # ---------------------------------------------------------------------------
 
 
 class TestToolDefinitions:
     def test_has_process_scan_results_tool(self) -> None:
-        names = [t.name for t in _TOOLS]
+        tools = asyncio.get_event_loop().run_until_complete(mcp.list_tools())
+        names = [t.name for t in tools]
         assert "process_scan_results" in names
 
     def test_only_one_tool(self) -> None:
-        assert len(_TOOLS) == 1
+        tools = asyncio.get_event_loop().run_until_complete(mcp.list_tools())
+        assert len(tools) == 1
 
     def test_tool_schema(self) -> None:
-        tool = next(t for t in _TOOLS if t.name == "process_scan_results")
+        tools = asyncio.get_event_loop().run_until_complete(mcp.list_tools())
+        tool = next(t for t in tools if t.name == "process_scan_results")
         schema = tool.inputSchema
         assert "raw_outputs" in schema["properties"]
         assert "target" in schema["properties"]
@@ -47,12 +53,14 @@ class TestToolDefinitions:
         assert set(schema["required"]) == {"raw_outputs", "target", "session_id"}
 
     def test_tool_has_description(self) -> None:
-        tool = _TOOLS[0]
+        tools = asyncio.get_event_loop().run_until_complete(mcp.list_tools())
+        tool = tools[0]
         assert tool.description
         assert "agent" in tool.description.lower()
 
     def test_tool_description_mentions_containers(self) -> None:
-        tool = _TOOLS[0]
+        tools = asyncio.get_event_loop().run_until_complete(mcp.list_tools())
+        tool = tools[0]
         assert "container" in tool.description.lower()
 
 
