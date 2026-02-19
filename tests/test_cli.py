@@ -1,4 +1,10 @@
-"""Tests for CLI commands."""
+"""Tests for CLI commands (v2 architecture).
+
+v2 changes:
+  - The ``recon`` command no longer has an ``--ai`` flag.
+  - The ``exploit`` command has been removed entirely.
+  - The ``agents`` command still exists but refers to HexStrike agents.
+"""
 
 from __future__ import annotations
 
@@ -52,6 +58,17 @@ class TestCLI:
         assert result.exit_code == 0
         assert "Blhackbox" in result.output
 
+    def test_help_lists_recon(self) -> None:
+        runner = CliRunner()
+        result = runner.invoke(cli, ["--help"])
+        assert "recon" in result.output
+
+    def test_help_does_not_list_exploit(self) -> None:
+        """The exploit command was removed in v2."""
+        runner = CliRunner()
+        result = runner.invoke(cli, ["--help"])
+        assert "exploit" not in result.output
+
 
 class TestCatalogCommand:
     def test_catalog_displays_tools(self) -> None:
@@ -85,15 +102,29 @@ class TestReconFlags:
         )
         assert result.exit_code != 0
 
-    def test_recon_mutual_exclusivity(self) -> None:
+    def test_recon_attacks_and_full_mutual_exclusivity(self) -> None:
+        """--attacks and --full are mutually exclusive."""
         runner = CliRunner()
         result = runner.invoke(
             cli,
             [
                 "recon", "--target", "example.com", "--authorized",
-                "--ai", "--full",
+                "--attacks", "nmap", "--full",
             ],
         )
+        assert result.exit_code != 0
+
+    def test_recon_no_ai_flag(self) -> None:
+        """The --ai flag was removed in v2. Passing it should cause an error."""
+        runner = CliRunner()
+        result = runner.invoke(
+            cli,
+            [
+                "recon", "--target", "example.com", "--authorized",
+                "--ai",
+            ],
+        )
+        # --ai is not a recognized option, so Click should reject it
         assert result.exit_code != 0
 
     def test_recon_attacks_invalid_tool(self) -> None:

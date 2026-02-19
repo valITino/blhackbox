@@ -502,8 +502,8 @@ AGGREGATED_HTML_TEMPLATE = """\
         <h2>Scan Metadata</h2>
         <div class="stat-grid">
             <div class="stat-card">
-                <div class="label">Raw Lines Processed</div>
-                <div class="value">{{ payload.metadata.total_raw_lines_processed }}</div>
+                <div class="label">Total Raw Size (bytes)</div>
+                <div class="value">{{ payload.metadata.total_raw_size_bytes }}</div>
             </div>
             <div class="stat-card">
                 <div class="label">Compression Ratio</div>
@@ -511,12 +511,12 @@ AGGREGATED_HTML_TEMPLATE = """\
             </div>
             <div class="stat-card">
                 <div class="label">Ollama Model</div>
-                <div class="value">{{ payload.metadata.ollama_model_used }}</div>
+                <div class="value">{{ payload.metadata.ollama_model }}</div>
             </div>
             <div class="stat-card">
-                <div class="label">Aggregation Duration</div>
+                <div class="label">Duration</div>
                 <div class="value">
-                    {{ "%.1f"|format(payload.metadata.aggregation_duration_seconds) }}s
+                    {{ "%.1f"|format(payload.metadata.duration_seconds) }}s
                 </div>
             </div>
         </div>
@@ -554,7 +554,7 @@ def generate_html_report_from_payload(
     template = env.from_string(AGGREGATED_HTML_TEMPLATE)
 
     vulns = sorted(
-        payload.main_findings.vulnerabilities.vulnerabilities,
+        payload.findings.vulnerabilities,
         key=lambda v: SEVERITY_ORDER.get(v.severity.lower(), 99),
     )
 
@@ -572,7 +572,7 @@ def generate_html_report_from_payload(
         payload=payload,
         vulns=vulns,
         severity_counts=severity_counts,
-        network_hosts=payload.main_findings.network.hosts,
+        network_hosts=payload.findings.hosts,
         anomalies=anomalies,
         generated_at=datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC"),
     )

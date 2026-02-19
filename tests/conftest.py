@@ -16,8 +16,6 @@ def test_settings() -> Settings:
         neo4j_uri="bolt://localhost:7687",
         neo4j_user="neo4j",
         neo4j_password="testpass",
-        openai_api_key="",
-        anthropic_api_key="",
         results_dir="/tmp/blhackbox_test_results",
     )
 

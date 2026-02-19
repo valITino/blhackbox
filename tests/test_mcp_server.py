@@ -1,4 +1,9 @@
-"""Tests for the MCP server tool definitions and dispatch."""
+"""Tests for the MCP server tool definitions and dispatch (v2 architecture).
+
+The blhackbox MCP server exposes orchestrated workflows (recon, run_tool,
+query_graph, get_findings, list_tools, generate_report). It does NOT
+reference the deleted orchestrator or LLM client modules.
+"""
 
 from __future__ import annotations
 
@@ -30,9 +35,23 @@ class TestMCPToolDefinitions:
         recon = next(t for t in _TOOLS if t.name == "recon")
         assert "target" in recon.inputSchema["required"]
 
+    def test_recon_does_not_mention_orchestrator(self) -> None:
+        """The recon tool description should not reference the deleted orchestrator."""
+        recon = next(t for t in _TOOLS if t.name == "recon")
+        desc_lower = recon.description.lower()
+        assert "orchestrator" not in desc_lower
+
     def test_run_tool_requires_category_tool_params(self) -> None:
         rt = next(t for t in _TOOLS if t.name == "run_tool")
         assert set(rt.inputSchema["required"]) == {"category", "tool", "params"}
+
+    def test_generate_report_requires_session_id(self) -> None:
+        report = next(t for t in _TOOLS if t.name == "generate_report")
+        assert "session_id" in report.inputSchema["required"]
+
+    def test_query_graph_requires_cypher(self) -> None:
+        qg = next(t for t in _TOOLS if t.name == "query_graph")
+        assert "cypher" in qg.inputSchema["required"]
 
 
 class TestMCPListTools:
