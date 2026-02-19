@@ -1,17 +1,18 @@
 .PHONY: help up up-full down logs test test-local lint format clean \
        status portainer gateway-logs ollama-pull ollama-shell \
        neo4j-browser logs-ollama-mcp logs-kali logs-hexstrike \
-       restart-ollama-mcp restart-kali restart-hexstrike \
+       logs-agent-ingestion logs-agent-processing logs-agent-synthesis \
+       restart-ollama-mcp restart-kali restart-hexstrike restart-agents \
        push-all wordlists recon report
 
 COMPOSE := docker compose
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
-		awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-22s\033[0m %s\n", $$1, $$2}'
+		awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-26s\033[0m %s\n", $$1, $$2}'
 
 # ── Core ───────────────────────────────────────────────────────
-up: ## Start core stack (6 containers)
+up: ## Start core stack (9 containers)
 	$(COMPOSE) up -d
 
 down: ## Stop all services
@@ -21,7 +22,7 @@ logs: ## Tail logs from all services
 	$(COMPOSE) logs -f
 
 # ── Stack management ───────────────────────────────────────────
-up-full: ## Start full stack including Neo4j
+up-full: ## Start full stack including Neo4j (10 containers)
 	$(COMPOSE) --profile neo4j up -d
 
 # ── Testing & Code Quality ─────────────────────────────────────
@@ -65,6 +66,15 @@ logs-kali: ## Tail Kali MCP server logs
 logs-hexstrike: ## Tail HexStrike logs
 	$(COMPOSE) logs -f hexstrike
 
+logs-agent-ingestion: ## Tail Ingestion Agent logs
+	$(COMPOSE) logs -f agent-ingestion
+
+logs-agent-processing: ## Tail Processing Agent logs
+	$(COMPOSE) logs -f agent-processing
+
+logs-agent-synthesis: ## Tail Synthesis Agent logs
+	$(COMPOSE) logs -f agent-synthesis
+
 status: ## Health status of all containers
 	$(COMPOSE) ps
 
@@ -80,6 +90,9 @@ restart-kali: ## Restart Kali MCP server
 
 restart-hexstrike: ## Restart HexStrike MCP server
 	$(COMPOSE) restart hexstrike
+
+restart-agents: ## Restart all 3 agent containers
+	$(COMPOSE) restart agent-ingestion agent-processing agent-synthesis
 
 # ── Recon & Reporting ──────────────────────────────────────────
 wordlists: ## Download common wordlists
@@ -104,6 +117,12 @@ push-all: ## Build and push all custom images to Docker Hub
 	docker build -f docker/kali-mcp.Dockerfile -t crhacky/blhackbox:kali-mcp .
 	docker build -f docker/hexstrike.Dockerfile -t crhacky/blhackbox:hexstrike .
 	docker build -f docker/ollama-mcp.Dockerfile -t crhacky/blhackbox:ollama-mcp .
+	docker build -f docker/agent-ingestion.Dockerfile -t crhacky/blhackbox:agent-ingestion .
+	docker build -f docker/agent-processing.Dockerfile -t crhacky/blhackbox:agent-processing .
+	docker build -f docker/agent-synthesis.Dockerfile -t crhacky/blhackbox:agent-synthesis .
 	docker push crhacky/blhackbox:kali-mcp
 	docker push crhacky/blhackbox:hexstrike
 	docker push crhacky/blhackbox:ollama-mcp
+	docker push crhacky/blhackbox:agent-ingestion
+	docker push crhacky/blhackbox:agent-processing
+	docker push crhacky/blhackbox:agent-synthesis

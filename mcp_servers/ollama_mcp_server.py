@@ -4,10 +4,12 @@ blhackbox Ollama MCP Server
 Custom MCP server built for the blhackbox project.
 NOT an official Ollama product.
 
-Ollama runs as a standard unchanged Docker container (ollama/ollama:latest).
-This server uses Ollama's /api/chat endpoint as its LLM inference backend.
-The MCP layer, agent orchestration, and AggregatedPayload assembly are
-entirely custom blhackbox components.
+This is a thin MCP orchestrator that receives data from Claude, calls each
+of the 3 agent containers (Ingestion, Processing, Synthesis) via HTTP in
+sequence, assembles the final AggregatedPayload, and returns it to Claude.
+
+It does NOT call Ollama directly — each agent container handles its own
+Ollama /api/chat calls independently.
 """
 
 from __future__ import annotations
@@ -20,6 +22,7 @@ import sys
 import time
 from typing import Any
 
+import httpx
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp.types import TextContent, Tool
@@ -29,9 +32,6 @@ _project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _project_root not in sys.path:
     sys.path.insert(0, _project_root)
 
-from blhackbox.agents.ingestion_agent import IngestionAgent
-from blhackbox.agents.processing_agent import ProcessingAgent
-from blhackbox.agents.synthesis_agent import SynthesisAgent
 from blhackbox.models.aggregated_payload import (
     AggregatedMetadata,
     AggregatedPayload,
@@ -46,8 +46,18 @@ logger = logging.getLogger("blhackbox.ollama_mcp")
 # Configuration from environment
 # ---------------------------------------------------------------------------
 
-OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434")
 OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "llama3.3")
+
+# Agent container URLs — each agent runs as a separate FastAPI container
+AGENT_INGESTION_URL = os.environ.get(
+    "AGENT_INGESTION_URL", "http://agent-ingestion:8001"
+)
+AGENT_PROCESSING_URL = os.environ.get(
+    "AGENT_PROCESSING_URL", "http://agent-processing:8002"
+)
+AGENT_SYNTHESIS_URL = os.environ.get(
+    "AGENT_SYNTHESIS_URL", "http://agent-synthesis:8003"
+)
 
 # ---------------------------------------------------------------------------
 # MCP Server
@@ -59,9 +69,10 @@ _TOOLS: list[Tool] = [
     Tool(
         name="process_scan_results",
         description=(
-            "Process raw pentest tool output through three sequential Ollama agents "
-            "(Ingestion -> Processing -> Synthesis) and return a structured "
-            "AggregatedPayload. THIS IS NOT AN OLLAMA PRODUCT — it is a custom "
+            "Process raw pentest tool output through three sequential agent "
+            "containers (Ingestion -> Processing -> Synthesis) and return a "
+            "structured AggregatedPayload. Each agent calls Ollama's /api/chat "
+            "independently. THIS IS NOT AN OLLAMA PRODUCT — it is a custom "
             "blhackbox component that uses Ollama as its LLM backend."
         ),
         inputSchema={
@@ -111,12 +122,44 @@ async def _dispatch(name: str, args: dict[str, Any]) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Core processing logic — 3-agent sequential pipeline
+# Core processing logic — calls 3 agent containers sequentially via HTTP
 # ---------------------------------------------------------------------------
 
 
+async def _call_agent(
+    client: httpx.AsyncClient,
+    url: str,
+    data: dict | str,
+    session_id: str,
+    target: str,
+    agent_name: str,
+    warnings: list[str],
+) -> dict[str, Any]:
+    """Call an agent container's POST /process endpoint."""
+    payload = {"data": data, "session_id": session_id, "target": target}
+    try:
+        response = await client.post(f"{url}/process", json=payload)
+        response.raise_for_status()
+        return response.json()
+    except httpx.ConnectError:
+        msg = f"{agent_name} unreachable at {url}"
+        logger.error(msg)
+        warnings.append(msg)
+        return {}
+    except httpx.HTTPStatusError as exc:
+        msg = f"{agent_name} returned HTTP {exc.response.status_code}"
+        logger.error(msg)
+        warnings.append(msg)
+        return {}
+    except Exception as exc:
+        msg = f"{agent_name} failed: {exc}"
+        logger.error(msg)
+        warnings.append(msg)
+        return {}
+
+
 async def _do_process_scan_results(args: dict[str, Any]) -> str:
-    """Run Ingestion -> Processing -> Synthesis agents sequentially."""
+    """Call Ingestion -> Processing -> Synthesis agent containers sequentially."""
     raw_outputs: dict[str, str] = args.get("raw_outputs", {})
     target: str = args.get("target", "unknown")
     session_id: str = args.get("session_id", "unknown")
@@ -130,54 +173,49 @@ async def _do_process_scan_results(args: dict[str, Any]) -> str:
         raw_combined += f"=== {tool_name} ===\n{output}\n\n"
     total_raw_size = len(raw_combined.encode("utf-8"))
 
-    # ── Agent 1: Ingestion ────────────────────────────────────────────────
-    ingestion_agent = IngestionAgent(ollama_url=OLLAMA_URL, model=OLLAMA_MODEL)
-    try:
-        ingestion_output = await ingestion_agent.process(raw_combined)
+    async with httpx.AsyncClient(timeout=180.0) as client:
+        # ── Agent 1: Ingestion ────────────────────────────────────────
+        ingestion_output = await _call_agent(
+            client, AGENT_INGESTION_URL, raw_combined,
+            session_id, target, "IngestionAgent", warnings,
+        )
         if not ingestion_output:
             warnings.append("IngestionAgent returned empty output")
-    except Exception as exc:
-        logger.error("IngestionAgent failed: %s", exc)
-        warnings.append(f"IngestionAgent failed: {exc}")
-        ingestion_output = {}
 
-    # ── Agent 2: Processing ───────────────────────────────────────────────
-    processing_agent = ProcessingAgent(ollama_url=OLLAMA_URL, model=OLLAMA_MODEL)
-    try:
-        processing_input = json.dumps(ingestion_output) if ingestion_output else "{}"
-        processing_output = await processing_agent.process(processing_input)
+        # ── Agent 2: Processing ───────────────────────────────────────
+        processing_output = await _call_agent(
+            client, AGENT_PROCESSING_URL, ingestion_output,
+            session_id, target, "ProcessingAgent", warnings,
+        )
         if not processing_output:
             warnings.append("ProcessingAgent returned empty output")
-    except Exception as exc:
-        logger.error("ProcessingAgent failed: %s", exc)
-        warnings.append(f"ProcessingAgent failed: {exc}")
-        processing_output = {}
 
-    # ── Agent 3: Synthesis ────────────────────────────────────────────────
-    synthesis_agent = SynthesisAgent(ollama_url=OLLAMA_URL, model=OLLAMA_MODEL)
-    try:
-        synthesis_input = json.dumps({
-            "ingestion_output": ingestion_output,
-            "processing_output": processing_output,
-        })
-        synthesis_output = await synthesis_agent.process(synthesis_input)
+        # ── Agent 3: Synthesis ────────────────────────────────────────
+        synthesis_input = {
+            "ingested": ingestion_output,
+            "processed": processing_output,
+        }
+        synthesis_output = await _call_agent(
+            client, AGENT_SYNTHESIS_URL, synthesis_input,
+            session_id, target, "SynthesisAgent", warnings,
+        )
         if not synthesis_output:
             warnings.append("SynthesisAgent returned empty output")
-    except Exception as exc:
-        logger.error("SynthesisAgent failed: %s", exc)
-        warnings.append(f"SynthesisAgent failed: {exc}")
-        synthesis_output = {}
 
     duration = time.monotonic() - start_time
 
-    # ── Assemble AggregatedPayload ────────────────────────────────────────
-    findings = _build_findings(synthesis_output, processing_output, ingestion_output, warnings)
+    # ── Assemble AggregatedPayload ────────────────────────────────────
+    findings = _build_findings(
+        synthesis_output, processing_output, ingestion_output, warnings,
+    )
     error_log = _build_error_log(synthesis_output, processing_output)
 
     # Calculate compressed size
     payload_json_preview = json.dumps(findings.model_dump(), default=str)
     compressed_size = len(payload_json_preview.encode("utf-8"))
-    compression_ratio = compressed_size / total_raw_size if total_raw_size > 0 else 0.0
+    compression_ratio = (
+        compressed_size / total_raw_size if total_raw_size > 0 else 0.0
+    )
 
     payload = AggregatedPayload(
         session_id=session_id,
@@ -213,7 +251,6 @@ def _build_findings(
     warnings: list[str],
 ) -> Findings:
     """Build Findings from agent outputs, preferring synthesis > processing > ingestion."""
-    # Try synthesis output first
     findings_data = synthesis_output.get("findings", {})
     if not findings_data:
         findings_data = processing_output.get("findings", {})
@@ -228,7 +265,6 @@ def _build_findings(
     except Exception as exc:
         logger.warning("Could not parse findings data: %s", exc)
         warnings.append(f"Findings parse failed: {exc}")
-        # Try building with individual fields
         try:
             return Findings(
                 hosts=findings_data.get("hosts", []),
@@ -289,7 +325,6 @@ async def _store_in_neo4j(payload: AggregatedPayload) -> None:
             "warning": payload.metadata.warning,
         })
 
-        # Link to Domain or IP node
         target = payload.target
         if _looks_like_ip(target):
             link_cypher = """
@@ -310,7 +345,6 @@ async def _store_in_neo4j(payload: AggregatedPayload) -> None:
             "session_id": payload.session_id,
         })
 
-        # Store vulnerability findings as linked nodes
         for vuln in payload.findings.vulnerabilities:
             if vuln.id:
                 vuln_cypher = """
@@ -348,9 +382,10 @@ def _looks_like_ip(value: str) -> bool:
 async def run_server() -> None:
     """Start the blhackbox Ollama MCP server on stdio."""
     logger.info(
-        "Starting blhackbox Ollama MCP Server (Ollama: %s, Model: %s)",
-        OLLAMA_URL,
-        OLLAMA_MODEL,
+        "Starting blhackbox Ollama MCP Server (agents: %s, %s, %s)",
+        AGENT_INGESTION_URL,
+        AGENT_PROCESSING_URL,
+        AGENT_SYNTHESIS_URL,
     )
     async with stdio_server() as (read_stream, write_stream):
         await _server.run(

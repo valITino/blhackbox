@@ -1,8 +1,8 @@
 # blhackbox v2.0 — Modular Docker Infrastructure
 #
 # Usage:
-#   docker compose up                       Start core stack (6 containers)
-#   docker compose --profile neo4j up       Start with Neo4j (7 containers)
+#   docker compose up                       Start core stack (9 containers)
+#   docker compose --profile neo4j up       Start with Neo4j (10 containers)
 #   docker compose build                    Build all custom images locally
 #
 # Claude Desktop config:
@@ -81,8 +81,9 @@ services:
 
   # ── OLLAMA MCP SERVER (CUSTOM) ──────────────────────────────────────
   # blhackbox custom component. NOT an official Ollama product.
-  # Runs 3 agents (Ingestion, Processing, Synthesis) that call the
-  # Ollama container's /api/chat endpoint with task-specific prompts.
+  # Thin MCP orchestrator — calls the 3 agent containers in sequence
+  # via HTTP, assembles the AggregatedPayload, and returns it to Claude.
+  # Does NOT call Ollama directly.
   ollama-mcp:
     build:
       context: .
@@ -92,17 +93,94 @@ services:
     environment:
       OLLAMA_URL: "http://ollama:11434"
       OLLAMA_MODEL: "${OLLAMA_MODEL:-llama3.3}"
+      AGENT_INGESTION_URL: "http://agent-ingestion:8001"
+      AGENT_PROCESSING_URL: "http://agent-processing:8002"
+      AGENT_SYNTHESIS_URL: "http://agent-synthesis:8003"
       NEO4J_URI: "${NEO4J_URI:-bolt://neo4j:7687}"
       NEO4J_USER: "${NEO4J_USER:-neo4j}"
       NEO4J_PASSWORD: "${NEO4J_PASSWORD:-}"
     depends_on:
+      agent-ingestion:
+        condition: service_healthy
+      agent-processing:
+        condition: service_healthy
+      agent-synthesis:
+        condition: service_healthy
+    networks:
+      - blhackbox_net
+
+  # ── AGENT 1: INGESTION ──────────────────────────────────────────────
+  # Parses and structures raw Kali + HexStrike tool output.
+  # Calls Ollama /api/chat with ingestion system prompt.
+  agent-ingestion:
+    build:
+      context: .
+      dockerfile: docker/agent-ingestion.Dockerfile
+    container_name: blhackbox-agent-ingestion
+    restart: unless-stopped
+    environment:
+      OLLAMA_URL: "http://ollama:11434"
+      OLLAMA_MODEL: "${OLLAMA_MODEL:-llama3.3}"
+    depends_on:
       ollama:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - blhackbox_net
+
+  # ── AGENT 2: PROCESSING ─────────────────────────────────────────────
+  # Deduplicates, extracts errors, compresses data into efficient blobs.
+  # Annotates error_log entries with security_relevance.
+  agent-processing:
+    build:
+      context: .
+      dockerfile: docker/agent-processing.Dockerfile
+    container_name: blhackbox-agent-processing
+    restart: unless-stopped
+    environment:
+      OLLAMA_URL: "http://ollama:11434"
+      OLLAMA_MODEL: "${OLLAMA_MODEL:-llama3.3}"
+    depends_on:
+      ollama:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - blhackbox_net
+
+  # ── AGENT 3: SYNTHESIS ──────────────────────────────────────────────
+  # Merges Agent 1 + Agent 2 output into final AggregatedPayload.
+  # Adds metadata, resolves conflicts, sends back to Claude.
+  agent-synthesis:
+    build:
+      context: .
+      dockerfile: docker/agent-synthesis.Dockerfile
+    container_name: blhackbox-agent-synthesis
+    restart: unless-stopped
+    environment:
+      OLLAMA_URL: "http://ollama:11434"
+      OLLAMA_MODEL: "${OLLAMA_MODEL:-llama3.3}"
+    depends_on:
+      ollama:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8003/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
     networks:
       - blhackbox_net
 
   # ── OLLAMA ──────────────────────────────────────────────────────────
   # Standard Ollama image — zero custom configuration.
+  # All 3 agent containers call this via /api/chat independently.
   ollama:
     image: ollama/ollama:latest
     container_name: blhackbox-ollama

@@ -1,14 +1,18 @@
 """Tests for the blhackbox Ollama MCP server (v2 architecture).
 
-Replaces the old test_aggregator_mcp.py. Tests the new ollama_mcp_server.py
-which uses a 3-agent pipeline (Ingestion -> Processing -> Synthesis) and
-exposes the ``process_scan_results`` tool.
+Tests the ollama_mcp_server.py which acts as a thin orchestrator that calls
+3 agent containers (Ingestion, Processing, Synthesis) via HTTP and assembles
+the final AggregatedPayload.
 """
 
 from __future__ import annotations
 
 import sys
 from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock
+
+import httpx
+import pytest
 
 # Ensure the mcp_servers directory is importable
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "mcp_servers"))
@@ -17,6 +21,7 @@ from mcp_servers.ollama_mcp_server import (  # noqa: E402
     _TOOLS,
     _build_error_log,
     _build_findings,
+    _call_agent,
     _looks_like_ip,
 )
 
@@ -44,7 +49,11 @@ class TestToolDefinitions:
     def test_tool_has_description(self) -> None:
         tool = _TOOLS[0]
         assert tool.description
-        assert "process" in tool.description.lower() or "agent" in tool.description.lower()
+        assert "agent" in tool.description.lower()
+
+    def test_tool_description_mentions_containers(self) -> None:
+        tool = _TOOLS[0]
+        assert "container" in tool.description.lower()
 
 
 # ---------------------------------------------------------------------------
@@ -66,6 +75,63 @@ class TestLooksLikeIP:
         assert _looks_like_ip("1.2.3") is False
         assert _looks_like_ip("1.2.3.4.5") is False
         assert _looks_like_ip("") is False
+
+
+# ---------------------------------------------------------------------------
+# _call_agent
+# ---------------------------------------------------------------------------
+
+
+class TestCallAgent:
+    @pytest.mark.asyncio
+    async def test_successful_call(self) -> None:
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"subdomains": ["a.example.com"]}
+        mock_response.raise_for_status = MagicMock()
+
+        mock_client = AsyncMock()
+        mock_client.post.return_value = mock_response
+
+        warnings: list[str] = []
+        result = await _call_agent(
+            mock_client, "http://agent:8001", "data",
+            "session1", "example.com", "TestAgent", warnings,
+        )
+        assert result == {"subdomains": ["a.example.com"]}
+        assert warnings == []
+
+    @pytest.mark.asyncio
+    async def test_connect_error(self) -> None:
+        mock_client = AsyncMock()
+        mock_client.post.side_effect = httpx.ConnectError("unreachable")
+
+        warnings: list[str] = []
+        result = await _call_agent(
+            mock_client, "http://agent:8001", "data",
+            "session1", "example.com", "TestAgent", warnings,
+        )
+        assert result == {}
+        assert len(warnings) == 1
+        assert "unreachable" in warnings[0]
+
+    @pytest.mark.asyncio
+    async def test_http_error(self) -> None:
+        mock_response = MagicMock()
+        mock_response.status_code = 503
+
+        mock_client = AsyncMock()
+        mock_client.post.side_effect = httpx.HTTPStatusError(
+            "error", request=MagicMock(), response=mock_response,
+        )
+
+        warnings: list[str] = []
+        result = await _call_agent(
+            mock_client, "http://agent:8001", "data",
+            "session1", "example.com", "TestAgent", warnings,
+        )
+        assert result == {}
+        assert len(warnings) == 1
+        assert "HTTP" in warnings[0]
 
 
 # ---------------------------------------------------------------------------

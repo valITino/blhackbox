@@ -16,6 +16,10 @@ matplotlib==3.10.0
 # MCP
 mcp>=1.0.0
 
+# Agent servers (FastAPI containers)
+fastapi==0.115.8
+uvicorn==0.34.0
+
 # Utilities
 tenacity==9.0.0
 python-dotenv==1.0.1

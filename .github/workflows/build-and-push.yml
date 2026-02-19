@@ -48,6 +48,18 @@ jobs:
             dockerfile: docker/ollama-mcp.Dockerfile
             tag_prefix: "ollama-mcp-"
             scout: true
+          - service: agent-ingestion
+            dockerfile: docker/agent-ingestion.Dockerfile
+            tag_prefix: "agent-ingestion-"
+            scout: false
+          - service: agent-processing
+            dockerfile: docker/agent-processing.Dockerfile
+            tag_prefix: "agent-processing-"
+            scout: false
+          - service: agent-synthesis
+            dockerfile: docker/agent-synthesis.Dockerfile
+            tag_prefix: "agent-synthesis-"
+            scout: false
 
     steps:
       - name: Checkout repository
@@ -79,32 +91,13 @@ jobs:
             type=sha,prefix=${{ matrix.tag_prefix }}
             type=raw,value=${{ matrix.tag_prefix }}latest,enable={{is_default_branch}}
 
-      - name: Build and push kali-mcp
-        if: matrix.service == 'kali-mcp'
+      - name: Build and push ${{ matrix.service }}
         uses: docker/build-push-action@14487ce63c7a62a4a324b0bfb37086795e31c6c1 # v6.16.0
         with:
           context: .
-          file: docker/kali-mcp.Dockerfile
+          file: ${{ matrix.dockerfile }}
           push: true
-          tags: crhacky/blhackbox:kali-mcp
-
-      - name: Build and push hexstrike
-        if: matrix.service == 'hexstrike'
-        uses: docker/build-push-action@14487ce63c7a62a4a324b0bfb37086795e31c6c1 # v6.16.0
-        with:
-          context: .
-          file: docker/hexstrike.Dockerfile
-          push: true
-          tags: crhacky/blhackbox:hexstrike
-
-      - name: Build and push ollama-mcp
-        if: matrix.service == 'ollama-mcp'
-        uses: docker/build-push-action@14487ce63c7a62a4a324b0bfb37086795e31c6c1 # v6.16.0
-        with:
-          context: .
-          file: docker/ollama-mcp.Dockerfile
-          push: true
-          tags: crhacky/blhackbox:ollama-mcp
+          tags: crhacky/blhackbox:${{ matrix.service }}
 
       - name: Docker Scout - Vulnerability Scan
         uses: docker/scout-action@v1

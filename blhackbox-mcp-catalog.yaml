@@ -19,13 +19,16 @@ servers:
   - name: ollama-mcp
     description: >
       blhackbox Ollama MCP Server — custom blhackbox component, NOT an official
-      Ollama product. Runs 3 preprocessing agents (Ingestion, Processing, Synthesis)
-      against Ollama's /api/chat endpoint, returns AggregatedPayload to Claude.
+      Ollama product. Thin MCP orchestrator that calls 3 agent containers
+      (Ingestion, Processing, Synthesis) via HTTP. Each agent independently
+      calls Ollama's /api/chat. Returns AggregatedPayload to Claude.
     image: crhacky/blhackbox:ollama-mcp
     network: blhackbox_net
     env:
-      OLLAMA_URL: "http://ollama:11434"
       OLLAMA_MODEL: "${OLLAMA_MODEL}"
+      AGENT_INGESTION_URL: "http://agent-ingestion:8001"
+      AGENT_PROCESSING_URL: "http://agent-processing:8002"
+      AGENT_SYNTHESIS_URL: "http://agent-synthesis:8003"
       NEO4J_URI: "${NEO4J_URI}"
       NEO4J_USER: "${NEO4J_USER}"
       NEO4J_PASSWORD: "${NEO4J_PASSWORD}"

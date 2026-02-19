@@ -26,23 +26,29 @@ USER
             │
      ┌──────┼───────┐
      ▼      ▼       ▼
-  Kali   HexStrike  Ollama MCP Server
+  Kali   HexStrike  Ollama MCP Server (thin orchestrator)
   MCP    MCP        │
-  Server Server     │  internally runs 3 agents:
-                    ├── Agent 1: Ingestion
-                    ├── Agent 2: Processing
-                    └── Agent 3: Synthesis
-                          │
-                          ▼
+  Server Server     │  calls 3 agent containers via HTTP:
+                    │
+                    ├──► agent-ingestion   → calls Ollama /api/chat
+                    │    returns structured data
+                    │
+                    ├──► agent-processing  → calls Ollama /api/chat
+                    │    returns deduplicated + compressed data
+                    │
+                    └──► agent-synthesis   → calls Ollama /api/chat
+                         returns final AggregatedPayload
+                              │
+                              ▼
                    AggregatedPayload → back to MCP Host
-                          │
-                          ▼
-               Claude / OpenAI writes final report
-                          │
-                          ▼ (optional)
-                       Neo4j
-                  stores results for
-                 cross-session memory
+                              │
+                              ▼
+                   Claude / OpenAI writes final report
+                              │
+                              ▼ (optional)
+                           Neo4j
+                      stores results for
+                     cross-session memory
 ```
 
 In v2, **Claude (or OpenAI) IS the orchestrator** natively via MCP. There is no
@@ -50,17 +56,24 @@ internal LangGraph orchestrator or LLM planner. The AI client decides which tool
 to call and in what order, collects raw output, sends it to the Ollama MCP server
 for preprocessing, and writes the final report.
 
+Each of the 3 preprocessing agents runs as its own Docker container with a
+FastAPI HTTP server. This means each agent is individually visible in Portainer,
+can be restarted independently, and has its own log stream.
+
 ## Components
 
-| Service | Description | Port |
-|---------|-------------|------|
+| Container | Description | Port |
+|-----------|-------------|------|
 | **MCP Gateway** | Single entry point for all MCP clients | 8080 |
 | **Kali MCP** | Kali Linux security tools (nmap, nikto, gobuster, etc.) | stdio |
 | **HexStrike MCP** | 150+ security tools, 12+ AI agents | 8888 |
-| **Ollama MCP** | Custom preprocessing (3 agents → AggregatedPayload) | stdio |
+| **Ollama MCP** | Thin MCP orchestrator — calls 3 agents in sequence | stdio |
+| **Agent: Ingestion** | Parses raw tool output into structured data | 8001 |
+| **Agent: Processing** | Deduplicates, compresses, annotates error_log | 8002 |
+| **Agent: Synthesis** | Merges into final AggregatedPayload | 8003 |
 | **Ollama** | Standard LLM inference backend | 11434 |
-| **Neo4j** | Optional cross-session knowledge graph | 7474/7687 |
 | **Portainer** | Docker management UI | 9443 |
+| **Neo4j** | Optional cross-session knowledge graph | 7474/7687 |
 
 ## Quick Start
 
@@ -77,10 +90,10 @@ cp .env.example .env
 ### 2. Start the stack
 
 ```bash
-# Core stack (6 containers)
+# Core stack (9 containers)
 docker compose up -d
 
-# Full stack with Neo4j (7 containers)
+# Full stack with Neo4j (10 containers)
 docker compose --profile neo4j up -d
 
 # Pull the Ollama model
@@ -112,17 +125,16 @@ Claude will use the pentest playbook to autonomously:
 
 ## Ollama MCP Server — Preprocessing Pipeline
 
-The Ollama MCP server is the **only custom-built component** in blhackbox.
-Ollama itself runs unchanged as `ollama/ollama:latest`.
+The Ollama MCP server is a thin orchestrator that calls 3 agent containers
+in sequence via HTTP. Each agent container is a FastAPI server that calls
+Ollama's `/api/chat` endpoint with a task-specific system prompt.
 
-Three sequential agents process raw tool output:
+1. **Ingestion Agent** (`agent-ingestion:8001`) — Parses raw tool output into structured typed data
+2. **Processing Agent** (`agent-processing:8002`) — Deduplicates, compresses, annotates error_log with security_relevance
+3. **Synthesis Agent** (`agent-synthesis:8003`) — Merges into final `AggregatedPayload`
 
-1. **Ingestion Agent** — Parses raw tool output into structured typed data
-2. **Processing Agent** — Deduplicates, compresses, annotates error_log with security_relevance
-3. **Synthesis Agent** — Merges into final `AggregatedPayload`
-
-Agent prompts are loaded from `blhackbox/prompts/agents/*.md` at runtime.
-Operators can tune behavior without code changes.
+Agent prompts are baked into each container from `blhackbox/prompts/agents/*.md`
+at build time. Override via volume mount for tuning without rebuilding.
 
 ## CLI Reference
 
@@ -156,16 +168,18 @@ blhackbox mcp
 ## Makefile Shortcuts
 
 ```bash
-make up              # Start core stack
-make up-full         # Start with Neo4j
-make down            # Stop all services
-make test            # Run tests
-make lint            # Run linter
-make status          # Health status of all containers
-make ollama-pull     # Pull Ollama model
-make portainer       # Open Portainer dashboard
-make gateway-logs    # Live MCP tool call log
-make push-all        # Build and push all images to Docker Hub
+make up                    # Start core stack (9 containers)
+make up-full               # Start with Neo4j (10 containers)
+make down                  # Stop all services
+make test                  # Run tests
+make lint                  # Run linter
+make status                # Health status of all containers
+make ollama-pull           # Pull Ollama model
+make portainer             # Open Portainer dashboard
+make gateway-logs          # Live MCP tool call log
+make restart-agents        # Restart all 3 agent containers
+make logs-agent-ingestion  # Tail Ingestion Agent logs
+make push-all              # Build and push all images to Docker Hub
 ```
 
 ## Docker Hub Images
@@ -176,7 +190,10 @@ All custom images are published to `crhacky/blhackbox`:
 |-----|-------------|
 | `crhacky/blhackbox:kali-mcp` | Kali Linux MCP Server |
 | `crhacky/blhackbox:hexstrike` | HexStrike AI MCP Server |
-| `crhacky/blhackbox:ollama-mcp` | Ollama MCP Server (custom) |
+| `crhacky/blhackbox:ollama-mcp` | Ollama MCP Server (thin orchestrator) |
+| `crhacky/blhackbox:agent-ingestion` | Agent 1: Ingestion |
+| `crhacky/blhackbox:agent-processing` | Agent 2: Processing |
+| `crhacky/blhackbox:agent-synthesis` | Agent 3: Synthesis |
 
 Official images pulled directly:
 - `ollama/ollama:latest`
@@ -217,6 +234,8 @@ deploy:
   the public internet.
 - **Authorization**: The `--authorized` flag is mandatory on all scan commands.
 - **Neo4j**: Set a strong password in `.env`. Never use defaults in production.
+- **Agent containers**: Do not expose ports to the host — they communicate only
+  on the internal `blhackbox_net` Docker network.
 
 ## Project Structure
 
@@ -225,16 +244,23 @@ blhackbox/
 ├── docker/
 │   ├── kali-mcp.Dockerfile
 │   ├── hexstrike.Dockerfile
-│   └── ollama-mcp.Dockerfile
+│   ├── ollama-mcp.Dockerfile
+│   ├── agent-ingestion.Dockerfile
+│   ├── agent-processing.Dockerfile
+│   └── agent-synthesis.Dockerfile
 ├── kali-mcp/                        # adapted community Kali MCP server
 ├── mcp_servers/
-│   └── ollama_mcp_server.py         # custom blhackbox MCP server
+│   └── ollama_mcp_server.py         # thin MCP orchestrator
 ├── blhackbox/
-│   ├── agents/                      # Ollama preprocessing agents
-│   │   ├── base_agent.py
-│   │   ├── ingestion_agent.py
+│   ├── agents/                      # agent server + library code
+│   │   ├── base_agent.py            # base class (library/testing)
+│   │   ├── base_agent_server.py     # FastAPI server base
+│   │   ├── ingestion_agent.py       # library class
+│   │   ├── ingestion_server.py      # container entry point
 │   │   ├── processing_agent.py
-│   │   └── synthesis_agent.py
+│   │   ├── processing_server.py
+│   │   ├── synthesis_agent.py
+│   │   └── synthesis_server.py
 │   ├── models/
 │   │   ├── aggregated_payload.py    # AggregatedPayload Pydantic model
 │   │   ├── base.py

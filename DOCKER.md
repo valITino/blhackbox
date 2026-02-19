@@ -19,13 +19,16 @@ All custom images are published to a single Docker Hub repository, differentiate
 
 ## Images and Tags
 
-Three custom images are published to `crhacky/blhackbox` on Docker Hub:
+Six custom images are published to `crhacky/blhackbox` on Docker Hub:
 
 | Service | Tag | Dockerfile | Base |
 |---|---|---|---|
 | **Kali MCP** | `crhacky/blhackbox:kali-mcp` | `docker/kali-mcp.Dockerfile` | `kalilinux/kali-rolling` |
 | **HexStrike** | `crhacky/blhackbox:hexstrike` | `docker/hexstrike.Dockerfile` | `python:3.13-slim-bookworm` |
-| **Ollama MCP** | `crhacky/blhackbox:ollama-mcp` | `docker/ollama-mcp.Dockerfile` | `python:3.13-slim-bookworm` |
+| **Ollama MCP** | `crhacky/blhackbox:ollama-mcp` | `docker/ollama-mcp.Dockerfile` | `python:3.13-slim` |
+| **Agent: Ingestion** | `crhacky/blhackbox:agent-ingestion` | `docker/agent-ingestion.Dockerfile` | `python:3.13-slim` |
+| **Agent: Processing** | `crhacky/blhackbox:agent-processing` | `docker/agent-processing.Dockerfile` | `python:3.13-slim` |
+| **Agent: Synthesis** | `crhacky/blhackbox:agent-synthesis` | `docker/agent-synthesis.Dockerfile` | `python:3.13-slim` |
 
 Official images pulled directly (no custom build):
 - `docker/mcp-gateway:latest` — MCP Gateway
@@ -36,34 +39,41 @@ Official images pulled directly (no custom build):
 ### Pulling Images
 
 ```bash
-# Pull custom images
+# Pull all custom images
 docker pull crhacky/blhackbox:kali-mcp
 docker pull crhacky/blhackbox:hexstrike
 docker pull crhacky/blhackbox:ollama-mcp
+docker pull crhacky/blhackbox:agent-ingestion
+docker pull crhacky/blhackbox:agent-processing
+docker pull crhacky/blhackbox:agent-synthesis
 ```
 
 ---
 
 ## Architecture
 
-In v2, **Claude (or OpenAI) IS the orchestrator** natively via MCP. There is no
-internal LangGraph orchestrator or LLM planner. The AI client connects to the
-MCP Gateway and decides which tools to call.
+In v2, **Claude (or OpenAI) IS the orchestrator** natively via MCP. The Ollama
+MCP server is a thin orchestrator that calls 3 separate agent containers via
+HTTP. Each agent container runs a FastAPI server and calls Ollama's `/api/chat`
+independently.
 
 ```
 Claude (MCP Host) ──> MCP Gateway ──┬──> Kali MCP (security tools)
                                     ├──> HexStrike MCP (150+ tools, 12+ agents)
-                                    └──> Ollama MCP (3-agent preprocessing)
+                                    └──> Ollama MCP (thin orchestrator)
                                               │
-                                              ▼
-                                           Ollama (LLM backend)
+                                              ├──► agent-ingestion:8001
+                                              ├──► agent-processing:8002
+                                              └──► agent-synthesis:8003
+                                                        │
+                                                        ▼
+                                                     Ollama (LLM backend)
 
 Neo4j (optional)    Portainer (Docker UI)
 ```
 
-> **Ollama is required.** The Ollama MCP server's three preprocessing agents
-> call Ollama's `/api/chat` endpoint. Without it, the aggregation pipeline
-> returns empty results.
+> **Ollama is required.** All 3 agent containers call Ollama's `/api/chat`
+> endpoint. Without it, the aggregation pipeline returns empty results.
 
 ---
 
@@ -76,11 +86,11 @@ git clone https://github.com/valITino/blhackbox.git
 cd blhackbox
 git submodule update --init --recursive
 cp .env.example .env       # configure API keys and Neo4j password
-docker compose up -d       # start core stack (6 containers)
+docker compose up -d       # start core stack (9 containers)
 make ollama-pull           # pull the Ollama model (REQUIRED)
 ```
 
-### With Neo4j (7 containers)
+### With Neo4j (10 containers)
 
 ```bash
 docker compose --profile neo4j up -d
@@ -110,10 +120,13 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 | `mcp-gateway` | `docker/mcp-gateway:latest` | `8080` | default | Single MCP entry point |
 | `kali-mcp` | `crhacky/blhackbox:kali-mcp` | - | default | Kali Linux security tools |
 | `hexstrike` | `crhacky/blhackbox:hexstrike` | `8888` | default | HexStrike AI (150+ tools) |
-| `ollama-mcp` | `crhacky/blhackbox:ollama-mcp` | - | default | 3-agent preprocessing pipeline |
+| `ollama-mcp` | `crhacky/blhackbox:ollama-mcp` | - | default | Thin MCP orchestrator |
+| `agent-ingestion` | `crhacky/blhackbox:agent-ingestion` | `8001` | default | Agent 1: parse raw output |
+| `agent-processing` | `crhacky/blhackbox:agent-processing` | `8002` | default | Agent 2: deduplicate, compress |
+| `agent-synthesis` | `crhacky/blhackbox:agent-synthesis` | `8003` | default | Agent 3: assemble payload |
 | `ollama` | `ollama/ollama:latest` | - | default | LLM inference backend |
-| `neo4j` | `neo4j:5` | `7474` `7687` | `neo4j` | Cross-session knowledge graph |
 | `portainer` | `portainer/portainer-ce:latest` | `9443` `9000` | default | Docker management UI |
+| `neo4j` | `neo4j:5` | `7474` `7687` | `neo4j` | Cross-session knowledge graph |
 
 ---
 
@@ -128,8 +141,6 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 | `NEO4J_PASSWORD` | - | Neo4j password (min 8 chars) |
 | `ANTHROPIC_API_KEY` | - | For Claude Desktop MCP host |
 | `OPENAI_API_KEY` | - | For OpenAI MCP host |
-| `LOG_LEVEL` | `INFO` | Logging verbosity |
-| `RESULTS_DIR` | `./results` | Scan output directory |
 
 ---
 
@@ -151,11 +162,20 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 
 ### Ollama MCP (`crhacky/blhackbox:ollama-mcp`)
 
-- **Base**: `python:3.13-slim-bookworm`
+- **Base**: `python:3.13-slim`
 - **Entrypoint**: `ollama_mcp_server.py`
-- **Depends on**: Ollama container (calls `/api/chat`)
-- **Agents**: Ingestion, Processing, Synthesis — three sequential agents that parse, deduplicate, and merge raw tool output into an `AggregatedPayload`
-- **NOT an official Ollama product** — this is a custom blhackbox component
+- **Role**: Thin MCP orchestrator — calls 3 agent containers via HTTP, does NOT call Ollama directly
+- **NOT an official Ollama product**
+
+### Agent Containers (`agent-ingestion`, `agent-processing`, `agent-synthesis`)
+
+- **Base**: `python:3.13-slim`
+- **Entrypoint**: FastAPI server (`uvicorn`)
+- **Ports**: 8001, 8002, 8003 respectively (internal only)
+- **Depends on**: Ollama container (each calls `/api/chat` independently)
+- **Health endpoint**: `GET /health` — returns immediately without calling Ollama
+- Prompts baked in from `blhackbox/prompts/agents/` at build time
+- Can be overridden via volume mount for tuning without rebuilding
 
 ---
 
@@ -176,16 +196,16 @@ Named volumes for persistent data:
 
 ## CI/CD Pipeline
 
-Three custom images are built and pushed to Docker Hub via GitHub Actions:
+Six custom images are built and pushed to Docker Hub via GitHub Actions:
 
 ```
 PR opened  ───>  CI (lint + test + pip-audit)
                       │
-PR merged  ───>  CI  ───>  Build & Push (3 images)  ───>  Docker Hub
+PR merged  ───>  CI  ───>  Build & Push (6 images)  ───>  Docker Hub
                            (on CI success)
-Tag v*     ──────────────>  Build & Push (3 images)  ───>  Docker Hub
+Tag v*     ──────────────>  Build & Push (6 images)  ───>  Docker Hub
 
-Manual     ──────────────>  Build & Push (3 images)  ───>  Docker Hub
+Manual     ──────────────>  Build & Push (6 images)  ───>  Docker Hub
 ```
 
 Docker Scout vulnerability scanning runs on the ollama-mcp image.
@@ -195,10 +215,10 @@ Docker Scout vulnerability scanning runs on the ollama-mcp image.
 ## Useful Commands
 
 ```bash
-# Start core stack (6 containers)
+# Start core stack (9 containers)
 docker compose up -d
 
-# Start with Neo4j (7 containers)
+# Start with Neo4j (10 containers)
 docker compose --profile neo4j up -d
 
 # Pull the Ollama model (REQUIRED)
@@ -206,6 +226,14 @@ make ollama-pull
 
 # View MCP Gateway tool call log
 make gateway-logs
+
+# View agent logs
+make logs-agent-ingestion
+make logs-agent-processing
+make logs-agent-synthesis
+
+# Restart all 3 agent containers
+make restart-agents
 
 # Check health of all containers
 make status
@@ -221,6 +249,7 @@ docker compose down -v --remove-orphans
 - **Docker socket**: MCP Gateway and Portainer mount `/var/run/docker.sock`. This grants effective root on the host. Never expose ports 8080 or 9443 to the public internet.
 - **Authorization**: The `--authorized` flag is mandatory on all scan commands.
 - **Neo4j**: Set a strong password in `.env`. Never use defaults in production.
+- **Agent containers**: Do not expose ports to the host — they communicate only on the internal `blhackbox_net` Docker network.
 
 **This tool is for authorized security testing only.** Unauthorized access to computer systems is illegal.
 
