@@ -1,0 +1,4 @@
+# Kali MCP Server Python dependencies
+# Only the MCP SDK is needed — security tools are installed via apt
+mcp>=1.23.0
+httpx>=0.28.1
