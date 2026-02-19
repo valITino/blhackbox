@@ -28,20 +28,12 @@ class GraphError(BlhackboxError):
     """Raised on Neo4j / knowledge graph failures."""
 
 
-class OrchestratorError(BlhackboxError):
-    """Raised when the AI orchestrator encounters an unrecoverable issue."""
-
-
 class AuthorizationRequiredError(BlhackboxError):
     """Raised when the --authorized flag is not provided."""
 
 
 class ReportingError(BlhackboxError):
     """Raised on report generation failures."""
-
-
-class LLMProviderError(BlhackboxError):
-    """Raised when no LLM provider is available or all providers fail."""
 
 
 class ModuleError(BlhackboxError):

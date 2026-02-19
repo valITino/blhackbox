@@ -1,52 +1,31 @@
-# blhackbox MCP Server Catalog for Docker MCP Gateway
-# This is a private catalog — NOT part of the Docker MCP public catalog.
-#
-# The Gateway reads this at startup and manages MCP server container lifecycles.
-# Images are pulled from Docker Hub: docker pull crhacky/blhackbox:<service>-latest
-#
-# Docs: https://github.com/docker/mcp-gateway
+# blhackbox MCP Server Catalog
+# Read by Docker MCP Gateway at startup.
+# Private catalog — not part of the Docker public MCP Catalog.
 
-version: 2
-name: blhackbox
-displayName: blhackbox Pentest MCP Servers
-
-registry:
-
-  kali:
-    title: Kali Linux MCP
+servers:
+  - name: kali
     description: "Kali Linux security tools — community MCP server adapted for blhackbox"
-    image: crhacky/blhackbox:kali-mcp-latest
-    network: blhackbox-net
-    env:
-      - name: ALLOWED_TOOLS
-        value: "nmap,nikto,gobuster,dirb,whatweb,wafw00f,masscan,hydra,sqlmap,wpscan,subfinder,amass,fierce,dnsenum,whois"
+    image: crhacky/blhackbox:kali-mcp
+    privileged: true
+    network: blhackbox_net
 
-  hexstrike:
-    title: HexStrike AI MCP
-    description: "HexStrike AI MCP Server — 150+ tools, 12+ security execution agents"
-    image: crhacky/blhackbox:hexstrike-latest
-    network: blhackbox-net
+  - name: hexstrike
+    description: "HexStrike AI — github.com/0x4m4/hexstrike-ai (150+ tools, 12+ agents)"
+    image: crhacky/blhackbox:hexstrike
+    network: blhackbox_net
     env:
-      - name: HEXSTRIKE_URL
-        value: "http://blhackbox-hexstrike:8888"
+      HEXSTRIKE_URL: "http://hexstrike:8888"
 
-  blhackbox-aggregator:
-    title: blhackbox Aggregator
+  - name: ollama-mcp
     description: >
-      Custom Ollama preprocessing aggregator — NOT an official Ollama product.
-      Dispatches raw pentest output to specialized Python agent classes
-      that call Ollama /api/chat, assembles AggregatedPayload for Claude.
-    image: crhacky/blhackbox:aggregator-latest
-    network: blhackbox-net
+      blhackbox Ollama MCP Server — custom blhackbox component, NOT an official
+      Ollama product. Runs 3 preprocessing agents (Ingestion, Processing, Synthesis)
+      against Ollama's /api/chat endpoint, returns AggregatedPayload to Claude.
+    image: crhacky/blhackbox:ollama-mcp
+    network: blhackbox_net
     env:
-      - name: OLLAMA_URL
-        value: "http://blhackbox-ollama:11434"
-      - name: OLLAMA_MODEL
-        value: "${OLLAMA_MODEL:-llama3.3}"
-      - name: NEO4J_URI
-        value: "${NEO4J_URI:-bolt://blhackbox-neo4j:7687}"
-      - name: NEO4J_USER
-        value: "${NEO4J_USER:-neo4j}"
-    secrets:
-      - name: NEO4J_PASSWORD
-        env: NEO4J_PASSWORD
+      OLLAMA_URL: "http://ollama:11434"
+      OLLAMA_MODEL: "${OLLAMA_MODEL}"
+      NEO4J_URI: "${NEO4J_URI}"
+      NEO4J_USER: "${NEO4J_USER}"
+      NEO4J_PASSWORD: "${NEO4J_PASSWORD}"

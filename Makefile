@@ -1,8 +1,8 @@
-.PHONY: help build up up-direct down logs shell test lint format clean \
-       reset-graph wordlists recon report \
-       build-all status portainer gateway-logs ollama-pull ollama-shell \
-       neo4j-browser logs-blhackbox logs-hexstrike logs-aggregator \
-       logs-kali restart-aggregator restart-kali test-local
+.PHONY: help up up-full down logs test test-local lint format clean \
+       status portainer gateway-logs ollama-pull ollama-shell \
+       neo4j-browser logs-ollama-mcp logs-kali logs-hexstrike \
+       restart-ollama-mcp restart-kali restart-hexstrike \
+       push-all wordlists recon report
 
 COMPOSE := docker compose
 
@@ -11,33 +11,24 @@ help: ## Show this help
 		awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-22s\033[0m %s\n", $$1, $$2}'
 
 # ── Core ───────────────────────────────────────────────────────
-
-build: ## Build blhackbox CLI image
-	NEO4J_PASSWORD=build-placeholder $(COMPOSE) build blhackbox
-
-build-all: ## Build ALL service images (including MCP servers)
-	NEO4J_PASSWORD=build-placeholder $(COMPOSE) build blhackbox
-	NEO4J_PASSWORD=build-placeholder $(COMPOSE) --profile direct build
-
-up: ## Start infrastructure + MCP Gateway + Portainer
+up: ## Start core stack (6 containers)
 	$(COMPOSE) up -d
 
-up-direct: ## Start everything with MCP servers in compose (no Gateway)
-	$(COMPOSE) --profile direct up -d
-
 down: ## Stop all services
-	$(COMPOSE) --profile direct down
+	$(COMPOSE) --profile neo4j down
 
 logs: ## Tail logs from all services
-	$(COMPOSE) --profile direct logs -f
+	$(COMPOSE) logs -f
 
-shell: ## Open a shell in the blhackbox CLI container
-	$(COMPOSE) exec blhackbox bash
+# ── Stack management ───────────────────────────────────────────
+up-full: ## Start full stack including Neo4j
+	$(COMPOSE) --profile neo4j up -d
 
-test: ## Run tests in Docker
-	$(COMPOSE) exec blhackbox pytest tests/ -v --tb=short
+# ── Testing & Code Quality ─────────────────────────────────────
+test: ## Run tests locally
+	pytest tests/ -v --tb=short
 
-test-local: ## Run tests locally (outside Docker)
+test-local: ## Run tests locally (alias)
 	pytest tests/ -v --tb=short
 
 lint: ## Run linter
@@ -47,58 +38,50 @@ format: ## Auto-format code
 	ruff format blhackbox/ tests/
 
 clean: ## Remove containers, volumes, and build artifacts
-	$(COMPOSE) --profile direct down -v --remove-orphans
+	$(COMPOSE) --profile neo4j down -v --remove-orphans
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 	rm -rf dist/ build/ *.egg-info
 
-# ── Infrastructure ─────────────────────────────────────────────
+# ── Ollama ──────────────────────────────────────────────────────
+ollama-pull: ## Pull default Ollama model into container
+	docker exec blhackbox-ollama ollama pull $$(grep OLLAMA_MODEL .env | cut -d= -f2)
 
-status: ## Show health status of all containers
-	$(COMPOSE) --profile direct ps
-
-portainer: ## Open Portainer CE dashboard in browser
-	@echo "Portainer CE → https://localhost:9443"
-	@open https://localhost:9443 2>/dev/null || xdg-open https://localhost:9443 2>/dev/null || echo "Open https://localhost:9443 manually"
-
-gateway-logs: ## Tail MCP Gateway logs (shows Claude tool calls)
-	$(COMPOSE) logs -f mcp-gateway
-
-neo4j-browser: ## Open Neo4j Browser
-	@open http://localhost:7474 2>/dev/null || xdg-open http://localhost:7474 2>/dev/null || echo "Open http://localhost:7474 manually"
-
-ollama-pull: ## Pull the default Ollama model into the container
-	docker exec blhackbox-ollama ollama pull $$(grep '^OLLAMA_MODEL=' .env 2>/dev/null | cut -d= -f2 || echo llama3.3)
-
-ollama-shell: ## Open a shell in the Ollama container
+ollama-shell: ## Shell into Ollama container
 	docker exec -it blhackbox-ollama /bin/bash
 
-# ── Service Logs ───────────────────────────────────────────────
+# ── Monitoring ──────────────────────────────────────────────────
+portainer: ## Open Portainer dashboard
+	@open https://localhost:9443 2>/dev/null || xdg-open https://localhost:9443
 
-logs-blhackbox: ## Tail blhackbox CLI logs
-	$(COMPOSE) logs -f blhackbox
+gateway-logs: ## Live MCP tool call log (every Claude tool invocation)
+	$(COMPOSE) logs -f mcp-gateway
 
-logs-hexstrike: ## Tail HexStrike logs
-	$(COMPOSE) --profile direct logs -f hexstrike
-
-logs-aggregator: ## Tail aggregator MCP server logs
-	$(COMPOSE) --profile direct logs -f aggregator
+logs-ollama-mcp: ## Tail Ollama MCP server logs
+	$(COMPOSE) logs -f ollama-mcp
 
 logs-kali: ## Tail Kali MCP server logs
-	$(COMPOSE) --profile direct logs -f kali-mcp
+	$(COMPOSE) logs -f kali-mcp
 
-# ── Service Management ────────────────────────────────────────
+logs-hexstrike: ## Tail HexStrike logs
+	$(COMPOSE) logs -f hexstrike
 
-restart-aggregator: ## Restart aggregator without full stack restart
-	$(COMPOSE) --profile direct restart aggregator
+status: ## Health status of all containers
+	$(COMPOSE) ps
+
+neo4j-browser: ## Open Neo4j Browser
+	@open http://localhost:7474 2>/dev/null || xdg-open http://localhost:7474
+
+# ── Per-service restart ──────────────────────────────────────────
+restart-ollama-mcp: ## Restart Ollama MCP server
+	$(COMPOSE) restart ollama-mcp
 
 restart-kali: ## Restart Kali MCP server
-	$(COMPOSE) --profile direct restart kali-mcp
+	$(COMPOSE) restart kali-mcp
+
+restart-hexstrike: ## Restart HexStrike MCP server
+	$(COMPOSE) restart hexstrike
 
 # ── Recon & Reporting ──────────────────────────────────────────
-
-reset-graph: ## Reset the Neo4j knowledge graph
-	$(COMPOSE) exec blhackbox python -m scripts.reset_graph
-
 wordlists: ## Download common wordlists
 	mkdir -p wordlists
 	@echo "Downloading common wordlists..."
@@ -111,7 +94,16 @@ wordlists: ## Download common wordlists
 	@echo "Done. Wordlists saved to ./wordlists/"
 
 recon: ## Quick recon example (requires TARGET env var)
-	$(COMPOSE) exec blhackbox blhackbox recon --target $(TARGET) --authorized
+	blhackbox recon --target $(TARGET) --authorized
 
 report: ## Generate report for a session (requires SESSION env var)
-	$(COMPOSE) exec blhackbox blhackbox report --session $(SESSION) --format pdf
+	blhackbox report --session $(SESSION) --format pdf
+
+# ── Build and push (Docker Hub: crhacky/blhackbox) ──────────────
+push-all: ## Build and push all custom images to Docker Hub
+	docker build -f docker/kali-mcp.Dockerfile -t crhacky/blhackbox:kali-mcp .
+	docker build -f docker/hexstrike.Dockerfile -t crhacky/blhackbox:hexstrike .
+	docker build -f docker/ollama-mcp.Dockerfile -t crhacky/blhackbox:ollama-mcp .
+	docker push crhacky/blhackbox:kali-mcp
+	docker push crhacky/blhackbox:hexstrike
+	docker push crhacky/blhackbox:ollama-mcp

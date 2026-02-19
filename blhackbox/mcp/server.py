@@ -49,9 +49,9 @@ _TOOLS: list[Tool] = [
     Tool(
         name="recon",
         description=(
-            "Run autonomous multi-tool reconnaissance against a target. "
-            "Uses AI planning to select and sequence the best tools, "
-            "stores results in a knowledge graph, and returns structured findings."
+            "Run multi-tool reconnaissance against a target. "
+            "Executes tools via HexStrike, stores results in the knowledge "
+            "graph, and returns structured findings."
         ),
         inputSchema={
             "type": "object",
@@ -205,10 +205,14 @@ async def _dispatch(name: str, args: dict[str, Any]) -> str:
 
 
 async def _do_recon(args: dict[str, Any]) -> str:
-    from blhackbox.core.orchestrator import run_orchestrated_recon
+    from blhackbox.clients.hexstrike_client import HexStrikeClient
+    from blhackbox.core.runner import ReconRunner
 
     target = args["target"]
-    session = await run_orchestrated_recon(target)
+    async with HexStrikeClient() as client:
+        runner = ReconRunner(client)
+        session = await runner.run_recon(target)
+
     summary = {
         "session_id": session.id,
         "target": session.target.value,
