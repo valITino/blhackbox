@@ -249,6 +249,18 @@ docker compose down -v --remove-orphans
 
 ---
 
+## GPU Support
+
+NVIDIA GPU acceleration is **enabled by default** for the Ollama service. This
+requires the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html)
+on the host.
+
+If you do **not** have an NVIDIA GPU, comment out the `deploy` block under the
+`ollama` service in `docker-compose.yml`. Ollama will fall back to CPU-only
+inference automatically.
+
+---
+
 ## Security
 
 - **Docker socket**: MCP Gateway and Portainer mount `/var/run/docker.sock`. This grants effective root on the host. Never expose ports 8080 or 9443 to the public internet.

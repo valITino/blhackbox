@@ -60,6 +60,7 @@ services:
     container_name: blhackbox-kali-mcp
     restart: unless-stopped
     privileged: true
+    stdin_open: true
     networks:
       - blhackbox_net
 
@@ -195,21 +196,22 @@ services:
     volumes:
       - ollama_models:/root/.ollama
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:11434/ || exit 1"]
+      test: ["CMD", "ollama", "list"]
       interval: 15s
-      timeout: 5s
+      timeout: 10s
       retries: 10
-      start_period: 120s
+      start_period: 30s
     networks:
       - blhackbox_net
-    # GPU support -- uncomment if NVIDIA GPU available:
-    # deploy:
-    #   resources:
-    #     reservations:
-    #       devices:
-    #         - driver: nvidia
-    #           count: all
-    #           capabilities: [gpu]
+    # GPU support -- enabled by default for NVIDIA GPUs.
+    # If you do NOT have an NVIDIA GPU, comment out the 'deploy' block below.
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
 
   # -- NEO4J (OPTIONAL) ----------------------------------------------------
   # Enable with: docker compose --profile neo4j up
