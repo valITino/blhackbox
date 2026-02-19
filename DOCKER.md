@@ -39,14 +39,12 @@ Official images pulled directly (no custom build):
 ### Pulling Images
 
 ```bash
-# Pull all custom images
-docker pull crhacky/blhackbox:kali-mcp
-docker pull crhacky/blhackbox:hexstrike
-docker pull crhacky/blhackbox:ollama-mcp
-docker pull crhacky/blhackbox:agent-ingestion
-docker pull crhacky/blhackbox:agent-processing
-docker pull crhacky/blhackbox:agent-synthesis
+# Pull ALL images (custom + official) in one command
+docker compose pull
 ```
+
+This pulls all 10 images (6 custom + 4 official) in parallel. No local
+builds or submodules required.
 
 ---
 
@@ -84,11 +82,15 @@ Neo4j (optional)    Portainer (Docker UI)
 ```bash
 git clone https://github.com/valITino/blhackbox.git
 cd blhackbox
-git submodule update --init --recursive
 cp .env.example .env       # configure API keys and Neo4j password
+docker compose pull        # pull ALL images in one command
 docker compose up -d       # start core stack (9 containers)
 make ollama-pull           # pull the Ollama model (REQUIRED)
 ```
+
+> **Build from source** (optional): If you want to modify Dockerfiles or agent
+> code, run `git submodule update --init --recursive` then `docker compose build`
+> instead of `docker compose pull`.
 
 ### With Neo4j (10 containers)
 
@@ -215,6 +217,9 @@ Docker Scout vulnerability scanning runs on the ollama-mcp image.
 ## Useful Commands
 
 ```bash
+# Pull all pre-built images from Docker Hub
+docker compose pull
+
 # Start core stack (9 containers)
 docker compose up -d
 

@@ -1,9 +1,10 @@
 # blhackbox v2.0 — Modular Docker Infrastructure
 #
 # Usage:
-#   docker compose up                       Start core stack (9 containers)
-#   docker compose --profile neo4j up       Start with Neo4j (10 containers)
-#   docker compose build                    Build all custom images locally
+#   docker compose pull                     Pull all pre-built images from Docker Hub
+#   docker compose up -d                    Start core stack (9 containers)
+#   docker compose --profile neo4j up -d    Start with Neo4j (10 containers)
+#   docker compose build                    Build all custom images locally (optional)
 #
 # Claude Desktop config:
 #   {"mcpServers": {"blhackbox": {"transport": "sse", "url": "http://localhost:8080/sse"}}}
@@ -52,6 +53,7 @@ services:
 
   # ── KALI MCP SERVER ─────────────────────────────────────────────────
   kali-mcp:
+    image: crhacky/blhackbox:kali-mcp
     build:
       context: .
       dockerfile: docker/kali-mcp.Dockerfile
@@ -64,6 +66,7 @@ services:
   # ── HEXSTRIKE MCP SERVER ────────────────────────────────────────────
   # Source: https://github.com/0x4m4/hexstrike-ai
   hexstrike:
+    image: crhacky/blhackbox:hexstrike
     build:
       context: .
       dockerfile: docker/hexstrike.Dockerfile
@@ -85,6 +88,7 @@ services:
   # via HTTP, assembles the AggregatedPayload, and returns it to Claude.
   # Does NOT call Ollama directly.
   ollama-mcp:
+    image: crhacky/blhackbox:ollama-mcp
     build:
       context: .
       dockerfile: docker/ollama-mcp.Dockerfile
@@ -113,6 +117,7 @@ services:
   # Parses and structures raw Kali + HexStrike tool output.
   # Calls Ollama /api/chat with ingestion system prompt.
   agent-ingestion:
+    image: crhacky/blhackbox:agent-ingestion
     build:
       context: .
       dockerfile: docker/agent-ingestion.Dockerfile
@@ -136,6 +141,7 @@ services:
   # Deduplicates, extracts errors, compresses data into efficient blobs.
   # Annotates error_log entries with security_relevance.
   agent-processing:
+    image: crhacky/blhackbox:agent-processing
     build:
       context: .
       dockerfile: docker/agent-processing.Dockerfile
@@ -159,6 +165,7 @@ services:
   # Merges Agent 1 + Agent 2 output into final AggregatedPayload.
   # Adds metadata, resolves conflicts, sends back to Claude.
   agent-synthesis:
+    image: crhacky/blhackbox:agent-synthesis
     build:
       context: .
       dockerfile: docker/agent-synthesis.Dockerfile

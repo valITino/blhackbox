@@ -1,5 +1,5 @@
 .PHONY: help up up-full down logs test test-local lint format clean \
-       status portainer gateway-logs ollama-pull ollama-shell \
+       pull status portainer gateway-logs ollama-pull ollama-shell \
        neo4j-browser logs-ollama-mcp logs-kali logs-hexstrike \
        logs-agent-ingestion logs-agent-processing logs-agent-synthesis \
        restart-ollama-mcp restart-kali restart-hexstrike restart-agents \
@@ -12,6 +12,9 @@ help: ## Show this help
 		awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-26s\033[0m %s\n", $$1, $$2}'
 
 # ── Core ───────────────────────────────────────────────────────
+pull: ## Pull all pre-built images from Docker Hub
+	$(COMPOSE) pull
+
 up: ## Start core stack (9 containers)
 	$(COMPOSE) up -d
 
