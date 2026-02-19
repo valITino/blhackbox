@@ -13,88 +13,197 @@
 > any scans. Unauthorized testing is illegal. The `--authorized` flag is mandatory
 > on all scan commands as an additional safeguard.
 
+---
+
+## Table of Contents
+
+- [How It Works](#how-it-works)
+- [Architecture](#architecture)
+- [Components](#components)
+- [Prerequisites](#prerequisites)
+- [Installation](#installation)
+- [Tutorial 1: Claude Desktop](#tutorial-1-claude-desktop)
+- [Tutorial 2: Claude Code](#tutorial-2-claude-code)
+- [Tutorial 3: ChatGPT / OpenAI](#tutorial-3-chatgpt--openai)
+- [How Prompts Flow Through the System](#how-prompts-flow-through-the-system)
+- [Ollama Preprocessing Pipeline](#ollama-mcp-server--preprocessing-pipeline)
+- [CLI Reference](#cli-reference)
+- [Makefile Shortcuts](#makefile-shortcuts)
+- [Docker Hub Images](#docker-hub-images)
+- [Neo4j (Optional)](#neo4j-optional)
+- [GPU Support for Ollama](#gpu-support-for-ollama)
+- [Security Notes](#security-notes)
+- [Project Structure](#project-structure)
+- [License](#license)
+
+---
+
+## How It Works
+
+In v2, **your AI client (Claude or ChatGPT) IS the orchestrator**. There is no
+internal LangGraph orchestrator or LLM planner. Here is what happens when you
+type a prompt:
+
+1. **You type a prompt** in your AI client (Claude Desktop, Claude Code, or ChatGPT).
+2. **The AI decides which tools to call** from the two MCP servers: Kali Linux MCP (nmap, nikto, gobuster, etc.) and HexStrike MCP (150+ security tools, 12+ AI agents).
+3. **The MCP Gateway routes each tool call** to the correct container and returns raw output to the AI.
+4. **The AI collects all raw outputs** and sends them to the Ollama MCP server via `process_scan_results()`.
+5. **Ollama preprocesses the data** through 3 agent containers in sequence (Ingestion -> Processing -> Synthesis), each calling the local Ollama LLM independently.
+6. **The structured `AggregatedPayload` returns to the AI**, which writes the final pentest report.
+
+Everything runs inside Docker containers. No tools are installed on your host machine.
+
+---
+
 ## Architecture
 
 ```
-USER
-  │
-  └── MCP Host (Claude Desktop / Claude Code / OpenAI client)
-            │
-            │  connects once to:
-            ▼
-      Docker MCP Gateway  ←── single entry point, routes all MCP traffic
-            │
-     ┌──────┼───────┐
-     ▼      ▼       ▼
-  Kali   HexStrike  Ollama MCP Server (thin orchestrator)
-  MCP    MCP        │
-  Server Server     │  calls 3 agent containers via HTTP:
-                    │
-                    ├──► agent-ingestion   → calls Ollama /api/chat
-                    │    returns structured data
-                    │
-                    ├──► agent-processing  → calls Ollama /api/chat
-                    │    returns deduplicated + compressed data
-                    │
-                    └──► agent-synthesis   → calls Ollama /api/chat
-                         returns final AggregatedPayload
-                              │
-                              ▼
-                   AggregatedPayload → back to MCP Host
-                              │
-                              ▼
-                   Claude / OpenAI writes final report
-                              │
-                              ▼ (optional)
-                           Neo4j
-                      stores results for
-                     cross-session memory
+YOU (the user)
+  |
+  |  Type a prompt like: "Run a full recon on example.com"
+  |
+  v
+MCP HOST (Claude Desktop / Claude Code / ChatGPT)
+  |
+  |  The AI reads your prompt and decides which tools to use.
+  |  It connects to the MCP Gateway (single entry point).
+  |
+  v
+DOCKER MCP GATEWAY (localhost:8080)
+  |
+  |  Routes each MCP tool call to the correct server container.
+  |
+  |--- Tool calls (recon, scanning, enumeration) --->  KALI MCP SERVER
+  |                                                     nmap, nikto, gobuster,
+  |                                                     subfinder, whois, etc.
+  |
+  |--- Tool calls (AI agents, advanced scans) ------>  HEXSTRIKE MCP SERVER
+  |                                                     150+ tools, 12+ agents
+  |
+  |  Raw outputs from both servers return to the AI.
+  |  The AI then calls process_scan_results() on:
+  |
+  |--- process_scan_results(raw_outputs) ----------->  OLLAMA MCP SERVER
+                                                        |
+                                                        |  Calls 3 agents in sequence via HTTP:
+                                                        |
+                                                        |---> Agent 1: INGESTION (port 8001)
+                                                        |     Parses raw text -> structured data
+                                                        |     Calls Ollama /api/chat internally
+                                                        |
+                                                        |---> Agent 2: PROCESSING (port 8002)
+                                                        |     Deduplicates, compresses, annotates
+                                                        |     Calls Ollama /api/chat internally
+                                                        |
+                                                        |---> Agent 3: SYNTHESIS (port 8003)
+                                                              Merges into AggregatedPayload
+                                                              Calls Ollama /api/chat internally
+                                                        |
+                                                        v
+                                                  AggregatedPayload
+                                                        |
+                                                        v
+                                              Back to MCP HOST (the AI)
+                                                        |
+                                                        v
+                                              AI writes final pentest report
+                                                        |
+                                                        v (optional)
+                                                      NEO4J
+                                                 Stores results for
+                                                cross-session memory
 ```
 
-In v2, **Claude (or OpenAI) IS the orchestrator** natively via MCP. There is no
-internal LangGraph orchestrator or LLM planner. The AI client decides which tools
-to call and in what order, collects raw output, sends it to the Ollama MCP server
-for preprocessing, and writes the final report.
-
-Each of the 3 preprocessing agents runs as its own Docker container with a
-FastAPI HTTP server. This means each agent is individually visible in Portainer,
-can be restarted independently, and has its own log stream.
+---
 
 ## Components
 
-| Container | Description | Port |
+| Container | What it does | Port |
 |-----------|-------------|------|
-| **MCP Gateway** | Single entry point for all MCP clients | 8080 |
-| **Kali MCP** | Kali Linux security tools (nmap, nikto, gobuster, etc.) | stdio |
+| **MCP Gateway** | Single entry point for all MCP clients. Routes tool calls. | 8080 |
+| **Kali MCP** | Runs Kali Linux security tools (nmap, nikto, gobuster, subfinder, etc.) | stdio |
 | **HexStrike MCP** | 150+ security tools, 12+ AI agents | 8888 |
-| **Ollama MCP** | Thin MCP orchestrator — calls 3 agents in sequence | stdio |
-| **Agent: Ingestion** | Parses raw tool output into structured data | 8001 |
-| **Agent: Processing** | Deduplicates, compresses, annotates error_log | 8002 |
-| **Agent: Synthesis** | Merges into final AggregatedPayload | 8003 |
-| **Ollama** | Standard LLM inference backend | 11434 |
-| **Portainer** | Docker management UI | 9443 |
-| **Neo4j** | Optional cross-session knowledge graph | 7474/7687 |
+| **Ollama MCP** | Thin orchestrator that calls the 3 agent containers in sequence | stdio |
+| **Agent: Ingestion** | Parses raw tool output into structured typed data | 8001 |
+| **Agent: Processing** | Deduplicates, compresses, annotates errors with security relevance | 8002 |
+| **Agent: Synthesis** | Merges everything into the final `AggregatedPayload` | 8003 |
+| **Ollama** | Local LLM inference backend (llama3.3 by default) | 11434 |
+| **Portainer** | Web UI for managing and monitoring all containers | 9443 |
+| **Neo4j** | (Optional) Cross-session knowledge graph for recurring engagements | 7474/7687 |
 
-## Quick Start
+---
+
+## Prerequisites
+
+- **Docker** and **Docker Compose** installed on your machine
+- At least **16 GB RAM** recommended (Ollama + all containers)
+- An **API key** for your AI client:
+  - Claude Desktop or Claude Code: `ANTHROPIC_API_KEY` from [console.anthropic.com](https://console.anthropic.com)
+  - ChatGPT / OpenAI: `OPENAI_API_KEY` from [platform.openai.com](https://platform.openai.com)
+
+---
+
+## Installation
+
+This is the same for **all three tutorials** below. Do this first.
 
 ```bash
+# 1. Clone the repo
 git clone https://github.com/valITino/blhackbox.git
 cd blhackbox
-cp .env.example .env          # add your API keys
-docker compose pull            # pulls ALL images (custom + official) in one go
-docker compose up -d           # start core stack (9 containers)
-make ollama-pull               # download the Ollama model (required)
+
+# 2. Create your .env file and add your API keys
+cp .env.example .env
+# Edit .env — fill in ANTHROPIC_API_KEY and/or OPENAI_API_KEY
+
+# 3. Pull all pre-built Docker images (no local builds needed)
+docker compose pull
+
+# 4. Start the core stack (9 containers)
+docker compose up -d
+
+# 5. Download the Ollama model (required — runs inside the container)
+make ollama-pull
 ```
 
-That's it. All 10 Docker images are pre-built on Docker Hub — no local builds,
-no submodules, no Python install needed. `docker compose pull` fetches
-everything in parallel.
+That's it. All 10 Docker images are pre-built on Docker Hub. No local builds,
+no submodules, no Python install needed.
+
+**Verify everything is running:**
+
+```bash
+make status
+# You should see 9 containers, all "Up" or "healthy"
+```
 
 > **With Neo4j** (cross-session memory): `docker compose --profile neo4j up -d`
 
-### Connect Claude Desktop
+---
 
-Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
+## Tutorial 1: Claude Desktop
+
+Claude Desktop is Anthropic's desktop app. It has built-in MCP support, meaning
+it can connect to blhackbox's MCP Gateway and use all the security tools directly
+from the chat window.
+
+### Step 1: Install Claude Desktop
+
+Download from [claude.ai/download](https://claude.ai/download) and install it.
+
+### Step 2: Start the blhackbox stack
+
+Follow the [Installation](#installation) steps above if you haven't already.
+All containers must be running.
+
+### Step 3: Configure Claude Desktop to connect to blhackbox
+
+Open the Claude Desktop config file:
+
+- **macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
+- **Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
+- **Linux:** `~/.config/Claude/claude_desktop_config.json`
+
+Add the following:
 
 ```json
 {
@@ -107,23 +216,335 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 }
 ```
 
-Claude will use the pentest playbook to autonomously run recon tools,
-scan networks, process results through the Ollama pipeline, and write
-a professional pentest report.
+Save the file and **restart Claude Desktop**.
 
-### Build from Source (optional)
+### Step 4: Verify the connection
 
-Only needed if you want to modify Dockerfiles or agent code:
+After restarting, you should see a **hammer icon** (tools) in the Claude Desktop
+chat input area. Click it to see the list of available MCP tools from Kali,
+HexStrike, and the Ollama pipeline. If you see tools listed, the connection works.
+
+### Step 5: Run your first pentest
+
+Type a prompt in the Claude Desktop chat. For example:
+
+```
+Run a full recon and vulnerability scan on example.com --authorized
+```
+
+**What happens next (the full prompt flow):**
+
+1. Claude reads your prompt and decides which tools to call first. It will
+   typically start with recon tools from the **Kali MCP Server** (subfinder,
+   nmap, whois, dig) and **HexStrike MCP Server** (OSINT agents, WHOIS agent).
+2. The **MCP Gateway** (localhost:8080) receives each tool call from Claude and
+   routes it to the correct container (Kali or HexStrike).
+3. Each tool runs inside its Docker container and returns raw text output back
+   through the gateway to Claude.
+4. Claude collects all raw outputs (it may run 10-20+ tool calls across the
+   recon, scanning, and enumeration phases).
+5. Claude calls `process_scan_results()` on the **Ollama MCP Server**, passing
+   all collected raw outputs.
+6. The Ollama MCP Server sends the data through 3 agents in sequence:
+   - **Ingestion Agent** (port 8001): calls Ollama LLM to parse raw text into structured data
+   - **Processing Agent** (port 8002): calls Ollama LLM to deduplicate, compress, and annotate
+   - **Synthesis Agent** (port 8003): calls Ollama LLM to merge into final `AggregatedPayload`
+7. The `AggregatedPayload` (structured findings, vulnerabilities, metadata)
+   returns to Claude through the MCP Gateway.
+8. Claude writes the **final pentest report** with executive summary, findings
+   by severity, remediation recommendations, and appendix.
+
+You will see Claude working through each step in the chat, calling tools and
+displaying progress. The final report appears directly in the conversation.
+
+### Monitoring (optional)
+
+While Claude is working, you can watch the tool calls in real time:
 
 ```bash
-git submodule update --init --recursive   # fetch kali-mcp + hexstrike source
-docker compose build                      # build all 6 custom images locally
-docker compose up -d
+make gateway-logs          # see every MCP tool call as it happens
+make logs-agent-ingestion  # watch the Ingestion Agent process data
+make logs-agent-synthesis  # watch the Synthesis Agent build the payload
 ```
+
+Or open **Portainer** at `https://localhost:9443` to see all containers,
+their logs, and resource usage in a web UI.
+
+---
+
+## Tutorial 2: Claude Code
+
+Claude Code is Anthropic's CLI tool for developers. It also supports MCP,
+so it can connect to blhackbox and run pentests from your terminal.
+
+### Step 1: Install Claude Code
+
+```bash
+npm install -g @anthropic-ai/claude-code
+```
+
+### Step 2: Start the blhackbox stack
+
+Follow the [Installation](#installation) steps above if you haven't already.
+All containers must be running.
+
+### Step 3: Configure Claude Code to connect to blhackbox
+
+Create or edit your Claude Code MCP config. In your project root (or globally),
+create `.mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "blhackbox": {
+      "transport": "sse",
+      "url": "http://localhost:8080/sse"
+    }
+  }
+}
+```
+
+Alternatively, you can add the server via the CLI:
+
+```bash
+claude mcp add blhackbox --transport sse --url http://localhost:8080/sse
+```
+
+### Step 4: Verify the connection
+
+Start Claude Code:
+
+```bash
+claude
+```
+
+Once inside the Claude Code session, type:
+
+```
+/mcp
+```
+
+You should see `blhackbox` listed as a connected MCP server with all available
+tools from Kali, HexStrike, and the Ollama pipeline.
+
+### Step 5: Run your first pentest
+
+Inside the Claude Code session, type your prompt:
+
+```
+Run a full recon and vulnerability scan on example.com --authorized
+```
+
+**What happens next (the full prompt flow):**
+
+1. Claude Code reads your prompt and decides which tools to call. It picks
+   from the **Kali MCP Server** tools (nmap, nikto, subfinder, etc.) and
+   **HexStrike MCP Server** tools (150+ security tools, AI agents).
+2. Each tool call goes through the **MCP Gateway** (localhost:8080), which
+   routes it to the correct Docker container.
+3. Raw text output from each tool returns to Claude Code through the gateway.
+4. Claude Code collects all raw outputs across multiple phases (recon,
+   scanning, enumeration) — potentially 10-20+ tool calls.
+5. Claude Code calls `process_scan_results()` on the **Ollama MCP Server**,
+   passing all raw outputs as a single batch.
+6. The Ollama MCP Server pipelines the data through 3 agents:
+   - **Ingestion** (port 8001): calls Ollama LLM -> structured data
+   - **Processing** (port 8002): calls Ollama LLM -> deduplicated + compressed
+   - **Synthesis** (port 8003): calls Ollama LLM -> final `AggregatedPayload`
+7. The `AggregatedPayload` returns to Claude Code.
+8. Claude Code writes the **final pentest report** directly in your terminal.
+
+You will see each tool call and its output printed in the terminal as Claude
+Code works through the phases. The final report is output at the end.
+
+### Monitoring (optional)
+
+In a separate terminal, watch tool calls in real time:
+
+```bash
+make gateway-logs          # every MCP call as it happens
+make logs-agent-ingestion  # Ingestion Agent processing
+make logs-agent-synthesis  # Synthesis Agent building the payload
+```
+
+---
+
+## Tutorial 3: ChatGPT / OpenAI
+
+ChatGPT (and OpenAI-compatible clients) can also connect to blhackbox through
+the MCP Gateway. The flow is identical — the AI decides which tools to call,
+blhackbox executes them in Docker containers, and the Ollama pipeline processes
+the results.
+
+### Step 1: Set up an OpenAI-compatible MCP client
+
+OpenAI does not have native MCP support in the standard ChatGPT app at this time.
+You need an **OpenAI-compatible client that supports MCP**. Options include:
+
+- **ChatGPT Desktop** (if MCP support is available in your version)
+- **Open-source MCP clients** configured with your OpenAI API key
+- **Custom scripts** using the OpenAI API + an MCP client library
+
+The key requirement: the client must support connecting to an MCP server via
+SSE transport at `http://localhost:8080/sse`.
+
+### Step 2: Start the blhackbox stack
+
+Follow the [Installation](#installation) steps above. Make sure your `.env`
+file has your `OPENAI_API_KEY` set:
+
+```bash
+# In .env
+OPENAI_API_KEY=sk-...
+```
+
+All containers must be running (`make status` to verify).
+
+### Step 3: Configure the OpenAI client to connect to blhackbox
+
+Point your MCP-capable OpenAI client at the blhackbox MCP Gateway:
+
+```
+MCP Server URL: http://localhost:8080/sse
+Transport: SSE
+```
+
+The exact configuration depends on your client. The MCP Gateway exposes the
+same tools regardless of which AI is connecting — Kali tools, HexStrike tools,
+and the Ollama processing pipeline are all available.
+
+### Step 4: Verify the connection
+
+Your client should show the available MCP tools after connecting. Look for
+tools from Kali (nmap, nikto, etc.), HexStrike (security agents), and the
+Ollama pipeline (process_scan_results).
+
+### Step 5: Run your first pentest
+
+Type a prompt in your OpenAI client:
+
+```
+Run a full recon and vulnerability scan on example.com --authorized
+```
+
+**What happens next (the full prompt flow):**
+
+1. ChatGPT/OpenAI reads your prompt and decides which tools to call from the
+   two MCP servers: **Kali MCP** (nmap, nikto, subfinder, etc.) and
+   **HexStrike MCP** (150+ tools, 12+ AI agents).
+2. Each tool call goes through the **MCP Gateway** (localhost:8080) to the
+   correct Docker container. The gateway does not care which AI is calling —
+   it routes the same way for Claude or OpenAI.
+3. Raw text output returns to the OpenAI client.
+4. The AI collects all raw outputs and calls `process_scan_results()` on the
+   **Ollama MCP Server**.
+5. The Ollama MCP Server sends data through 3 agents sequentially:
+   - **Ingestion** (port 8001): Ollama LLM parses raw text -> structured data
+   - **Processing** (port 8002): Ollama LLM deduplicates and compresses
+   - **Synthesis** (port 8003): Ollama LLM merges into `AggregatedPayload`
+6. The `AggregatedPayload` returns to the OpenAI client.
+7. ChatGPT/OpenAI writes the **final pentest report**.
+
+The prompt flow is identical to the Claude tutorials. The MCP Gateway is
+AI-agnostic — it serves tools to any MCP-compatible client.
+
+### Monitoring (optional)
+
+```bash
+make gateway-logs          # watch tool calls from any client
+make logs-agent-ingestion  # Ingestion Agent logs
+make logs-agent-synthesis  # Synthesis Agent logs
+```
+
+---
+
+## How Prompts Flow Through the System
+
+This section explains the end-to-end data flow for **all three cases** above.
+The flow is the same regardless of which AI client you use.
+
+```
+STEP 1: YOU TYPE A PROMPT
+  "Run a full recon on example.com --authorized"
+        |
+        v
+STEP 2: AI DECIDES WHICH TOOLS TO USE
+  The AI (Claude or ChatGPT) reads your prompt and autonomously
+  picks tools from the Kali MCP Server and HexStrike MCP Server.
+  Example tool calls the AI might make:
+    - subfinder (Kali)      -> find subdomains
+    - nmap -sV -sC (Kali)   -> port scan + service detection
+    - nikto (Kali)           -> web server scanning
+    - whois (Kali)           -> domain registration info
+    - HexStrike OSINT agent  -> OSINT gathering
+    - HexStrike vuln agent   -> vulnerability scanning
+        |
+        v
+STEP 3: MCP GATEWAY ROUTES TOOL CALLS TO CONTAINERS
+  localhost:8080 receives each call and forwards it:
+    - Kali tools    -> blhackbox-kali-mcp container
+    - HexStrike     -> blhackbox-hexstrike container
+  Raw text output returns through the gateway to the AI.
+        |
+        v
+STEP 4: AI SENDS RAW OUTPUTS TO OLLAMA FOR PROCESSING
+  After collecting all raw outputs, the AI calls:
+    process_scan_results(raw_outputs)
+  on the Ollama MCP Server.
+        |
+        v
+STEP 5: OLLAMA PIPELINE (3 AGENTS IN SEQUENCE)
+  The Ollama MCP Server calls 3 containers via HTTP:
+
+  Agent 1: INGESTION (blhackbox-agent-ingestion:8001)
+    Input:  raw text from all tools
+    Action: calls Ollama /api/chat with ingestion prompt
+    Output: structured typed data (hosts, ports, services, vulns)
+        |
+        v
+  Agent 2: PROCESSING (blhackbox-agent-processing:8002)
+    Input:  structured data from Agent 1
+    Action: calls Ollama /api/chat with processing prompt
+    Output: deduplicated, compressed data + annotated error_log
+        |
+        v
+  Agent 3: SYNTHESIS (blhackbox-agent-synthesis:8003)
+    Input:  processed data from Agent 2
+    Action: calls Ollama /api/chat with synthesis prompt
+    Output: final AggregatedPayload
+        |
+        v
+STEP 6: AGGREGATED PAYLOAD RETURNS TO THE AI
+  The AggregatedPayload contains:
+    - findings: hosts, vulnerabilities, endpoints
+    - error_log: scan errors with security_relevance ratings
+    - metadata: tools_run, compression_ratio, duration, etc.
+        |
+        v
+STEP 7: AI WRITES THE FINAL REPORT
+  The AI uses the structured payload to write a professional
+  pentest report with:
+    - Executive summary
+    - Findings by severity (critical/high/medium/low/info)
+    - Remediation recommendations
+    - Appendix with full scan metadata
+        |
+        v
+STEP 8 (OPTIONAL): RESULTS STORED IN NEO4J
+  If Neo4j is enabled, the AggregatedPayload is stored in the
+  knowledge graph for cross-session memory and recurring engagements.
+```
+
+**Key point:** The AI client (Claude or ChatGPT) is the orchestrator. It
+decides which tools to call, when to call them, and in what order. The MCP
+Gateway simply routes calls. The Ollama pipeline simply preprocesses data.
+The intelligence lives in the AI client.
+
+---
 
 ## Ollama MCP Server — Preprocessing Pipeline
 
-The Ollama MCP server is a thin orchestrator built with
+The Ollama MCP Server is a thin orchestrator built with
 [FastMCP](https://github.com/modelcontextprotocol/python-sdk) that calls 3
 agent containers in sequence via HTTP. Each agent container is a FastAPI server
 that calls Ollama via the official
@@ -136,6 +557,8 @@ task-specific system prompt.
 
 Agent prompts are baked into each container from `blhackbox/prompts/agents/*.md`
 at build time. Override via volume mount for tuning without rebuilding.
+
+---
 
 ## CLI Reference
 
@@ -166,6 +589,8 @@ blhackbox report -s SESSION_ID --format pdf
 blhackbox mcp
 ```
 
+---
+
 ## Makefile Shortcuts
 
 ```bash
@@ -183,6 +608,20 @@ make restart-agents        # Restart all 3 agent containers
 make logs-agent-ingestion  # Tail Ingestion Agent logs
 make push-all              # Build and push all images to Docker Hub
 ```
+
+---
+
+## Build from Source (optional)
+
+Only needed if you want to modify Dockerfiles or agent code:
+
+```bash
+git submodule update --init --recursive   # fetch kali-mcp + hexstrike source
+docker compose build                      # build all 6 custom images locally
+docker compose up -d
+```
+
+---
 
 ## Docker Hub Images
 
@@ -203,6 +642,8 @@ Official images pulled directly:
 - `portainer/portainer-ce:latest`
 - `docker/mcp-gateway:latest`
 
+---
+
 ## Neo4j (Optional)
 
 Neo4j provides cross-session memory. Enable with `--profile neo4j`:
@@ -213,6 +654,8 @@ docker compose --profile neo4j up -d
 
 Stores `AggregatedPayload` results as a graph after each session.
 Useful for recurring engagements against the same targets.
+
+---
 
 ## GPU Support for Ollama
 
@@ -229,6 +672,8 @@ deploy:
           capabilities: [gpu]
 ```
 
+---
+
 ## Security Notes
 
 - **Docker socket**: MCP Gateway and Portainer mount `/var/run/docker.sock`.
@@ -238,6 +683,8 @@ deploy:
 - **Neo4j**: Set a strong password in `.env`. Never use defaults in production.
 - **Agent containers**: Do not expose ports to the host — they communicate only
   on the internal `blhackbox_net` Docker network.
+
+---
 
 ## Project Structure
 
@@ -299,6 +746,8 @@ blhackbox/
     ├── ci.yml
     └── build-and-push.yml
 ```
+
+---
 
 ## License
 
