@@ -7,5 +7,5 @@ WORKDIR /app
 COPY blhackbox/ /app/blhackbox/
 COPY mcp_servers/ /app/mcp_servers/
 COPY requirements.txt pyproject.toml ./
-RUN pip install --no-cache-dir "mcp>=1.2.0" httpx pydantic
+RUN pip install --no-cache-dir "mcp>=1.23.0" httpx pydantic
 CMD ["python3", "mcp_servers/ollama_mcp_server.py"]
