@@ -29,6 +29,8 @@ services:
   # -- MCP GATEWAY ---------------------------------------------------------
   # Single entry point for all MCP clients (Claude Desktop, Claude Code,
   # OpenAI). Routes tool calls to the correct MCP server container.
+  # Uses catalog mode: connects to MCP servers by URL (remote/SSE).
+  # No Docker socket required — each server exposes its own SSE endpoint.
   # Docs: https://github.com/docker/mcp-gateway
   mcp-gateway:
     image: docker/mcp-gateway:latest
@@ -38,14 +40,13 @@ services:
       - "${MCP_GATEWAY_PORT:-8080}:8080"
     volumes:
       - ./blhackbox-mcp-catalog.yaml:/catalog.yaml:ro
-      - /var/run/docker.sock:/var/run/docker.sock
-    command: >
-      gateway run
-      --catalog /catalog.yaml
-      --port 8080
-      --transport streaming
-      --log-calls
-      --block-secrets
+    environment:
+      HOME: /root
+    command:
+      - --transport=streaming
+      - --port=8080
+      - --catalog=/catalog.yaml
+      - --log-calls
     networks:
       - blhackbox_net
     depends_on:
@@ -62,7 +63,7 @@ services:
     container_name: blhackbox-kali-mcp
     restart: unless-stopped
     privileged: true
-    stdin_open: true
+    init: true
     networks:
       - blhackbox_net
 
@@ -75,6 +76,7 @@ services:
       dockerfile: docker/hexstrike.Dockerfile
     container_name: blhackbox-hexstrike
     restart: unless-stopped
+    init: true
     ports:
       - "8888:8888"
     healthcheck:
@@ -97,6 +99,7 @@ services:
       dockerfile: docker/ollama-mcp.Dockerfile
     container_name: blhackbox-ollama-mcp
     restart: unless-stopped
+    init: true
     environment:
       OLLAMA_URL: "http://ollama:11434"
       OLLAMA_MODEL: "${OLLAMA_MODEL:-llama3.3}"

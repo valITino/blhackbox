@@ -1,34 +1,21 @@
 # blhackbox MCP Server Catalog
-# Read by Docker MCP Gateway at startup.
-# Private catalog — not part of the Docker public MCP Catalog.
+# Used by docker/mcp-gateway in catalog mode (--catalog /catalog.yaml).
+# Each server is reached via its Docker-internal hostname using SSE transport.
+# The gateway aggregates all servers behind a single Streamable HTTP endpoint
+# at http://<gateway>:8080/mcp.
 
-servers:
-  - name: kali
-    description: "Kali Linux security tools — community MCP server adapted for blhackbox"
-    image: crhacky/blhackbox:kali-mcp
-    privileged: true
-    network: blhackbox_net
+registry:
+  kali:
+    remote:
+      url: "http://kali-mcp:9001/sse"
+      transport_type: sse
 
-  - name: hexstrike
-    description: "HexStrike AI — github.com/0x4m4/hexstrike-ai (150+ tools, 12+ agents)"
-    image: crhacky/blhackbox:hexstrike
-    network: blhackbox_net
-    env:
-      HEXSTRIKE_URL: "http://hexstrike:8888"
+  hexstrike:
+    remote:
+      url: "http://hexstrike:8888/sse"
+      transport_type: sse
 
-  - name: ollama-mcp
-    description: >
-      blhackbox Ollama MCP Server — custom blhackbox component, NOT an official
-      Ollama product. Thin MCP orchestrator that calls 3 agent containers
-      (Ingestion, Processing, Synthesis) via HTTP. Each agent independently
-      calls Ollama's /api/chat. Returns AggregatedPayload to Claude.
-    image: crhacky/blhackbox:ollama-mcp
-    network: blhackbox_net
-    env:
-      OLLAMA_MODEL: "${OLLAMA_MODEL}"
-      AGENT_INGESTION_URL: "http://agent-ingestion:8001"
-      AGENT_PROCESSING_URL: "http://agent-processing:8002"
-      AGENT_SYNTHESIS_URL: "http://agent-synthesis:8003"
-      NEO4J_URI: "${NEO4J_URI}"
-      NEO4J_USER: "${NEO4J_USER}"
-      NEO4J_PASSWORD: "${NEO4J_PASSWORD}"
+  ollama-mcp:
+    remote:
+      url: "http://ollama-mcp:9000/sse"
+      transport_type: sse
