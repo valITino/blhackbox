@@ -107,8 +107,8 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 {
   "mcpServers": {
     "blhackbox": {
-      "transport": "sse",
-      "url": "http://localhost:8080/sse"
+      "transport": "streamable-http",
+      "url": "http://localhost:8080/mcp"
     }
   }
 }

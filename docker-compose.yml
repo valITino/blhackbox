@@ -6,8 +6,10 @@
 #   docker compose --profile neo4j up -d    Start with Neo4j (10 containers)
 #   docker compose build                    Build all custom images locally (optional)
 #
-# Claude Desktop config:
-#   {"mcpServers": {"blhackbox": {"transport": "sse", "url": "http://localhost:8080/sse"}}}
+# Claude Desktop config (Streamable HTTP — gateway uses --transport streaming):
+#   {"mcpServers": {"blhackbox": {"transport": "streamable-http", "url": "http://localhost:8080/mcp"}}}
+# Claude Code CLI config (.mcp.json):
+#   {"mcpServers": {"blhackbox": {"type": "http", "url": "http://localhost:8080/mcp"}}}
 
 networks:
   blhackbox_net:
