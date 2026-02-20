@@ -23,8 +23,9 @@
 - [Prerequisites](#prerequisites)
 - [Installation](#installation)
 - [Tutorial 1: Claude Code (Docker)](#tutorial-1-claude-code-docker)
-- [Tutorial 2: Claude Desktop (Host Install)](#tutorial-2-claude-desktop-host-install)
-- [Tutorial 3: ChatGPT / OpenAI (Host Install)](#tutorial-3-chatgpt--openai-host-install)
+- [Tutorial 2: Claude Code (Web)](#tutorial-2-claude-code-web)
+- [Tutorial 3: Claude Desktop (Host Install)](#tutorial-3-claude-desktop-host-install)
+- [Tutorial 4: ChatGPT / OpenAI (Host Install)](#tutorial-4-chatgpt--openai-host-install)
 - [How Prompts Flow Through the System](#how-prompts-flow-through-the-system)
 - [Ollama Preprocessing Pipeline](#ollama-mcp-server--preprocessing-pipeline)
 - [CLI Reference](#cli-reference)
@@ -189,12 +190,14 @@ make status
 
 | Client | Docker? | Why |
 |--------|---------|-----|
-| **Claude Code** | **Yes** — runs as a container on `blhackbox_net` | CLI tool. Works headless in a container. |
+| **Claude Code (Docker)** | **Yes** — runs as a container on `blhackbox_net` | CLI tool. Works headless in a container. |
+| **Claude Code (Web)** | No — runs on claude.ai/code | Web sessions use the repo's `.mcp.json` directly. |
 | **Claude Desktop** | No — must install on host | GUI app. Needs a display server. |
 | **ChatGPT / OpenAI** | No — must install on host | Web/GUI app. No headless MCP client available. |
 
-> **Recommendation:** Use **Tutorial 1 (Claude Code)** if you want a fully
-> Dockerized setup where nothing is installed on your host except Docker itself.
+> **Recommendation:** Use **Tutorial 1 (Claude Code Docker)** for a fully
+> Dockerized setup, or **Tutorial 2 (Claude Code Web)** for the fastest
+> zero-install experience.
 
 ---
 
@@ -233,7 +236,7 @@ The container drops you into an interactive Claude Code session. The MCP
 connection to blhackbox is already configured — Claude Code connects to
 `http://mcp-gateway:8080/sse` over the Docker network automatically.
 
-### Step 4: Verify the connection
+### Step 3: Verify the connection
 
 Once inside the Claude Code session, type:
 
@@ -244,7 +247,7 @@ Once inside the Claude Code session, type:
 You should see `blhackbox` listed as a connected MCP server with all available
 tools from Kali, HexStrike, and the Ollama pipeline.
 
-### Step 5: Run your first pentest
+### Step 4: Run your first pentest
 
 Inside the Claude Code session, type your prompt:
 
@@ -274,12 +277,10 @@ Run a full recon and vulnerability scan on example.com --authorized
 You will see each tool call and its output printed in the terminal as Claude
 Code works through the phases. The final report is output at the end.
 
-> **Alternative — host install:** If you prefer to install Claude Code on your
-> host instead of using Docker, run `npm install -g @anthropic-ai/claude-code`,
-> create a `.mcp.json` in your project root with
-> `{"mcpServers":{"blhackbox":{"transport":"sse","url":"http://localhost:8080/sse"}}}`,
-> and run `claude`. The only difference is the URL uses `localhost` instead of
-> the Docker network hostname.
+> **Alternative:** If you prefer not to use Docker for Claude Code, see
+> [Tutorial 2: Claude Code (Web)](#tutorial-2-claude-code-web) or install
+> Claude Code on your host with `npm install -g @anthropic-ai/claude-code`
+> and run `claude` from the repo root — the `.mcp.json` is already configured.
 
 ### Monitoring (optional)
 
@@ -293,7 +294,75 @@ make logs-agent-synthesis  # Synthesis Agent building the payload
 
 ---
 
-## Tutorial 2: Claude Desktop (Host Install)
+## Tutorial 2: Claude Code (Web)
+
+Claude Code runs on [claude.ai/code](https://claude.ai/code) as a web-based
+coding agent. When you open this repository in a web session, the MCP server
+configures itself automatically — no Docker, no npm, no manual setup.
+
+### How it works
+
+The repo ships with two files that handle everything:
+
+1. **`.mcp.json`** (project root) — tells Claude Code to start the blhackbox
+   MCP server via stdio:
+   ```json
+   {
+     "mcpServers": {
+       "blhackbox": {
+         "command": ".venv/bin/blhackbox",
+         "args": ["mcp"]
+       }
+     }
+   }
+   ```
+
+2. **`.claude/hooks/session-start.sh`** — a SessionStart hook that runs
+   automatically when a web session starts. It creates a Python virtual
+   environment and installs the `blhackbox` package (which provides the
+   `.venv/bin/blhackbox` binary that `.mcp.json` references).
+
+### Step 1: Open the repo in Claude Code Web
+
+Go to [claude.ai/code](https://claude.ai/code) and open this repository.
+The SessionStart hook runs automatically — it installs dependencies and
+configures the environment. No action needed.
+
+### Step 2: Verify the connection
+
+Type:
+
+```
+/mcp
+```
+
+You should see `blhackbox` listed with 6 tools:
+- `recon` — multi-tool reconnaissance
+- `run_tool` — execute a single security tool
+- `query_graph` — Cypher queries against Neo4j
+- `get_findings` — retrieve findings for a target
+- `list_tools` — discover available tools
+- `generate_report` — produce HTML/PDF reports
+
+### Step 3: Run your first pentest
+
+```
+Run a full recon on example.com --authorized
+```
+
+The blhackbox MCP server orchestrates tool execution via HexStrike, stores
+results in the knowledge graph, and returns structured findings directly to
+Claude Code.
+
+> **Note:** The web session uses the blhackbox stdio MCP server directly
+> (not the Docker MCP Gateway). The Docker stack is not required — Claude
+> Code talks to HexStrike's API and Neo4j over the network. For the full
+> Docker pipeline with Kali tools and Ollama preprocessing, use
+> [Tutorial 1](#tutorial-1-claude-code-docker).
+
+---
+
+## Tutorial 3: Claude Desktop (Host Install)
 
 Claude Desktop is Anthropic's GUI app with built-in MCP support. It connects
 to blhackbox's MCP Gateway and uses all the security tools directly from the
@@ -393,7 +462,7 @@ their logs, and resource usage in a web UI.
 
 ---
 
-## Tutorial 3: ChatGPT / OpenAI (Host Install)
+## Tutorial 4: ChatGPT / OpenAI (Host Install)
 
 ChatGPT (and OpenAI-compatible clients) can also connect to blhackbox through
 the MCP Gateway. The flow is identical — the AI decides which tools to call,
@@ -492,8 +561,10 @@ make logs-agent-synthesis  # Synthesis Agent logs
 
 ## How Prompts Flow Through the System
 
-This section explains the end-to-end data flow for **all three cases** above.
-The flow is the same regardless of which AI client you use.
+This section explains the end-to-end data flow for the Docker-based tutorials
+(1, 3, and 4). The flow is the same regardless of which AI client you use.
+Tutorial 2 (Claude Code Web) uses the blhackbox stdio MCP server directly
+and skips the MCP Gateway.
 
 ```
 STEP 1: YOU TYPE A PROMPT
@@ -738,6 +809,11 @@ removed.
 
 ```
 blhackbox/
+├── .claude/
+│   ├── settings.json               # Claude Code hooks config
+│   └── hooks/
+│       └── session-start.sh        # auto-setup for web sessions
+├── .mcp.json                        # MCP server config (Claude Code)
 ├── docker/
 │   ├── kali-mcp.Dockerfile
 │   ├── hexstrike.Dockerfile
@@ -745,11 +821,13 @@ blhackbox/
 │   ├── agent-ingestion.Dockerfile
 │   ├── agent-processing.Dockerfile
 │   ├── agent-synthesis.Dockerfile
-│   └── claude-code.Dockerfile          # MCP client container
+│   └── claude-code.Dockerfile       # MCP client container
 ├── kali-mcp/                        # adapted community Kali MCP server
 ├── mcp_servers/
 │   └── ollama_mcp_server.py         # thin MCP orchestrator
 ├── blhackbox/
+│   ├── mcp/
+│   │   └── server.py               # blhackbox MCP server (stdio)
 │   ├── agents/                      # agent server + library code
 │   │   ├── base_agent.py            # base class (library/testing)
 │   │   ├── base_agent_server.py     # FastAPI server base

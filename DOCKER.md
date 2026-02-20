@@ -129,6 +129,7 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 | `ollama` | `ollama/ollama:latest` | - | default | LLM inference backend |
 | `portainer` | `portainer/portainer-ce:latest` | `9443` `9000` | default | Docker management UI |
 | `neo4j` | `neo4j:5` | `7474` `7687` | `neo4j` | Cross-session knowledge graph |
+| `claude-code` | `blhackbox-claude-code` (built locally) | - | `claude-code` | Claude Code CLI client (Docker) |
 
 ---
 
