@@ -721,7 +721,7 @@ Only needed if you want to modify Dockerfiles or agent code:
 
 ```bash
 git submodule update --init --recursive   # fetch kali-mcp + hexstrike source
-docker compose build                      # build all 6 custom images locally
+docker compose build                      # build all 7 custom images locally
 docker compose up -d
 ```
 
@@ -739,19 +739,13 @@ All custom images are published to `crhacky/blhackbox`:
 | `crhacky/blhackbox:agent-ingestion` | Agent 1: Ingestion |
 | `crhacky/blhackbox:agent-processing` | Agent 2: Processing |
 | `crhacky/blhackbox:agent-synthesis` | Agent 3: Synthesis |
-
-MCP client container (built locally from `docker/claude-code.Dockerfile`):
-
-| Tag | Description |
-|-----|-------------|
-| `blhackbox-claude-code` | Claude Code CLI client (connects to gateway on Docker network) |
+| `crhacky/blhackbox:claude-code` | Claude Code CLI client (connects to gateway on Docker network) |
 
 Official images pulled directly:
 - `ollama/ollama:latest`
 - `neo4j:5`
 - `portainer/portainer-ce:latest`
 - `docker/mcp-gateway:latest`
-- `node:22-slim` (base for Claude Code container)
 
 ---
 
