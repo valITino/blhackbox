@@ -1,5 +1,5 @@
-.PHONY: help up up-full down logs test test-local lint format clean \
-       pull status portainer gateway-logs ollama-pull ollama-shell \
+.PHONY: help up up-full up-gateway down logs test test-local lint format clean \
+       pull status health portainer gateway-logs ollama-pull ollama-shell \
        claude-code \
        neo4j-browser logs-ollama-mcp logs-kali logs-hexstrike \
        logs-agent-ingestion logs-agent-processing logs-agent-synthesis \
@@ -16,18 +16,21 @@ help: ## Show this help
 pull: ## Pull all pre-built images from Docker Hub
 	$(COMPOSE) pull
 
-up: ## Start core stack (9 containers)
+up: ## Start core stack (8 containers — no gateway)
 	$(COMPOSE) up -d
 
-down: ## Stop all services
-	$(COMPOSE) --profile neo4j down
+down: ## Stop all services (all profiles)
+	$(COMPOSE) --profile gateway --profile neo4j --profile claude-code down
 
 logs: ## Tail logs from all services
 	$(COMPOSE) logs -f
 
-# ── Stack management ───────────────────────────────────────────
-up-full: ## Start full stack including Neo4j (10 containers)
+# ── Stack variations ─────────────────────────────────────────────
+up-full: ## Start full stack: core + Neo4j (9 containers)
 	$(COMPOSE) --profile neo4j up -d
+
+up-gateway: ## Start core + MCP Gateway for Claude Desktop / ChatGPT (9 containers)
+	$(COMPOSE) --profile gateway up -d
 
 # ── Testing & Code Quality ─────────────────────────────────────
 test: ## Run tests locally
@@ -43,14 +46,55 @@ format: ## Auto-format code
 	ruff format blhackbox/ tests/
 
 clean: ## Remove containers, volumes, and build artifacts
-	$(COMPOSE) --profile neo4j down -v --remove-orphans
+	$(COMPOSE) --profile gateway --profile neo4j --profile claude-code down -v --remove-orphans
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 	rm -rf dist/ build/ *.egg-info
 
-# ── Claude Code (Docker) ──────────────────────────────────────────
-claude-code: ## Pull (or build) and launch Claude Code in a Docker container
+# ── Claude Code (Docker) ────────────────────────────────────────
+claude-code: ## Build and launch Claude Code in a Docker container
 	$(COMPOSE) --profile claude-code pull claude-code || $(COMPOSE) --profile claude-code build claude-code
-	$(COMPOSE) run --rm claude-code
+	$(COMPOSE) --profile claude-code run --rm claude-code
+
+# ── Health & Status ──────────────────────────────────────────────
+status: ## Health status of all containers
+	@echo ""
+	@echo "\033[1m  blhackbox Container Status\033[0m"
+	@echo "\033[2m  ──────────────────────────────────────\033[0m"
+	@$(COMPOSE) --profile gateway --profile neo4j --profile claude-code ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}" 2>/dev/null || $(COMPOSE) ps
+	@echo ""
+
+health: ## Quick health check of all MCP servers
+	@echo ""
+	@echo "\033[1m  MCP Server Health Check\033[0m"
+	@echo "\033[2m  ──────────────────────────────────────\033[0m"
+	@printf "  %-22s " "Kali MCP (9001)"; \
+		docker exec blhackbox-kali-mcp python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:9001/sse')" > /dev/null 2>&1 \
+		&& echo "\033[32m[OK]\033[0m" || echo "\033[31m[FAIL]\033[0m"
+	@printf "  %-22s " "HexStrike (8888)"; \
+		curl -sf --max-time 3 http://localhost:8888/health > /dev/null 2>&1 \
+		&& echo "\033[32m[OK]\033[0m" || echo "\033[31m[FAIL]\033[0m"
+	@printf "  %-22s " "Ollama MCP (9000)"; \
+		docker exec blhackbox-ollama-mcp python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:9000/sse')" > /dev/null 2>&1 \
+		&& echo "\033[32m[OK]\033[0m" || echo "\033[31m[FAIL]\033[0m"
+	@printf "  %-22s " "Ollama (11434)"; \
+		docker exec blhackbox-ollama ollama list > /dev/null 2>&1 \
+		&& echo "\033[32m[OK]\033[0m" || echo "\033[31m[FAIL]\033[0m"
+	@printf "  %-22s " "Agent Ingestion"; \
+		docker exec blhackbox-agent-ingestion python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')" > /dev/null 2>&1 \
+		&& echo "\033[32m[OK]\033[0m" || echo "\033[31m[FAIL]\033[0m"
+	@printf "  %-22s " "Agent Processing"; \
+		docker exec blhackbox-agent-processing python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:8002/health')" > /dev/null 2>&1 \
+		&& echo "\033[32m[OK]\033[0m" || echo "\033[31m[FAIL]\033[0m"
+	@printf "  %-22s " "Agent Synthesis"; \
+		docker exec blhackbox-agent-synthesis python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:8003/health')" > /dev/null 2>&1 \
+		&& echo "\033[32m[OK]\033[0m" || echo "\033[31m[FAIL]\033[0m"
+	@printf "  %-22s " "MCP Gateway (8080)"; \
+		curl -sf --max-time 3 http://localhost:8080/mcp > /dev/null 2>&1 \
+		&& echo "\033[32m[OK]\033[0m" || echo "\033[33m[OFF]\033[0m  (optional — enable with: make up-gateway)"
+	@printf "  %-22s " "Portainer (9443)"; \
+		curl -skf --max-time 3 https://localhost:9443 > /dev/null 2>&1 \
+		&& echo "\033[32m[OK]\033[0m  https://localhost:9443" || echo "\033[31m[FAIL]\033[0m"
+	@echo ""
 
 # ── Ollama ──────────────────────────────────────────────────────
 ollama-pull: ## Pull default Ollama model into container
@@ -60,10 +104,18 @@ ollama-shell: ## Shell into Ollama container
 	docker exec -it blhackbox-ollama /bin/bash
 
 # ── Monitoring ──────────────────────────────────────────────────
-portainer: ## Open Portainer dashboard
-	@open https://localhost:9443 2>/dev/null || xdg-open https://localhost:9443
+portainer: ## Open Portainer dashboard (first run: create admin account)
+	@echo ""
+	@echo "\033[1m  Portainer Web UI\033[0m"
+	@echo "\033[2m  ──────────────────────────────────────\033[0m"
+	@echo "  URL:  \033[36mhttps://localhost:9443\033[0m"
+	@echo ""
+	@echo "  First run: Create an admin account within 5 minutes of startup."
+	@echo "  If the window expired, restart: docker compose restart portainer"
+	@echo ""
+	@open https://localhost:9443 2>/dev/null || xdg-open https://localhost:9443 2>/dev/null || echo "  Open the URL above in your browser."
 
-gateway-logs: ## Live MCP tool call log (every Claude tool invocation)
+gateway-logs: ## Live MCP tool call log (requires --profile gateway)
 	$(COMPOSE) logs -f mcp-gateway
 
 logs-ollama-mcp: ## Tail Ollama MCP server logs
@@ -83,9 +135,6 @@ logs-agent-processing: ## Tail Processing Agent logs
 
 logs-agent-synthesis: ## Tail Synthesis Agent logs
 	$(COMPOSE) logs -f agent-synthesis
-
-status: ## Health status of all containers
-	$(COMPOSE) ps
 
 neo4j-browser: ## Open Neo4j Browser
 	@open http://localhost:7474 2>/dev/null || xdg-open http://localhost:7474

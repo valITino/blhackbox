@@ -32,10 +32,10 @@ Seven custom images are published to `crhacky/blhackbox` on Docker Hub:
 | **Claude Code** | `crhacky/blhackbox:claude-code` | `docker/claude-code.Dockerfile` | `node:22-slim` |
 
 Official images pulled directly (no custom build):
-- `docker/mcp-gateway:latest` — MCP Gateway
 - `ollama/ollama:latest` — Ollama LLM inference
-- `neo4j:5` — Knowledge graph (optional)
 - `portainer/portainer-ce:latest` — Docker management UI
+- `docker/mcp-gateway:latest` — MCP Gateway (optional, `--profile gateway`)
+- `neo4j:5` — Knowledge graph (optional, `--profile neo4j`)
 
 ### Pulling Images
 
@@ -44,31 +44,35 @@ Official images pulled directly (no custom build):
 docker compose pull
 ```
 
-This pulls all 11 images (7 custom + 4 official) in parallel. No local
-builds or submodules required.
-
 ---
 
 ## Architecture
 
-In v2, **Claude (or OpenAI) IS the orchestrator** natively via MCP. The Ollama
-MCP server is a thin orchestrator built with FastMCP that calls 3 separate
-agent containers via HTTP. Each agent container runs a FastAPI server and calls
-Ollama via the official `ollama` Python package independently.
+In v2, **Claude (or OpenAI) IS the orchestrator** natively via MCP.
+
+**Claude Code (Docker)** connects directly to each MCP server via SSE:
 
 ```
-Claude (MCP Host) ──> MCP Gateway ──┬──> Kali MCP (security tools)
-                                    ├──> HexStrike MCP (150+ tools, 12+ agents)
-                                    └──> Ollama MCP (thin orchestrator)
-                                              │
-                                              ├──► agent-ingestion:8001
-                                              ├──► agent-processing:8002
-                                              └──► agent-synthesis:8003
-                                                        │
-                                                        ▼
-                                                     Ollama (LLM backend)
+Claude Code ──┬──> Kali MCP (SSE, port 9001)
+(container)   ├──> HexStrike MCP (SSE, port 8888)
+              └──> Ollama MCP (SSE, port 9000)
+                        │
+                        ├──► agent-ingestion:8001
+                        ├──► agent-processing:8002
+                        └──► agent-synthesis:8003
+                                  │
+                                  ▼
+                               Ollama (LLM backend)
 
-Neo4j (optional)    Portainer (Docker UI)
+Portainer (Docker UI)    Neo4j (optional)
+```
+
+**Claude Desktop / ChatGPT (host)** connect via the MCP Gateway:
+
+```
+Claude Desktop ──> MCP Gateway (localhost:8080/mcp) ──┬──> Kali MCP
+(host app)                                            ├──> HexStrike MCP
+                                                      └──> Ollama MCP
 ```
 
 > **Ollama is required.** All 3 agent containers call Ollama via the official
@@ -78,30 +82,81 @@ Neo4j (optional)    Portainer (Docker UI)
 
 ## Usage
 
-### Full Stack (Recommended)
+### Core Stack (8 containers)
 
 ```bash
 git clone https://github.com/valITino/blhackbox.git
 cd blhackbox
-cp .env.example .env       # configure API keys and Neo4j password
+cp .env.example .env       # configure ANTHROPIC_API_KEY
 docker compose pull        # pull ALL images in one command
-docker compose up -d       # start core stack (9 containers)
+docker compose up -d       # start core stack
 make ollama-pull           # pull the Ollama model (REQUIRED)
 ```
 
-> **Build from source** (optional): If you want to modify Dockerfiles or agent
-> code, run `git submodule update --init --recursive` then `docker compose build`
-> instead of `docker compose pull`.
+### With Claude Code (Recommended)
 
-### With Neo4j (10 containers)
+```bash
+make claude-code           # builds + launches Claude Code in Docker
+```
+
+### With MCP Gateway (for Claude Desktop / ChatGPT)
+
+```bash
+make up-gateway            # starts core + gateway on port 8080
+```
+
+### With Neo4j
 
 ```bash
 docker compose --profile neo4j up -d
 ```
 
-### Connect Claude Desktop
+### Verify
 
-Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
+```bash
+make status                # container status table
+make health                # MCP server health check
+```
+
+---
+
+## Compose Services
+
+| Service | Image | Port | Profile | Role |
+|---|---|---|---|---|
+| `kali-mcp` | `crhacky/blhackbox:kali-mcp` | `9001` | default | Kali Linux security tools |
+| `hexstrike` | `crhacky/blhackbox:hexstrike` | `8888` | default | HexStrike AI (150+ tools) |
+| `ollama-mcp` | `crhacky/blhackbox:ollama-mcp` | `9000` | default | Thin MCP orchestrator |
+| `agent-ingestion` | `crhacky/blhackbox:agent-ingestion` | `8001` | default | Agent 1: parse raw output |
+| `agent-processing` | `crhacky/blhackbox:agent-processing` | `8002` | default | Agent 2: deduplicate, compress |
+| `agent-synthesis` | `crhacky/blhackbox:agent-synthesis` | `8003` | default | Agent 3: assemble payload |
+| `ollama` | `ollama/ollama:latest` | `11434` | default | LLM inference backend |
+| `portainer` | `portainer/portainer-ce:latest` | `9443` `9000` | default | Docker management UI |
+| `mcp-gateway` | `docker/mcp-gateway:latest` | `8080` | `gateway` | Single MCP entry point (host clients) |
+| `neo4j` | `neo4j:5` | `7474` `7687` | `neo4j` | Cross-session knowledge graph |
+| `claude-code` | `crhacky/blhackbox:claude-code` | - | `claude-code` | Claude Code CLI client (Docker) |
+
+---
+
+## MCP Connection Modes
+
+### Claude Code in Docker (Direct SSE — no gateway)
+
+The Claude Code container's `.mcp.json` connects directly to each server:
+
+```json
+{
+  "mcpServers": {
+    "kali":            { "type": "sse", "url": "http://kali-mcp:9001/sse" },
+    "hexstrike":       { "type": "sse", "url": "http://hexstrike:8888/sse" },
+    "ollama-pipeline": { "type": "sse", "url": "http://ollama-mcp:9000/sse" }
+  }
+}
+```
+
+### Claude Desktop (via MCP Gateway)
+
+Add to `claude_desktop_config.json`:
 
 ```json
 {
@@ -114,23 +169,7 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 }
 ```
 
----
-
-## Compose Services
-
-| Service | Image | Port | Profile | Role |
-|---|---|---|---|---|
-| `mcp-gateway` | `docker/mcp-gateway:latest` | `8080` | default | Single MCP entry point |
-| `kali-mcp` | `crhacky/blhackbox:kali-mcp` | - | default | Kali Linux security tools |
-| `hexstrike` | `crhacky/blhackbox:hexstrike` | `8888` | default | HexStrike AI (150+ tools) |
-| `ollama-mcp` | `crhacky/blhackbox:ollama-mcp` | - | default | Thin MCP orchestrator |
-| `agent-ingestion` | `crhacky/blhackbox:agent-ingestion` | `8001` | default | Agent 1: parse raw output |
-| `agent-processing` | `crhacky/blhackbox:agent-processing` | `8002` | default | Agent 2: deduplicate, compress |
-| `agent-synthesis` | `crhacky/blhackbox:agent-synthesis` | `8003` | default | Agent 3: assemble payload |
-| `ollama` | `ollama/ollama:latest` | - | default | LLM inference backend |
-| `portainer` | `portainer/portainer-ce:latest` | `9443` `9000` | default | Docker management UI |
-| `neo4j` | `neo4j:5` | `7474` `7687` | `neo4j` | Cross-session knowledge graph |
-| `claude-code` | `crhacky/blhackbox:claude-code` | - | `claude-code` | Claude Code CLI client (Docker) |
+Requires `--profile gateway` (`make up-gateway`).
 
 ---
 
@@ -138,13 +177,13 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 
 | Variable | Default | Description |
 |---|---|---|
+| `ANTHROPIC_API_KEY` | - | Required for Claude Code in Docker |
 | `OLLAMA_MODEL` | `llama3.3` | Ollama model for preprocessing agents |
-| `MCP_GATEWAY_PORT` | `8080` | MCP Gateway host port |
-| `NEO4J_URI` | `bolt://neo4j:7687` | Neo4j connection URI |
-| `NEO4J_USER` | `neo4j` | Neo4j username |
-| `NEO4J_PASSWORD` | - | Neo4j password (min 8 chars) |
-| `ANTHROPIC_API_KEY` | - | For Claude Desktop MCP host |
-| `OPENAI_API_KEY` | - | For OpenAI MCP host |
+| `MCP_GATEWAY_PORT` | `8080` | MCP Gateway host port (optional) |
+| `NEO4J_URI` | `bolt://neo4j:7687` | Neo4j connection URI (optional) |
+| `NEO4J_USER` | `neo4j` | Neo4j username (optional) |
+| `NEO4J_PASSWORD` | - | Neo4j password, min 8 chars (optional) |
+| `OPENAI_API_KEY` | - | For OpenAI MCP clients (optional) |
 
 ---
 
@@ -155,19 +194,21 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 - **Base**: `kalilinux/kali-rolling`
 - **Tools**: nmap, nikto, gobuster, dirb, whatweb, wafw00f, masscan, hydra, sqlmap, wpscan, subfinder, amass, fierce, dnsenum, whois
 - **Entrypoint**: Kali MCP server (`server.py`)
+- **Transport**: SSE on port 9001
 - **Privileged**: Yes (required for raw socket access)
 
 ### HexStrike (`crhacky/blhackbox:hexstrike`)
 
 - **Base**: `python:3.13-slim-bookworm`
 - **Entrypoint**: HexStrike MCP server
-- **Port**: `8888`
+- **Transport**: SSE on port 8888
 - **Source**: [github.com/0x4m4/hexstrike-ai](https://github.com/0x4m4/hexstrike-ai)
 
 ### Ollama MCP (`crhacky/blhackbox:ollama-mcp`)
 
 - **Base**: `python:3.13-slim`
 - **Entrypoint**: `ollama_mcp_server.py`
+- **Transport**: SSE on port 9000
 - **Role**: Thin MCP orchestrator (built with FastMCP) — calls 3 agent containers via HTTP, does NOT call Ollama directly
 - **NOT an official Ollama product**
 
@@ -180,6 +221,26 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 - **Health endpoint**: `GET /health` — returns immediately without calling Ollama
 - Prompts baked in from `blhackbox/prompts/agents/` at build time
 - Can be overridden via volume mount for tuning without rebuilding
+
+### Claude Code (`crhacky/blhackbox:claude-code`)
+
+- **Base**: `node:22-slim`
+- **Entrypoint**: `claude-code-entrypoint.sh` (health checks + launch)
+- **MCP config**: Direct SSE to each server (no gateway dependency)
+- **Note**: Requires `ANTHROPIC_API_KEY` in `.env`
+
+---
+
+## Portainer
+
+Portainer CE provides a web dashboard for all blhackbox containers.
+
+- **URL**: `https://localhost:9443`
+- **First run**: Create an admin account within 5 minutes of startup
+- **Missed the window?** `docker compose restart portainer`
+
+> Your browser will warn about the self-signed HTTPS certificate. This is
+> expected. Click "Advanced" and proceed.
 
 ---
 
@@ -222,31 +283,41 @@ Docker Scout vulnerability scanning runs on the ollama-mcp image.
 # Pull all pre-built images from Docker Hub
 docker compose pull
 
-# Start core stack (9 containers)
+# Start core stack (8 containers)
 docker compose up -d
 
-# Start with Neo4j (10 containers)
+# Start with MCP Gateway for Claude Desktop (9 containers)
+make up-gateway
+
+# Start with Neo4j (9 containers)
 docker compose --profile neo4j up -d
+
+# Launch Claude Code in Docker
+make claude-code
 
 # Pull the Ollama model (REQUIRED)
 make ollama-pull
 
-# View MCP Gateway tool call log
-make gateway-logs
+# Check health of all MCP servers
+make health
 
-# View agent logs
+# Container status
+make status
+
+# View service logs
+make logs-kali
+make logs-hexstrike
 make logs-agent-ingestion
 make logs-agent-processing
 make logs-agent-synthesis
+make gateway-logs
 
 # Restart all 3 agent containers
 make restart-agents
 
-# Check health of all containers
-make status
-
 # Stop and clean up
-docker compose down -v --remove-orphans
+make down
+make clean                 # also removes volumes
 ```
 
 ---
@@ -265,10 +336,11 @@ inference automatically.
 
 ## Security
 
-- **Docker socket**: MCP Gateway and Portainer mount `/var/run/docker.sock`. This grants effective root on the host. Never expose ports 8080 or 9443 to the public internet.
+- **Docker socket**: MCP Gateway (optional) and Portainer mount `/var/run/docker.sock`. This grants effective root on the host. Never expose ports 8080 or 9443 to the public internet.
 - **Authorization**: The `--authorized` flag is mandatory on all scan commands.
 - **Neo4j**: Set a strong password in `.env`. Never use defaults in production.
-- **Agent containers**: Do not expose ports to the host — they communicate only on the internal `blhackbox_net` Docker network.
+- **Agent containers**: Communicate only on the internal `blhackbox_net` Docker network. No ports exposed to host.
+- **Portainer**: Uses HTTPS with a self-signed certificate. Create a strong admin password on first run.
 
 **This tool is for authorized security testing only.** Unauthorized access to computer systems is illegal.
 
