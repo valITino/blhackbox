@@ -1,45 +1,21 @@
-# blhackbox MCP Server Catalog (v2 format)
-# Private catalog -- not part of the Docker public MCP Catalog.
-#
-# NOTE: The default docker-compose.yml uses --static=true mode, which
-# discovers MCP servers by Docker labels on running containers.
-# This catalog file is kept as a reference for dynamic/non-static
-# gateway deployments (e.g. `gateway run --catalog /catalog.yaml`).
+# blhackbox MCP Server Catalog
+# Used by docker/mcp-gateway in catalog mode (--catalog /catalog.yaml).
+# Each server is reached via its Docker-internal hostname using SSE transport.
+# The gateway aggregates all servers behind a single Streamable HTTP endpoint
+# at http://<gateway>:8080/mcp.
 
 registry:
   kali:
-    description: "Kali Linux security tools -- community MCP server adapted for blhackbox"
-    title: Kali
-    type: server
-    image: crhacky/blhackbox:kali-mcp
+    remote:
+      url: "http://kali-mcp:9001/sse"
+      transport_type: sse
 
   hexstrike:
-    description: "HexStrike AI -- github.com/0x4m4/hexstrike-ai (150+ tools, 12+ agents)"
-    title: HexStrike
-    type: server
-    image: crhacky/blhackbox:hexstrike
+    remote:
+      url: "http://hexstrike:8888/sse"
+      transport_type: sse
 
   ollama-mcp:
-    description: >
-      blhackbox Ollama MCP Server -- custom blhackbox component, NOT an official
-      Ollama product. Thin MCP orchestrator that calls 3 agent containers
-      (Ingestion, Processing, Synthesis) via HTTP. Each agent independently
-      calls Ollama /api/chat. Returns AggregatedPayload to Claude.
-    title: Ollama MCP
-    type: server
-    image: crhacky/blhackbox:ollama-mcp
-    env:
-      - name: OLLAMA_MODEL
-        value: "${OLLAMA_MODEL}"
-      - name: AGENT_INGESTION_URL
-        value: "http://agent-ingestion:8001"
-      - name: AGENT_PROCESSING_URL
-        value: "http://agent-processing:8002"
-      - name: AGENT_SYNTHESIS_URL
-        value: "http://agent-synthesis:8003"
-      - name: NEO4J_URI
-        value: "${NEO4J_URI}"
-      - name: NEO4J_USER
-        value: "${NEO4J_USER}"
-      - name: NEO4J_PASSWORD
-        value: "${NEO4J_PASSWORD}"
+    remote:
+      url: "http://ollama-mcp:9000/sse"
+      transport_type: sse

@@ -62,7 +62,9 @@ AGENT_SYNTHESIS_URL = os.environ.get(
 # FastMCP Server
 # ---------------------------------------------------------------------------
 
-mcp = FastMCP("blhackbox-ollama-mcp")
+MCP_PORT = int(os.environ.get("MCP_PORT", "9000"))
+
+mcp = FastMCP("blhackbox-ollama-mcp", host="0.0.0.0", port=MCP_PORT)
 
 
 # ---------------------------------------------------------------------------
@@ -340,4 +342,6 @@ def _looks_like_ip(value: str) -> bool:
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    mcp.run(transport="stdio")
+    transport = os.environ.get("MCP_TRANSPORT", "sse")
+    logger.info("Starting Ollama MCP Server (%s on port %d)", transport, MCP_PORT)
+    mcp.run(transport=transport)

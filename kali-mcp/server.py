@@ -17,11 +17,8 @@ import os
 import shlex
 import shutil
 from datetime import UTC, datetime
-from typing import Any
 
-from mcp.server import Server
-from mcp.server.stdio import stdio_server
-from mcp.types import TextContent, Tool
+from mcp.server.fastmcp import FastMCP
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("kali-mcp")
@@ -37,77 +34,22 @@ ALLOWED_TOOLS = set(
     if t.strip()
 )
 
-_server = Server("kali-mcp")
+MCP_PORT = int(os.environ.get("MCP_PORT", "9001"))
 
-# ---------------------------------------------------------------------------
-# Tool definitions
-# ---------------------------------------------------------------------------
-
-_TOOLS: list[Tool] = [
-    Tool(
-        name="run_kali_tool",
-        description=(
-            "Execute a Kali Linux security tool. Returns structured output with "
-            "stdout, stderr, exit_code, tool_name, timestamp, and target."
-        ),
-        inputSchema={
-            "type": "object",
-            "properties": {
-                "tool": {
-                    "type": "string",
-                    "description": f"Tool name. Allowed: {', '.join(sorted(ALLOWED_TOOLS))}",
-                },
-                "args": {
-                    "type": "string",
-                    "description": "Command-line arguments for the tool (e.g. '-sV -p 1-1000 target.com')",
-                },
-                "target": {
-                    "type": "string",
-                    "description": "Target being scanned (for metadata only)",
-                },
-                "timeout": {
-                    "type": "integer",
-                    "description": "Timeout in seconds (default: 300)",
-                    "default": 300,
-                },
-            },
-            "required": ["tool", "args"],
-        },
-    ),
-    Tool(
-        name="list_available_tools",
-        description="List all available Kali Linux security tools in this container.",
-        inputSchema={"type": "object", "properties": {}},
-    ),
-]
+mcp = FastMCP("kali-mcp", host="0.0.0.0", port=MCP_PORT)
 
 
-@_server.list_tools()
-async def handle_list_tools() -> list[Tool]:
-    return _TOOLS
-
-
-@_server.call_tool()
-async def handle_call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
-    try:
-        if name == "run_kali_tool":
-            result = await _run_tool(arguments)
-        elif name == "list_available_tools":
-            result = _list_tools()
-        else:
-            result = json.dumps({"error": f"Unknown tool: {name}"})
-        return [TextContent(type="text", text=result)]
-    except Exception as exc:
-        logger.exception("Kali MCP tool %s failed", name)
-        return [TextContent(type="text", text=f"Error: {exc}")]
-
-
-async def _run_tool(args: dict[str, Any]) -> str:
-    """Execute a Kali tool with allowlist validation."""
-    tool_name = args["tool"].strip()
-    tool_args = args.get("args", "")
-    target = args.get("target", "unknown")
-    timeout = args.get("timeout", 300)
+@mcp.tool()
+async def run_kali_tool(
+    tool: str,
+    args: str,
+    target: str = "unknown",
+    timeout: int = 300,
+) -> str:
+    """Execute a Kali Linux security tool. Returns structured JSON with
+    stdout, stderr, exit_code, tool_name, timestamp, and target."""
+    tool_name = tool.strip()
+    timestamp = datetime.now(UTC).isoformat()
 
     # Validate tool against allowlist
     if tool_name not in ALLOWED_TOOLS:
@@ -122,10 +64,9 @@ async def _run_tool(args: dict[str, Any]) -> str:
             "error": f"Tool '{tool_name}' is not installed in this container",
         })
 
-    # Build and execute command — use create_subprocess_exec (NOT shell)
-    # to prevent command injection via tool_args.
+    # Build command — use shlex.split to prevent shell injection
     try:
-        cmd_parts = [tool_name] + shlex.split(tool_args)
+        cmd_parts = [tool_name] + shlex.split(args)
     except ValueError as exc:
         return json.dumps({
             "error": f"Invalid arguments (failed to parse): {exc}",
@@ -133,8 +74,6 @@ async def _run_tool(args: dict[str, Any]) -> str:
         })
 
     logger.info("Executing: %s (timeout: %ds)", cmd_parts, timeout)
-
-    timestamp = datetime.now(UTC).isoformat()
 
     try:
         proc = await asyncio.create_subprocess_exec(
@@ -177,8 +116,9 @@ async def _run_tool(args: dict[str, Any]) -> str:
     })
 
 
-def _list_tools() -> str:
-    """List all available tools with their install status."""
+@mcp.tool()
+def list_available_tools() -> str:
+    """List all available Kali Linux security tools in this container."""
     tools = {}
     for tool_name in sorted(ALLOWED_TOOLS):
         path = shutil.which(tool_name)
@@ -189,20 +129,10 @@ def _list_tools() -> str:
     return json.dumps({"tools": tools}, indent=2)
 
 
-# ---------------------------------------------------------------------------
-# Entry point
-# ---------------------------------------------------------------------------
-
-async def run_server() -> None:
-    """Start the Kali MCP server on stdio."""
-    logger.info("Starting Kali Linux MCP Server (allowed tools: %s)", ALLOWED_TOOLS)
-    async with stdio_server() as (read_stream, write_stream):
-        await _server.run(
-            read_stream,
-            write_stream,
-            _server.create_initialization_options(),
-        )
-
-
 if __name__ == "__main__":
-    asyncio.run(run_server())
+    transport = os.environ.get("MCP_TRANSPORT", "sse")
+    logger.info(
+        "Starting Kali Linux MCP Server (%s on port %d, allowed tools: %s)",
+        transport, MCP_PORT, ALLOWED_TOOLS,
+    )
+    mcp.run(transport=transport)
