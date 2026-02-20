@@ -5,6 +5,10 @@ GATEWAY_URL="http://mcp-gateway:8080/mcp"
 MAX_RETRIES=30
 RETRY_INTERVAL=2
 
+# Ensure internal Docker hostnames bypass any egress proxy (e.g. Codespaces).
+export no_proxy="${no_proxy:+${no_proxy},}mcp-gateway,kali-mcp,hexstrike,ollama-mcp,ollama,agent-ingestion,agent-processing,agent-synthesis,localhost,127.0.0.1"
+export NO_PROXY="$no_proxy"
+
 echo "Waiting for MCP Gateway at $GATEWAY_URL ..."
 
 for i in $(seq 1 $MAX_RETRIES); do

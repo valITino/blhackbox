@@ -46,13 +46,17 @@ services:
       - --transport=streaming
       - --port=8080
       - --catalog=/catalog.yaml
+      - --servers=kali,hexstrike,ollama-mcp
       - --log-calls
     networks:
       - blhackbox_net
     depends_on:
-      - kali-mcp
-      - hexstrike
-      - ollama-mcp
+      kali-mcp:
+        condition: service_healthy
+      hexstrike:
+        condition: service_healthy
+      ollama-mcp:
+        condition: service_healthy
 
   # -- KALI MCP SERVER -----------------------------------------------------
   kali-mcp:
@@ -64,6 +68,12 @@ services:
     restart: unless-stopped
     privileged: true
     init: true
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:9001/sse')\""]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
     networks:
       - blhackbox_net
 
@@ -100,6 +110,12 @@ services:
     container_name: blhackbox-ollama-mcp
     restart: unless-stopped
     init: true
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:9000/sse')\""]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
     environment:
       OLLAMA_URL: "http://ollama:11434"
       OLLAMA_MODEL: "${OLLAMA_MODEL:-llama3.3}"
@@ -263,6 +279,9 @@ services:
     tty: true
     environment:
       ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY}"
+      # Bypass egress proxies (e.g. GitHub Codespaces) for internal Docker traffic
+      no_proxy: "mcp-gateway,kali-mcp,hexstrike,ollama-mcp,ollama,agent-ingestion,agent-processing,agent-synthesis,localhost,127.0.0.1"
+      NO_PROXY: "mcp-gateway,kali-mcp,hexstrike,ollama-mcp,ollama,agent-ingestion,agent-processing,agent-synthesis,localhost,127.0.0.1"
     depends_on:
       - mcp-gateway
     networks:
