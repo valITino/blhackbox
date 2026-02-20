@@ -15,7 +15,7 @@
     },
     "blhackbox-aggregator": {
       "command": "python3",
-      "args": ["mcp_servers/blhackbox_aggregator_mcp.py"],
+      "args": ["mcp_servers/ollama_mcp_server.py"],
       "env": {
         "OLLAMA_URL": "http://localhost:11434",
         "OLLAMA_MODEL": "llama3.3",
