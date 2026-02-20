@@ -248,6 +248,7 @@ services:
   # Then run:    docker compose run --rm claude-code
   # Connects to MCP Gateway via the internal Docker network.
   claude-code:
+    image: crhacky/blhackbox:claude-code
     build:
       context: .
       dockerfile: docker/claude-code.Dockerfile

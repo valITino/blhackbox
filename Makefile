@@ -48,8 +48,8 @@ clean: ## Remove containers, volumes, and build artifacts
 	rm -rf dist/ build/ *.egg-info
 
 # ── Claude Code (Docker) ──────────────────────────────────────────
-claude-code: ## Build and launch Claude Code in a Docker container
-	$(COMPOSE) --profile claude-code build claude-code
+claude-code: ## Pull (or build) and launch Claude Code in a Docker container
+	$(COMPOSE) --profile claude-code pull claude-code || $(COMPOSE) --profile claude-code build claude-code
 	$(COMPOSE) run --rm claude-code
 
 # ── Ollama ──────────────────────────────────────────────────────
@@ -129,9 +129,11 @@ push-all: ## Build and push all custom images to Docker Hub
 	docker build -f docker/agent-ingestion.Dockerfile -t crhacky/blhackbox:agent-ingestion .
 	docker build -f docker/agent-processing.Dockerfile -t crhacky/blhackbox:agent-processing .
 	docker build -f docker/agent-synthesis.Dockerfile -t crhacky/blhackbox:agent-synthesis .
+	docker build -f docker/claude-code.Dockerfile -t crhacky/blhackbox:claude-code .
 	docker push crhacky/blhackbox:kali-mcp
 	docker push crhacky/blhackbox:hexstrike
 	docker push crhacky/blhackbox:ollama-mcp
 	docker push crhacky/blhackbox:agent-ingestion
 	docker push crhacky/blhackbox:agent-processing
 	docker push crhacky/blhackbox:agent-synthesis
+	docker push crhacky/blhackbox:claude-code
