@@ -1,8 +1,8 @@
 {
   "mcpServers": {
     "blhackbox": {
-      "command": ".venv/bin/blhackbox",
-      "args": ["mcp"],
+      "command": "bash",
+      "args": [".claude/mcp-start.sh"],
       "description": "blhackbox core MCP server — recon, tool execution, graph queries, report generation"
     }
   }
