@@ -1,34 +1,45 @@
-# blhackbox MCP Server Catalog
-# Read by Docker MCP Gateway at startup.
-# Private catalog — not part of the Docker public MCP Catalog.
+# blhackbox MCP Server Catalog (v2 format)
+# Private catalog -- not part of the Docker public MCP Catalog.
+#
+# NOTE: The default docker-compose.yml uses --static=true mode, which
+# discovers MCP servers by Docker labels on running containers.
+# This catalog file is kept as a reference for dynamic/non-static
+# gateway deployments (e.g. `gateway run --catalog /catalog.yaml`).
 
-servers:
-  - name: kali
-    description: "Kali Linux security tools — community MCP server adapted for blhackbox"
+registry:
+  kali:
+    description: "Kali Linux security tools -- community MCP server adapted for blhackbox"
+    title: Kali
+    type: server
     image: crhacky/blhackbox:kali-mcp
-    privileged: true
-    network: blhackbox_net
 
-  - name: hexstrike
-    description: "HexStrike AI — github.com/0x4m4/hexstrike-ai (150+ tools, 12+ agents)"
+  hexstrike:
+    description: "HexStrike AI -- github.com/0x4m4/hexstrike-ai (150+ tools, 12+ agents)"
+    title: HexStrike
+    type: server
     image: crhacky/blhackbox:hexstrike
-    network: blhackbox_net
-    env:
-      HEXSTRIKE_URL: "http://hexstrike:8888"
 
-  - name: ollama-mcp
+  ollama-mcp:
     description: >
-      blhackbox Ollama MCP Server — custom blhackbox component, NOT an official
+      blhackbox Ollama MCP Server -- custom blhackbox component, NOT an official
       Ollama product. Thin MCP orchestrator that calls 3 agent containers
       (Ingestion, Processing, Synthesis) via HTTP. Each agent independently
-      calls Ollama's /api/chat. Returns AggregatedPayload to Claude.
+      calls Ollama /api/chat. Returns AggregatedPayload to Claude.
+    title: Ollama MCP
+    type: server
     image: crhacky/blhackbox:ollama-mcp
-    network: blhackbox_net
     env:
-      OLLAMA_MODEL: "${OLLAMA_MODEL}"
-      AGENT_INGESTION_URL: "http://agent-ingestion:8001"
-      AGENT_PROCESSING_URL: "http://agent-processing:8002"
-      AGENT_SYNTHESIS_URL: "http://agent-synthesis:8003"
-      NEO4J_URI: "${NEO4J_URI}"
-      NEO4J_USER: "${NEO4J_USER}"
-      NEO4J_PASSWORD: "${NEO4J_PASSWORD}"
+      - name: OLLAMA_MODEL
+        value: "${OLLAMA_MODEL}"
+      - name: AGENT_INGESTION_URL
+        value: "http://agent-ingestion:8001"
+      - name: AGENT_PROCESSING_URL
+        value: "http://agent-processing:8002"
+      - name: AGENT_SYNTHESIS_URL
+        value: "http://agent-synthesis:8003"
+      - name: NEO4J_URI
+        value: "${NEO4J_URI}"
+      - name: NEO4J_USER
+        value: "${NEO4J_USER}"
+      - name: NEO4J_PASSWORD
+        value: "${NEO4J_PASSWORD}"
