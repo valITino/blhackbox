@@ -234,7 +234,7 @@ no manual config files needed.
 
 The container drops you into an interactive Claude Code session. The MCP
 connection to blhackbox is already configured — Claude Code connects to
-`http://mcp-gateway:8080/sse` over the Docker network automatically.
+`http://mcp-gateway:8080/mcp` over the Docker network automatically.
 
 ### Step 3: Verify the connection
 
@@ -396,8 +396,8 @@ Add the following:
 {
   "mcpServers": {
     "blhackbox": {
-      "transport": "sse",
-      "url": "http://localhost:8080/sse"
+      "transport": "streamable-http",
+      "url": "http://localhost:8080/mcp"
     }
   }
 }
@@ -484,7 +484,7 @@ You need an **OpenAI-compatible client that supports MCP**. Options include:
 - **Custom scripts** using the OpenAI API + an MCP client library
 
 The key requirement: the client must support connecting to an MCP server via
-SSE transport at `http://localhost:8080/sse`.
+Streamable HTTP transport at `http://localhost:8080/mcp`.
 
 ### Step 2: Start the blhackbox stack
 
@@ -503,8 +503,8 @@ All containers must be running (`make status` to verify).
 Point your MCP-capable OpenAI client at the blhackbox MCP Gateway:
 
 ```
-MCP Server URL: http://localhost:8080/sse
-Transport: SSE
+MCP Server URL: http://localhost:8080/mcp
+Transport: Streamable HTTP
 ```
 
 The exact configuration depends on your client. The MCP Gateway exposes the
