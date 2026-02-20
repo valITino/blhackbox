@@ -7,15 +7,17 @@ cd "$PROJECT_DIR"
 
 # Ensure virtual environment exists
 if [ ! -d ".venv" ]; then
-  python3 -m venv .venv 2>/dev/null
+  python3 -m venv .venv >&2
 fi
 
 # Ensure package is installed (entry point must exist)
 if [ ! -f ".venv/bin/blhackbox" ]; then
-  .venv/bin/pip install -e . --quiet 2>/dev/null
+  .venv/bin/pip install -e . --quiet >&2
 fi
 
 # Load .env if present (for NEO4J_*, OLLAMA_*, etc.)
+# API keys (ANTHROPIC_API_KEY, OPENAI_API_KEY) are intentionally commented
+# out in .env.example — Claude Code provides its own authentication.
 if [ -f ".env" ]; then
   set -a
   # shellcheck disable=SC1091

@@ -16,7 +16,9 @@ fi
 # Install package with dev dependencies (editable mode)
 .venv/bin/pip install -e ".[dev]" --quiet
 
-# Create .env from example if it doesn't exist
+# Create .env from example if it doesn't exist.
+# API keys are commented out in .env.example — Claude Code provides its
+# own authentication so ANTHROPIC_API_KEY is not needed here.
 if [ ! -f ".env" ] && [ -f ".env.example" ]; then
   cp .env.example .env
 fi
