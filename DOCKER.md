@@ -19,7 +19,7 @@ All custom images are published to a single Docker Hub repository, differentiate
 
 ## Images and Tags
 
-Six custom images are published to `crhacky/blhackbox` on Docker Hub:
+Seven custom images are published to `crhacky/blhackbox` on Docker Hub:
 
 | Service | Tag | Dockerfile | Base |
 |---|---|---|---|
@@ -29,6 +29,7 @@ Six custom images are published to `crhacky/blhackbox` on Docker Hub:
 | **Agent: Ingestion** | `crhacky/blhackbox:agent-ingestion` | `docker/agent-ingestion.Dockerfile` | `python:3.13-slim` |
 | **Agent: Processing** | `crhacky/blhackbox:agent-processing` | `docker/agent-processing.Dockerfile` | `python:3.13-slim` |
 | **Agent: Synthesis** | `crhacky/blhackbox:agent-synthesis` | `docker/agent-synthesis.Dockerfile` | `python:3.13-slim` |
+| **Claude Code** | `crhacky/blhackbox:claude-code` | `docker/claude-code.Dockerfile` | `node:22-slim` |
 
 Official images pulled directly (no custom build):
 - `docker/mcp-gateway:latest` — MCP Gateway
@@ -43,7 +44,7 @@ Official images pulled directly (no custom build):
 docker compose pull
 ```
 
-This pulls all 10 images (6 custom + 4 official) in parallel. No local
+This pulls all 11 images (7 custom + 4 official) in parallel. No local
 builds or submodules required.
 
 ---
@@ -129,7 +130,7 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 | `ollama` | `ollama/ollama:latest` | - | default | LLM inference backend |
 | `portainer` | `portainer/portainer-ce:latest` | `9443` `9000` | default | Docker management UI |
 | `neo4j` | `neo4j:5` | `7474` `7687` | `neo4j` | Cross-session knowledge graph |
-| `claude-code` | `blhackbox-claude-code` (built locally) | - | `claude-code` | Claude Code CLI client (Docker) |
+| `claude-code` | `crhacky/blhackbox:claude-code` | - | `claude-code` | Claude Code CLI client (Docker) |
 
 ---
 
@@ -199,16 +200,16 @@ Named volumes for persistent data:
 
 ## CI/CD Pipeline
 
-Six custom images are built and pushed to Docker Hub via GitHub Actions:
+Seven custom images are built and pushed to Docker Hub via GitHub Actions:
 
 ```
 PR opened  ───>  CI (lint + test + pip-audit)
                       │
-PR merged  ───>  CI  ───>  Build & Push (6 images)  ───>  Docker Hub
+PR merged  ───>  CI  ───>  Build & Push (7 images)  ───>  Docker Hub
                            (on CI success)
-Tag v*     ──────────────>  Build & Push (6 images)  ───>  Docker Hub
+Tag v*     ──────────────>  Build & Push (7 images)  ───>  Docker Hub
 
-Manual     ──────────────>  Build & Push (6 images)  ───>  Docker Hub
+Manual     ──────────────>  Build & Push (7 images)  ───>  Docker Hub
 ```
 
 Docker Scout vulnerability scanning runs on the ollama-mcp image.

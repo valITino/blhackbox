@@ -60,6 +60,10 @@ jobs:
             dockerfile: docker/agent-synthesis.Dockerfile
             tag_prefix: "agent-synthesis-"
             scout: false
+          - service: claude-code
+            dockerfile: docker/claude-code.Dockerfile
+            tag_prefix: "claude-code-"
+            scout: false
 
     steps:
       - name: Checkout repository
