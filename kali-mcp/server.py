@@ -87,7 +87,7 @@ async def run_kali_tool(
         stdout = stdout_bytes.decode("utf-8", errors="replace")
         stderr = stderr_bytes.decode("utf-8", errors="replace")
         exit_code = proc.returncode or 0
-    except asyncio.TimeoutError:
+    except TimeoutError:
         return json.dumps({
             "stdout": "",
             "stderr": f"Command timed out after {timeout}s",

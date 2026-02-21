@@ -97,12 +97,6 @@ def catalog() -> None:
 @cli.command()
 @click.option("--target", "-t", required=True, help="Target domain, IP, or URL.")
 @click.option(
-    "--authorized",
-    is_flag=True,
-    default=False,
-    help="Confirm you have written authorization to test this target.",
-)
-@click.option(
     "--attacks",
     default=None,
     help="Comma-separated tool or category names to run.",
@@ -117,19 +111,11 @@ def catalog() -> None:
 @click.option("--output", "-o", type=click.Path(), help="Override output file path.")
 def recon(
     target: str,
-    authorized: bool,
     attacks: str | None,
     full_pentest: bool,
     output: str | None,
 ) -> None:
     """Run reconnaissance against a target via HexStrike."""
-    if not authorized:
-        rich_console.print(
-            "[error]ERROR: You must pass --authorized to confirm you have written "
-            "permission to test this target.[/error]"
-        )
-        raise SystemExit(1)
-
     # Mutual exclusivity: --attacks, --full
     mode_count = sum([attacks is not None, full_pentest])
     if mode_count > 1:
@@ -287,13 +273,8 @@ def _save_and_summarize(
     required=True,
     help='JSON string of tool parameters, e.g. \'{"target":"example.com"}\'.',
 )
-@click.option("--authorized", is_flag=True, default=False, help="Confirm authorization.")
-def run_tool(category: str, tool: str, params: str, authorized: bool) -> None:
+def run_tool(category: str, tool: str, params: str) -> None:
     """Run a single HexStrike tool."""
-    if not authorized:
-        rich_console.print("[error]ERROR: --authorized flag required.[/error]")
-        raise SystemExit(1)
-
     print_warning_banner()
 
     try:
@@ -359,13 +340,8 @@ async def _do_list_agents() -> None:
 @agents.command("run")
 @click.option("--name", "-n", required=True, help="Agent name.")
 @click.option("--target", "-t", required=True, help="Target for the agent.")
-@click.option("--authorized", is_flag=True, default=False, help="Confirm authorization.")
-def agents_run(name: str, target: str, authorized: bool) -> None:
+def agents_run(name: str, target: str) -> None:
     """Run a HexStrike AI agent against a target."""
-    if not authorized:
-        rich_console.print("[error]ERROR: --authorized flag required.[/error]")
-        raise SystemExit(1)
-
     print_warning_banner()
     _run_async(_do_run_agent(name, target))
 

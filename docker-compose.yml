@@ -1,15 +1,27 @@
 # blhackbox v2.0 -- Modular Docker Infrastructure
 #
 # Usage:
-#   docker compose pull                     Pull all pre-built images from Docker Hub
-#   docker compose up -d                    Start core stack (9 containers)
-#   docker compose --profile neo4j up -d    Start with Neo4j (10 containers)
-#   docker compose build                    Build all custom images locally (optional)
+#   docker compose pull                          Pull all pre-built images
+#   docker compose up -d                         Start core stack (8 containers)
+#   docker compose --profile gateway up -d       Start with MCP Gateway (9 containers)
+#   docker compose --profile claude-code up -d   Start with Claude Code container
+#   docker compose --profile neo4j up -d         Start with Neo4j
+#   docker compose build                         Build all custom images locally
 #
-# Claude Desktop config (Streamable HTTP — gateway uses --transport streaming):
+# MCP servers:
+#   kali-mcp     (FastMCP SSE, port 9001) — Kali Linux security tools
+#   ollama-mcp   (FastMCP SSE, port 9000) — Ollama preprocessing pipeline
+#   hexstrike    (Flask REST API, port 8888) — HexStrike AI tools (NOT MCP protocol)
+#
+# NOTE on HexStrike: It runs a Flask REST API, NOT an MCP SSE server.
+# Its 150+ tools are accessible via HTTP at http://hexstrike:8888/api/...
+# from any container on blhackbox_net. Native MCP support is a future goal.
+#
+# Claude Code (Docker) connects directly to MCP servers (kali, ollama-mcp) via SSE.
+# Claude Desktop / ChatGPT connect via the MCP Gateway (--profile gateway).
+#
+# Claude Desktop config (requires --profile gateway):
 #   {"mcpServers": {"blhackbox": {"transport": "streamable-http", "url": "http://localhost:8080/mcp"}}}
-# Claude Code CLI config (.mcp.json):
-#   {"mcpServers": {"blhackbox": {"type": "http", "url": "http://localhost:8080/mcp"}}}
 
 networks:
   blhackbox_net:
@@ -26,39 +38,47 @@ volumes:
 
 services:
 
-  # -- MCP GATEWAY ---------------------------------------------------------
-  # Single entry point for all MCP clients (Claude Desktop, Claude Code,
-  # OpenAI). Routes tool calls to the correct MCP server container.
-  # Uses catalog mode: connects to MCP servers by URL (remote/SSE).
-  # No Docker socket required — each server exposes its own SSE endpoint.
+  # -- MCP GATEWAY (OPTIONAL) ------------------------------------------------
+  # Single entry point for HOST-based MCP clients (Claude Desktop, ChatGPT).
+  # NOT needed for Claude Code in Docker — it connects directly to each server.
+  # Enable with: docker compose --profile gateway up -d
+  #
+  # The gateway uses a catalog file to discover MCP servers by name.
+  # It requires Docker socket access. It proxies tool calls from
+  # localhost:8080/mcp to the correct MCP server container.
   # Docs: https://github.com/docker/mcp-gateway
+  #
+  # NOTE: Only kali-mcp and ollama-mcp are MCP servers. HexStrike is a
+  # Flask REST API and is NOT included in the gateway.
   mcp-gateway:
     image: docker/mcp-gateway:latest
     container_name: blhackbox-mcp-gateway
+    profiles: ["gateway"]
     restart: unless-stopped
     ports:
       - "${MCP_GATEWAY_PORT:-8080}:8080"
     volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
       - ./blhackbox-mcp-catalog.yaml:/catalog.yaml:ro
     environment:
       HOME: /root
+      # Bypass Docker Desktop feature checks on headless Linux.
+      DOCKER_MCP_IN_CONTAINER: "1"
     command:
       - --transport=streaming
       - --port=8080
       - --catalog=/catalog.yaml
-      - --servers=kali,hexstrike,ollama-mcp
+      - --servers=kali-mcp,ollama-mcp
       - --log-calls
     networks:
       - blhackbox_net
     depends_on:
       kali-mcp:
         condition: service_healthy
-      hexstrike:
-        condition: service_healthy
       ollama-mcp:
         condition: service_healthy
 
-  # -- KALI MCP SERVER -----------------------------------------------------
+  # -- KALI MCP SERVER -------------------------------------------------------
   kali-mcp:
     image: crhacky/blhackbox:kali-mcp
     build:
@@ -77,8 +97,10 @@ services:
     networks:
       - blhackbox_net
 
-  # -- HEXSTRIKE MCP SERVER ------------------------------------------------
-  # Source: https://github.com/0x4m4/hexstrike-ai
+  # -- HEXSTRIKE AI (REST API) -----------------------------------------------
+  # Flask REST API on port 8888 — NOT an MCP server.
+  # Provides 150+ security tool wrappers and 12+ AI agents via HTTP.
+  # Source: https://github.com/0x4m4/hexstrike-ai (also a Kali Linux package)
   hexstrike:
     image: crhacky/blhackbox:hexstrike
     build:
@@ -97,7 +119,7 @@ services:
     networks:
       - blhackbox_net
 
-  # -- OLLAMA MCP SERVER (CUSTOM) ------------------------------------------
+  # -- OLLAMA MCP SERVER (CUSTOM) --------------------------------------------
   # blhackbox custom component. NOT an official Ollama product.
   # Thin MCP orchestrator -- calls the 3 agent containers in sequence
   # via HTTP, assembles the AggregatedPayload, and returns it to Claude.
@@ -117,7 +139,7 @@ services:
       retries: 5
       start_period: 10s
     environment:
-      OLLAMA_URL: "http://ollama:11434"
+      OLLAMA_HOST: "http://ollama:11434"
       OLLAMA_MODEL: "${OLLAMA_MODEL:-llama3.3}"
       AGENT_INGESTION_URL: "http://agent-ingestion:8001"
       AGENT_PROCESSING_URL: "http://agent-processing:8002"
@@ -135,7 +157,7 @@ services:
     networks:
       - blhackbox_net
 
-  # -- AGENT 1: INGESTION -------------------------------------------------
+  # -- AGENT 1: INGESTION ---------------------------------------------------
   # Parses and structures raw Kali + HexStrike tool output.
   # Calls Ollama /api/chat with ingestion system prompt.
   agent-ingestion:
@@ -146,7 +168,7 @@ services:
     container_name: blhackbox-agent-ingestion
     restart: unless-stopped
     environment:
-      OLLAMA_URL: "http://ollama:11434"
+      OLLAMA_HOST: "http://ollama:11434"
       OLLAMA_MODEL: "${OLLAMA_MODEL:-llama3.3}"
     depends_on:
       ollama:
@@ -159,7 +181,7 @@ services:
     networks:
       - blhackbox_net
 
-  # -- AGENT 2: PROCESSING ------------------------------------------------
+  # -- AGENT 2: PROCESSING --------------------------------------------------
   # Deduplicates, extracts errors, compresses data into efficient blobs.
   # Annotates error_log entries with security_relevance.
   agent-processing:
@@ -170,7 +192,7 @@ services:
     container_name: blhackbox-agent-processing
     restart: unless-stopped
     environment:
-      OLLAMA_URL: "http://ollama:11434"
+      OLLAMA_HOST: "http://ollama:11434"
       OLLAMA_MODEL: "${OLLAMA_MODEL:-llama3.3}"
     depends_on:
       ollama:
@@ -183,7 +205,7 @@ services:
     networks:
       - blhackbox_net
 
-  # -- AGENT 3: SYNTHESIS --------------------------------------------------
+  # -- AGENT 3: SYNTHESIS ----------------------------------------------------
   # Merges Agent 1 + Agent 2 output into final AggregatedPayload.
   # Adds metadata, resolves conflicts, sends back to Claude.
   agent-synthesis:
@@ -194,7 +216,7 @@ services:
     container_name: blhackbox-agent-synthesis
     restart: unless-stopped
     environment:
-      OLLAMA_URL: "http://ollama:11434"
+      OLLAMA_HOST: "http://ollama:11434"
       OLLAMA_MODEL: "${OLLAMA_MODEL:-llama3.3}"
     depends_on:
       ollama:
@@ -207,7 +229,7 @@ services:
     networks:
       - blhackbox_net
 
-  # -- OLLAMA --------------------------------------------------------------
+  # -- OLLAMA ----------------------------------------------------------------
   # Standard Ollama image -- zero custom configuration.
   # All 3 agent containers call this via /api/chat independently.
   ollama:
@@ -234,8 +256,8 @@ services:
               count: all
               capabilities: [gpu]
 
-  # -- NEO4J (OPTIONAL) ----------------------------------------------------
-  # Enable with: docker compose --profile neo4j up
+  # -- NEO4J (OPTIONAL) ------------------------------------------------------
+  # Enable with: docker compose --profile neo4j up -d
   # Provides cross-session persistence and relationship querying.
   # Not needed for single-engagement use.
   neo4j:
@@ -263,11 +285,13 @@ services:
     networks:
       - blhackbox_net
 
-  # -- CLAUDE CODE (OPTIONAL) ----------------------------------------------
+  # -- CLAUDE CODE (OPTIONAL) ------------------------------------------------
   # MCP client running inside Docker -- no host install needed.
   # Enable with: docker compose --profile claude-code up -d
   # Then run:    docker compose run --rm claude-code
-  # Connects to MCP Gateway via the internal Docker network.
+  #
+  # Connects DIRECTLY to each MCP server via SSE over the Docker network.
+  # Does NOT require the MCP Gateway.
   claude-code:
     image: crhacky/blhackbox:claude-code
     build:
@@ -283,13 +307,23 @@ services:
       no_proxy: "mcp-gateway,kali-mcp,hexstrike,ollama-mcp,ollama,agent-ingestion,agent-processing,agent-synthesis,localhost,127.0.0.1"
       NO_PROXY: "mcp-gateway,kali-mcp,hexstrike,ollama-mcp,ollama,agent-ingestion,agent-processing,agent-synthesis,localhost,127.0.0.1"
     depends_on:
-      - mcp-gateway
+      kali-mcp:
+        condition: service_healthy
+      hexstrike:
+        condition: service_healthy
+      ollama-mcp:
+        condition: service_healthy
     networks:
       - blhackbox_net
 
-  # -- PORTAINER CE --------------------------------------------------------
+  # -- PORTAINER CE ----------------------------------------------------------
   # Web UI for container management -- https://localhost:9443
   # Source: https://github.com/portainer/portainer
+  #
+  # FIRST RUN: Open https://localhost:9443 and create an admin account
+  # within 5 minutes of startup. If you miss the window, restart Portainer:
+  #   docker compose restart portainer
+  #
   # WARNING: mounts Docker socket -- grants effective root on host.
   # Never expose port 9443 to the public internet.
   portainer:
@@ -298,7 +332,9 @@ services:
     restart: always
     ports:
       - "9443:9443"
-      - "9000:9000"
+      # Port 8000: Portainer Edge Agent tunnel server (optional).
+      # Only needed if you plan to manage remote Docker hosts via Edge Agents.
+      # - "8000:8000"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - portainer_data:/data

@@ -16,7 +16,7 @@ you will need them in Phase 4.
 **Objective:** Build a comprehensive map of the target's external attack surface
 before sending a single probe packet.
 
-Call the following tools via the **Kali MCP Server** and **HexStrike MCP Server**:
+Call the following tools via the **Kali MCP Server** and **HexStrike REST API**:
 
 | Category | Tools / Calls |
 |---|---|

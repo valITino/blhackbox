@@ -1,21 +1,34 @@
-# blhackbox MCP Server Catalog
-# Used by docker/mcp-gateway in catalog mode (--catalog /catalog.yaml).
-# Each server is reached via its Docker-internal hostname using SSE transport.
-# The gateway aggregates all servers behind a single Streamable HTTP endpoint
-# at http://<gateway>:8080/mcp.
+# blhackbox MCP Server Catalog for Docker MCP Gateway
+# Used by docker/mcp-gateway when --catalog flag is set.
+#
+# The gateway aggregates these MCP servers behind a single Streamable HTTP
+# endpoint at http://localhost:8080/mcp for host-based clients (Claude Desktop,
+# ChatGPT).
+#
+# Only actual MCP servers are listed here. HexStrike is a Flask REST API
+# and is NOT included — it does not speak MCP protocol.
+#
+# This catalog is ONLY used when the gateway profile is enabled:
+#   docker compose --profile gateway up -d
+#
+# Docs: https://github.com/docker/mcp-gateway/blob/main/docs/catalog.md
+
+name: blhackbox
+displayName: blhackbox Pentesting Framework
 
 registry:
-  kali:
+  kali-mcp:
+    description: "Kali Linux security tools — nmap, nikto, gobuster, subfinder, whois, etc."
+    title: "Kali MCP Server"
+    type: "server"
     remote:
       url: "http://kali-mcp:9001/sse"
       transport_type: sse
 
-  hexstrike:
-    remote:
-      url: "http://hexstrike:8888/sse"
-      transport_type: sse
-
   ollama-mcp:
+    description: "blhackbox Ollama preprocessing pipeline — 3-agent data pipeline for scan result aggregation"
+    title: "Ollama MCP Server"
+    type: "server"
     remote:
       url: "http://ollama-mcp:9000/sse"
       transport_type: sse

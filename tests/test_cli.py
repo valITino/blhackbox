@@ -20,24 +20,6 @@ class TestCLI:
         assert result.exit_code == 0
         assert "2.0.0" in result.output
 
-    def test_recon_without_authorized(self) -> None:
-        runner = CliRunner()
-        result = runner.invoke(cli, ["recon", "--target", "example.com"])
-        assert result.exit_code != 0
-
-    def test_run_tool_without_authorized(self) -> None:
-        runner = CliRunner()
-        result = runner.invoke(
-            cli,
-            [
-                "run-tool",
-                "--category", "network",
-                "--tool", "nmap",
-                "--params", '{"target": "example.com"}',
-            ],
-        )
-        assert result.exit_code != 0
-
     def test_run_tool_invalid_json(self) -> None:
         runner = CliRunner()
         result = runner.invoke(
@@ -47,7 +29,6 @@ class TestCLI:
                 "--category", "network",
                 "--tool", "nmap",
                 "--params", "not-json",
-                "--authorized",
             ],
         )
         assert result.exit_code != 0
@@ -88,27 +69,13 @@ class TestCatalogCommand:
 
 
 class TestReconFlags:
-    def test_recon_attacks_without_authorized(self) -> None:
-        runner = CliRunner()
-        result = runner.invoke(
-            cli, ["recon", "--target", "example.com", "--attacks", "nmap"]
-        )
-        assert result.exit_code != 0
-
-    def test_recon_full_without_authorized(self) -> None:
-        runner = CliRunner()
-        result = runner.invoke(
-            cli, ["recon", "--target", "example.com", "--full"]
-        )
-        assert result.exit_code != 0
-
     def test_recon_attacks_and_full_mutual_exclusivity(self) -> None:
         """--attacks and --full are mutually exclusive."""
         runner = CliRunner()
         result = runner.invoke(
             cli,
             [
-                "recon", "--target", "example.com", "--authorized",
+                "recon", "--target", "example.com",
                 "--attacks", "nmap", "--full",
             ],
         )
@@ -120,7 +87,7 @@ class TestReconFlags:
         result = runner.invoke(
             cli,
             [
-                "recon", "--target", "example.com", "--authorized",
+                "recon", "--target", "example.com",
                 "--ai",
             ],
         )
@@ -132,7 +99,7 @@ class TestReconFlags:
         result = runner.invoke(
             cli,
             [
-                "recon", "--target", "example.com", "--authorized",
+                "recon", "--target", "example.com",
                 "--attacks", "nonexistent_tool",
             ],
         )

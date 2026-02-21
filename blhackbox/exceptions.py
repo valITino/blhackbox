@@ -28,10 +28,6 @@ class GraphError(BlhackboxError):
     """Raised on Neo4j / knowledge graph failures."""
 
 
-class AuthorizationRequiredError(BlhackboxError):
-    """Raised when the --authorized flag is not provided."""
-
-
 class ReportingError(BlhackboxError):
     """Raised on report generation failures."""
 
