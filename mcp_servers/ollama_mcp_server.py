@@ -34,8 +34,11 @@ if _project_root not in sys.path:
 from blhackbox.models.aggregated_payload import (  # noqa: E402
     AggregatedMetadata,
     AggregatedPayload,
+    AttackSurface,
     ErrorLogEntry,
+    ExecutiveSummary,
     Findings,
+    RemediationEntry,
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -180,11 +183,18 @@ async def process_scan_results(
         compressed_size / total_raw_size if total_raw_size > 0 else 0.0
     )
 
+    attack_surface = _build_attack_surface(synthesis_output, processing_output)
+    executive_summary = _build_executive_summary(synthesis_output)
+    remediation = _build_remediation(synthesis_output)
+
     payload = AggregatedPayload(
         session_id=session_id,
         target=target,
         findings=findings,
         error_log=error_log,
+        attack_surface=attack_surface,
+        executive_summary=executive_summary,
+        remediation=remediation,
         metadata=AggregatedMetadata(
             tools_run=list(raw_outputs.keys()),
             total_raw_size_bytes=total_raw_size,
@@ -237,6 +247,11 @@ def _build_findings(
                 endpoints=findings_data.get("endpoints", []),
                 subdomains=findings_data.get("subdomains", []),
                 technologies=findings_data.get("technologies", []),
+                ssl_certs=findings_data.get("ssl_certs", []),
+                credentials=findings_data.get("credentials", []),
+                http_headers=findings_data.get("http_headers", []),
+                whois=findings_data.get("whois", {}),
+                dns_records=findings_data.get("dns_records", []),
             )
         except Exception:
             return Findings()
@@ -259,6 +274,49 @@ def _build_error_log(
             entries.append(ErrorLogEntry(**entry))
         except Exception:
             logger.warning("Could not parse error log entry: %s", entry)
+    return entries
+
+
+def _build_attack_surface(
+    synthesis_output: dict[str, Any],
+    processing_output: dict[str, Any],
+) -> AttackSurface:
+    """Build attack surface from agent outputs."""
+    data = synthesis_output.get("attack_surface", {})
+    if not data:
+        data = processing_output.get("attack_surface", {})
+    if not data:
+        return AttackSurface()
+    try:
+        return AttackSurface(**data)
+    except Exception:
+        logger.warning("Could not parse attack_surface data")
+        return AttackSurface()
+
+
+def _build_executive_summary(synthesis_output: dict[str, Any]) -> ExecutiveSummary:
+    """Build executive summary from synthesis output."""
+    data = synthesis_output.get("executive_summary", {})
+    if not data:
+        return ExecutiveSummary()
+    try:
+        return ExecutiveSummary(**data)
+    except Exception:
+        logger.warning("Could not parse executive_summary data")
+        return ExecutiveSummary()
+
+
+def _build_remediation(synthesis_output: dict[str, Any]) -> list[RemediationEntry]:
+    """Build remediation entries from synthesis output."""
+    raw_entries = synthesis_output.get("remediation", [])
+    entries: list[RemediationEntry] = []
+    for entry in raw_entries:
+        if not isinstance(entry, dict):
+            continue
+        try:
+            entries.append(RemediationEntry(**entry))
+        except Exception:
+            logger.warning("Could not parse remediation entry: %s", entry)
     return entries
 
 
