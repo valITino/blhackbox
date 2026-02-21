@@ -10,8 +10,7 @@
 
 > **LEGAL DISCLAIMER:** This tool is for **authorized security testing only**.
 > You must have explicit written permission from the target owner before running
-> any scans. Unauthorized testing is illegal. The `--authorized` flag is mandatory
-> on all scan commands as an additional safeguard.
+> any scans. Unauthorized testing is illegal.
 
 ---
 
@@ -230,8 +229,7 @@ Checking MCP server connectivity...
 
   Quick start:
     /mcp              Check MCP server status
-    Run a full recon on example.com --authorized
-──────────────────────────────────────────────────
+    Run a full recon on example.com──────────────────────────────────────────────────
 ```
 
 You are now inside an interactive Claude Code session.
@@ -248,8 +246,7 @@ You should see three MCP servers listed: `kali`, `hexstrike`, and
 ### Step 4: Run your first pentest
 
 ```
-Run a full recon and vulnerability scan on example.com --authorized
-```
+Run a full recon and vulnerability scan on example.com```
 
 Claude Code will autonomously:
 1. Call Kali tools (nmap, subfinder, nikto, etc.) and HexStrike agents
@@ -287,7 +284,7 @@ configures itself automatically.
 
 1. Go to [claude.ai/code](https://claude.ai/code) and open this repository
 2. Type `/mcp` to verify — you should see `blhackbox` with 6 tools
-3. Type your prompt: `Run a full recon on example.com --authorized`
+3. Type your prompt: `Scan example.com for open ports and web vulnerabilities`
 
 > **Note:** The web session uses the blhackbox stdio MCP server directly
 > (not the Docker stack). For the full Docker pipeline with Kali tools and
@@ -366,7 +363,7 @@ The gateway is AI-agnostic — it serves the same tools to any MCP client.
 
 ```
 STEP 1: YOU TYPE A PROMPT
-  "Run a full recon on example.com --authorized"
+  "Scan example.com for open ports and web vulnerabilities"
         |
         v
 STEP 2: AI DECIDES WHICH TOOLS TO USE
@@ -557,18 +554,16 @@ Common causes:
 # Show version and config
 blhackbox version
 
-# Run recon (requires --authorized flag)
-blhackbox recon --target example.com --authorized
-blhackbox recon --target example.com --authorized --attacks nmap,subfinder
-blhackbox recon --target example.com --authorized --full
+# Run recon
+blhackbox recon --target example.com
+blhackbox recon --target example.com --attacks nmap,subfinder
+blhackbox recon --target example.com --full
 
 # Run a single tool
-blhackbox run-tool -c network -t nmap -p '{"target":"example.com"}' --authorized
-
+blhackbox run-tool -c network -t nmap -p '{"target":"example.com"}'
 # HexStrike AI agents
 blhackbox agents list
-blhackbox agents run -n BugBounty -t example.com --authorized
-
+blhackbox agents run -n BugBounty -t example.com
 # Knowledge graph (requires Neo4j)
 blhackbox graph query "MATCH (n) RETURN n LIMIT 10"
 blhackbox graph summary -t example.com
@@ -683,7 +678,7 @@ removed.
 - **Docker socket**: MCP Gateway (optional) and Portainer mount
   `/var/run/docker.sock`. This grants effective root on the host. Never expose
   ports 8080 or 9443 to the public internet.
-- **Authorization**: The `--authorized` flag is mandatory on all scan commands.
+- **Authorization**: Ensure you have written permission before scanning any target.
 - **Neo4j**: Set a strong password in `.env`. Never use defaults in production.
 - **Agent containers**: Communicate only on the internal `blhackbox_net` Docker
   network. No ports are exposed to the host.

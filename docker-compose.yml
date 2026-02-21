@@ -332,7 +332,9 @@ services:
     restart: always
     ports:
       - "9443:9443"
-      - "9000:9000"
+      # Port 8000: Portainer Edge Agent tunnel server (optional).
+      # Only needed if you plan to manage remote Docker hosts via Edge Agents.
+      # - "8000:8000"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - portainer_data:/data

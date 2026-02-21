@@ -187,7 +187,7 @@ wordlists: ## Download common wordlists
 	@echo "Done. Wordlists saved to ./wordlists/"
 
 recon: ## Quick recon example (requires TARGET env var)
-	blhackbox recon --target $(TARGET) --authorized
+	blhackbox recon --target $(TARGET)
 
 report: ## Generate report for a session (requires SESSION env var)
 	blhackbox report --session $(SESSION) --format pdf

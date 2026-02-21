@@ -337,7 +337,7 @@ inference automatically.
 ## Security
 
 - **Docker socket**: MCP Gateway (optional) and Portainer mount `/var/run/docker.sock`. This grants effective root on the host. Never expose ports 8080 or 9443 to the public internet.
-- **Authorization**: The `--authorized` flag is mandatory on all scan commands.
+- **Authorization**: Ensure you have written permission before scanning any target.
 - **Neo4j**: Set a strong password in `.env`. Never use defaults in production.
 - **Agent containers**: Communicate only on the internal `blhackbox_net` Docker network. No ports exposed to host.
 - **Portainer**: Uses HTTPS with a self-signed certificate. Create a strong admin password on first run.

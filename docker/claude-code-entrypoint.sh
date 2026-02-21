@@ -128,7 +128,7 @@ echo -e "                    ${DIM}http://hexstrike:8888/api/...${NC}"
 echo ""
 echo -e "  ${BOLD}Quick start:${NC}"
 echo -e "    ${CYAN}/mcp${NC}              ${DIM}Check MCP server status${NC}"
-echo -e "    ${CYAN}Run a full recon on example.com --authorized${NC}"
+echo -e "    ${CYAN}Scan example.com for open ports and web vulnerabilities${NC}"
 echo -e "${DIM}──────────────────────────────────────────────────${NC}"
 echo ""
 
