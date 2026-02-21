@@ -111,7 +111,7 @@ health: ## Quick health check of all MCP servers
 		docker exec blhackbox-agent-synthesis python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:8003/health')" > /dev/null 2>&1 \
 		&& echo "\033[32m[OK]\033[0m" || echo "\033[31m[FAIL]\033[0m"
 	@printf "  %-22s " "MCP Gateway (8080)"; \
-		curl -sf --max-time 3 http://localhost:8080/mcp > /dev/null 2>&1 \
+		docker inspect --format='{{.State.Running}}' blhackbox-mcp-gateway 2>/dev/null | grep -q "true" \
 		&& echo "\033[32m[OK]\033[0m" || echo "\033[33m[OFF]\033[0m  (optional — enable with: make up-gateway)"
 	@printf "  %-22s " "Portainer (9443)"; \
 		curl -skf --max-time 3 https://localhost:9443 > /dev/null 2>&1 \
