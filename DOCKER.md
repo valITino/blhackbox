@@ -54,7 +54,7 @@ In v2, **Claude (or OpenAI) IS the orchestrator** natively via MCP.
 
 ```
 Claude Code ──┬──> Kali MCP (SSE, port 9001)
-(container)   ├──> HexStrike MCP (SSE, port 8888)
+(container)   ├──> HexStrike API (REST, port 8888)
               └──> Ollama MCP (SSE, port 9000)
                         │
                         ├──► agent-ingestion:8001
@@ -71,8 +71,8 @@ Portainer (Docker UI)    Neo4j (optional)
 
 ```
 Claude Desktop ──> MCP Gateway (localhost:8080/mcp) ──┬──> Kali MCP
-(host app)                                            ├──> HexStrike MCP
-                                                      └──> Ollama MCP
+(host app)                                            └──> Ollama MCP
+Note: HexStrike is a REST API, not routed through the MCP Gateway.
 ```
 
 > **Ollama is required.** All 3 agent containers call Ollama via the official
@@ -131,7 +131,7 @@ make health                # MCP server health check
 | `agent-processing` | `crhacky/blhackbox:agent-processing` | `8002` | default | Agent 2: deduplicate, compress |
 | `agent-synthesis` | `crhacky/blhackbox:agent-synthesis` | `8003` | default | Agent 3: assemble payload |
 | `ollama` | `ollama/ollama:latest` | `11434` | default | LLM inference backend |
-| `portainer` | `portainer/portainer-ce:latest` | `9443` `9000` | default | Docker management UI |
+| `portainer` | `portainer/portainer-ce:latest` | `9443` | default | Docker management UI (HTTPS) |
 | `mcp-gateway` | `docker/mcp-gateway:latest` | `8080` | `gateway` | Single MCP entry point (host clients) |
 | `neo4j` | `neo4j:5` | `7474` `7687` | `neo4j` | Cross-session knowledge graph |
 | `claude-code` | `crhacky/blhackbox:claude-code` | - | `claude-code` | Claude Code CLI client (Docker) |
@@ -148,7 +148,6 @@ The Claude Code container's `.mcp.json` connects directly to each server:
 {
   "mcpServers": {
     "kali":            { "type": "sse", "url": "http://kali-mcp:9001/sse" },
-    "hexstrike":       { "type": "sse", "url": "http://hexstrike:8888/sse" },
     "ollama-pipeline": { "type": "sse", "url": "http://ollama-mcp:9000/sse" }
   }
 }
@@ -200,8 +199,8 @@ Requires `--profile gateway` (`make up-gateway`).
 ### HexStrike (`crhacky/blhackbox:hexstrike`)
 
 - **Base**: `python:3.13-slim-bookworm`
-- **Entrypoint**: HexStrike MCP server
-- **Transport**: SSE on port 8888
+- **Entrypoint**: HexStrike Flask REST API server
+- **Transport**: HTTP REST API on port 8888
 - **Source**: [github.com/0x4m4/hexstrike-ai](https://github.com/0x4m4/hexstrike-ai)
 
 ### Ollama MCP (`crhacky/blhackbox:ollama-mcp`)

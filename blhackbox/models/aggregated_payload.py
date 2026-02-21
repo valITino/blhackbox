@@ -62,6 +62,7 @@ class VulnerabilityEntry(BaseModel):
     references: list[str] = Field(default_factory=list)
     evidence: str = ""
     tool_source: str = ""
+    likely_false_positive: bool = False
 
 
 class EndpointEntry(BaseModel):
@@ -156,7 +157,7 @@ class Findings(BaseModel):
     ssl_certs: list[SSLCertEntry] = Field(default_factory=list)
     credentials: list[CredentialEntry] = Field(default_factory=list)
     http_headers: list[HTTPHeaderEntry] = Field(default_factory=list)
-    whois: WhoisRecord | dict = Field(default_factory=dict)
+    whois: WhoisRecord = Field(default_factory=WhoisRecord)
     dns_records: list[DNSRecordEntry] = Field(default_factory=list)
 
 

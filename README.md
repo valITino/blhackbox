@@ -48,7 +48,7 @@ internal LangGraph orchestrator or LLM planner. Here is what happens when you
 type a prompt:
 
 1. **You type a prompt** in your AI client (Claude Code, Claude Desktop, or ChatGPT).
-2. **The AI decides which tools to call** from three MCP servers: Kali Linux MCP (nmap, nikto, gobuster, etc.), HexStrike MCP (150+ security tools, 12+ AI agents), and the Ollama preprocessing pipeline.
+2. **The AI decides which tools to call** from two MCP servers and one REST API: Kali Linux MCP (nmap, nikto, gobuster, etc.), HexStrike REST API (150+ security tools, 12+ AI agents), and the Ollama preprocessing pipeline.
 3. **Each MCP server executes the tool call** in its Docker container and returns raw output to the AI.
 4. **The AI collects all raw outputs** and sends them to the Ollama MCP server via `process_scan_results()`.
 5. **Ollama preprocesses the data** through 3 agent containers in sequence (Ingestion -> Processing -> Synthesis), each calling the local Ollama LLM independently.
@@ -78,7 +78,7 @@ CLAUDE CODE (Docker container on blhackbox_net)
   |                                            nmap, nikto, gobuster,
   |                                            subfinder, whois, etc.
   |
-  |--- hexstrike (SSE, port 8888) ─────────>  HEXSTRIKE MCP SERVER
+  |--- hexstrike (REST API, port 8888) ────>  HEXSTRIKE REST API
   |                                            150+ tools, 12+ AI agents
   |
   |--- ollama-pipeline (SSE, port 9000) ───>  OLLAMA MCP SERVER
@@ -117,7 +117,7 @@ aggregates all servers behind `localhost:8080/mcp`. See
 | Container | What it does | Internal Port | Default Profile |
 |-----------|-------------|:---:|:---:|
 | **Kali MCP** | Kali Linux security tools (nmap, nikto, gobuster, subfinder, etc.) | 9001 | default |
-| **HexStrike MCP** | 150+ security tools, 12+ AI agents | 8888 | default |
+| **HexStrike API** | 150+ security tools, 12+ AI agents (REST API) | 8888 | default |
 | **Ollama MCP** | Thin orchestrator — calls 3 agent containers in sequence | 9000 | default |
 | **Agent: Ingestion** | Parses raw tool output into structured typed data | 8001 | default |
 | **Agent: Processing** | Deduplicates, compresses, annotates errors | 8002 | default |
@@ -205,7 +205,7 @@ Or manually:
 docker compose --profile claude-code run --rm claude-code
 ```
 
-The entrypoint script checks each MCP server and shows a status dashboard:
+The entrypoint script checks each service and shows a status dashboard:
 
 ```
   ╔══════════════════════════════════════════════╗
@@ -213,23 +213,30 @@ The entrypoint script checks each MCP server and shows a status dashboard:
   ║        MCP-based Pentesting Framework       ║
   ╚══════════════════════════════════════════════╝
 
-Checking MCP server connectivity...
+Checking service connectivity...
 
+  MCP Servers
   Kali MCP               [ OK ]
-  HexStrike MCP          [ OK ]
   Ollama Pipeline        [ OK ]
 
-──────────────────────────────────────────────────
-  All 3 MCP servers connected.
+  REST API Services
+  HexStrike API          [ OK ]
 
-  MCP servers configured:
+──────────────────────────────────────────────────
+  All 3 services connected.
+
+  MCP servers (connected via SSE):
     kali            Kali Linux security tools (nmap, nikto, ...)
-    hexstrike       HexStrike AI (150+ tools, 12+ agents)
     ollama-pipeline Ollama preprocessing (3-agent pipeline)
+
+  REST API (accessible via HTTP):
+    hexstrike       HexStrike AI (150+ tools, 12+ agents)
+                    http://hexstrike:8888/api/...
 
   Quick start:
     /mcp              Check MCP server status
-    Run a full recon on example.com──────────────────────────────────────────────────
+    Scan example.com for open ports and web vulnerabilities
+──────────────────────────────────────────────────
 ```
 
 You are now inside an interactive Claude Code session.
@@ -240,13 +247,15 @@ You are now inside an interactive Claude Code session.
 /mcp
 ```
 
-You should see three MCP servers listed: `kali`, `hexstrike`, and
-`ollama-pipeline`, each with their available tools.
+You should see the MCP servers listed: `kali` and `ollama-pipeline`,
+each with their available tools. HexStrike is a REST API accessible at
+`http://hexstrike:8888/api/...`.
 
 ### Step 4: Run your first pentest
 
 ```
-Run a full recon and vulnerability scan on example.com```
+Scan example.com for open ports and web vulnerabilities
+```
 
 Claude Code will autonomously:
 1. Call Kali tools (nmap, subfinder, nikto, etc.) and HexStrike agents
@@ -367,7 +376,7 @@ STEP 1: YOU TYPE A PROMPT
         |
         v
 STEP 2: AI DECIDES WHICH TOOLS TO USE
-  Claude picks tools from Kali MCP and HexStrike MCP:
+  Claude picks tools from Kali MCP and HexStrike API:
     - subfinder (Kali)       -> find subdomains
     - nmap -sV -sC (Kali)    -> port scan + service detection
     - nikto (Kali)            -> web server scanning
@@ -620,7 +629,7 @@ All custom images are published to `crhacky/blhackbox`:
 | Tag | Description |
 |-----|-------------|
 | `crhacky/blhackbox:kali-mcp` | Kali Linux MCP Server |
-| `crhacky/blhackbox:hexstrike` | HexStrike AI MCP Server |
+| `crhacky/blhackbox:hexstrike` | HexStrike AI REST API Server |
 | `crhacky/blhackbox:ollama-mcp` | Ollama MCP Server (thin orchestrator) |
 | `crhacky/blhackbox:agent-ingestion` | Agent 1: Ingestion |
 | `crhacky/blhackbox:agent-processing` | Agent 2: Processing |

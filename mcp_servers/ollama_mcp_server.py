@@ -289,8 +289,8 @@ def _build_attack_surface(
         return AttackSurface()
     try:
         return AttackSurface(**data)
-    except Exception:
-        logger.warning("Could not parse attack_surface data")
+    except Exception as exc:
+        logger.warning("Could not parse attack_surface data: %s", exc)
         return AttackSurface()
 
 
@@ -301,8 +301,8 @@ def _build_executive_summary(synthesis_output: dict[str, Any]) -> ExecutiveSumma
         return ExecutiveSummary()
     try:
         return ExecutiveSummary(**data)
-    except Exception:
-        logger.warning("Could not parse executive_summary data")
+    except Exception as exc:
+        logger.warning("Could not parse executive_summary data: %s", exc)
         return ExecutiveSummary()
 
 

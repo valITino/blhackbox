@@ -455,7 +455,8 @@ AGGREGATED_HTML_TEMPLATE = """\
         {% for vuln in vulns %}
         <div class="finding">
             <div class="finding-header">
-                <span class="finding-title">{{ vuln.cve or vuln.description[:60] }}</span>
+                <span class="finding-title">{{ vuln.title or vuln.id or vuln.description[:60] }}
+                </span>
                 <span class="severity-badge severity-{{ vuln.severity | safe_severity }}">
                     {{ vuln.severity }}</span>
             </div>

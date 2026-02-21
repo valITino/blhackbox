@@ -18,12 +18,12 @@ from blhackbox.models.aggregated_payload import (
     ErrorLogEntry,
     ExecutiveSummary,
     Findings,
-    HTTPHeaderEntry,
     HostEntry,
     HostPort,
+    HTTPHeaderEntry,
     RemediationEntry,
-    SSLCertEntry,
     ServiceEntry,
+    SSLCertEntry,
     TechnologyEntry,
     TopFinding,
     VulnerabilityCounts,
@@ -291,6 +291,7 @@ class TestVulnerabilityEntry:
         assert vuln.references == []
         assert vuln.evidence == ""
         assert vuln.tool_source == ""
+        assert vuln.likely_false_positive is False
 
     def test_full(self) -> None:
         vuln = VulnerabilityEntry(
