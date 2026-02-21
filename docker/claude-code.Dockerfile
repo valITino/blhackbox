@@ -14,18 +14,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf 
 
 WORKDIR /root
 
-# Pre-configure MCP to connect directly to each server via SSE.
-# Each MCP server runs FastMCP with SSE transport on its respective port.
-# This bypasses the MCP Gateway entirely — simpler, faster, more reliable.
+# Pre-configure MCP to connect directly to each FastMCP server via SSE.
+# Only kali-mcp and ollama-mcp are actual MCP servers (FastMCP with SSE).
+# HexStrike is a Flask REST API (port 8888), NOT an MCP server — it is
+# accessible via HTTP at http://hexstrike:8888/api/... but does not speak
+# MCP protocol. See: https://github.com/0x4m4/hexstrike-ai
 RUN echo '{ \
   "mcpServers": { \
     "kali": { \
       "type": "sse", \
       "url": "http://kali-mcp:9001/sse" \
-    }, \
-    "hexstrike": { \
-      "type": "sse", \
-      "url": "http://hexstrike:8888/sse" \
     }, \
     "ollama-pipeline": { \
       "type": "sse", \

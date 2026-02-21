@@ -8,7 +8,16 @@
 #   docker compose --profile neo4j up -d         Start with Neo4j
 #   docker compose build                         Build all custom images locally
 #
-# Claude Code (Docker) connects DIRECTLY to each MCP server via SSE.
+# MCP servers:
+#   kali-mcp     (FastMCP SSE, port 9001) — Kali Linux security tools
+#   ollama-mcp   (FastMCP SSE, port 9000) — Ollama preprocessing pipeline
+#   hexstrike    (Flask REST API, port 8888) — HexStrike AI tools (NOT MCP protocol)
+#
+# NOTE on HexStrike: It runs a Flask REST API, NOT an MCP SSE server.
+# Its 150+ tools are accessible via HTTP at http://hexstrike:8888/api/...
+# from any container on blhackbox_net. Native MCP support is a future goal.
+#
+# Claude Code (Docker) connects directly to MCP servers (kali, ollama-mcp) via SSE.
 # Claude Desktop / ChatGPT connect via the MCP Gateway (--profile gateway).
 #
 # Claude Desktop config (requires --profile gateway):
@@ -34,9 +43,13 @@ services:
   # NOT needed for Claude Code in Docker — it connects directly to each server.
   # Enable with: docker compose --profile gateway up -d
   #
-  # The gateway requires Docker socket access for initialization. It proxies
-  # tool calls from localhost:8080/mcp to the correct MCP server container.
+  # The gateway uses a catalog file to discover MCP servers by name.
+  # It requires Docker socket access. It proxies tool calls from
+  # localhost:8080/mcp to the correct MCP server container.
   # Docs: https://github.com/docker/mcp-gateway
+  #
+  # NOTE: Only kali-mcp and ollama-mcp are MCP servers. HexStrike is a
+  # Flask REST API and is NOT included in the gateway.
   mcp-gateway:
     image: docker/mcp-gateway:latest
     container_name: blhackbox-mcp-gateway
@@ -49,23 +62,18 @@ services:
       - ./blhackbox-mcp-catalog.yaml:/catalog.yaml:ro
     environment:
       HOME: /root
-      # Use .env file for secrets instead of Docker Desktop secrets store.
-      # This is required on headless Linux without Docker Desktop.
+      # Bypass Docker Desktop feature checks on headless Linux.
       DOCKER_MCP_IN_CONTAINER: "1"
     command:
       - --transport=streaming
       - --port=8080
       - --catalog=/catalog.yaml
-      - --servers=kali
-      - --servers=hexstrike
-      - --servers=ollama-mcp
-      - --secrets=./.env
+      - --servers=kali-mcp,ollama-mcp
+      - --log-calls
     networks:
       - blhackbox_net
     depends_on:
       kali-mcp:
-        condition: service_healthy
-      hexstrike:
         condition: service_healthy
       ollama-mcp:
         condition: service_healthy
@@ -89,8 +97,10 @@ services:
     networks:
       - blhackbox_net
 
-  # -- HEXSTRIKE MCP SERVER --------------------------------------------------
-  # Source: https://github.com/0x4m4/hexstrike-ai
+  # -- HEXSTRIKE AI (REST API) -----------------------------------------------
+  # Flask REST API on port 8888 — NOT an MCP server.
+  # Provides 150+ security tool wrappers and 12+ AI agents via HTTP.
+  # Source: https://github.com/0x4m4/hexstrike-ai (also a Kali Linux package)
   hexstrike:
     image: crhacky/blhackbox:hexstrike
     build:
@@ -129,7 +139,7 @@ services:
       retries: 5
       start_period: 10s
     environment:
-      OLLAMA_URL: "http://ollama:11434"
+      OLLAMA_HOST: "http://ollama:11434"
       OLLAMA_MODEL: "${OLLAMA_MODEL:-llama3.3}"
       AGENT_INGESTION_URL: "http://agent-ingestion:8001"
       AGENT_PROCESSING_URL: "http://agent-processing:8002"
@@ -158,7 +168,7 @@ services:
     container_name: blhackbox-agent-ingestion
     restart: unless-stopped
     environment:
-      OLLAMA_URL: "http://ollama:11434"
+      OLLAMA_HOST: "http://ollama:11434"
       OLLAMA_MODEL: "${OLLAMA_MODEL:-llama3.3}"
     depends_on:
       ollama:
@@ -182,7 +192,7 @@ services:
     container_name: blhackbox-agent-processing
     restart: unless-stopped
     environment:
-      OLLAMA_URL: "http://ollama:11434"
+      OLLAMA_HOST: "http://ollama:11434"
       OLLAMA_MODEL: "${OLLAMA_MODEL:-llama3.3}"
     depends_on:
       ollama:
@@ -206,7 +216,7 @@ services:
     container_name: blhackbox-agent-synthesis
     restart: unless-stopped
     environment:
-      OLLAMA_URL: "http://ollama:11434"
+      OLLAMA_HOST: "http://ollama:11434"
       OLLAMA_MODEL: "${OLLAMA_MODEL:-llama3.3}"
     depends_on:
       ollama:

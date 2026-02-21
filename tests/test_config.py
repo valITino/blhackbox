@@ -37,7 +37,9 @@ class TestSettings:
         assert s.neo4j_database == "custom_db"
 
     def test_neo4j_defaults(self) -> None:
-        s = Settings()
+        # Use explicit empty password to test the field exists and accepts it,
+        # since .env may set NEO4J_PASSWORD which would override the default.
+        s = Settings(neo4j_password="")
         assert "bolt://" in s.neo4j_uri
         assert s.neo4j_user == "neo4j"
         assert s.neo4j_password == ""

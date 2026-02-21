@@ -68,50 +68,63 @@ wait_for_service() {
 
 print_banner
 
-echo -e "${BOLD}Checking MCP server connectivity...${NC}"
-echo -e "${DIM}Each server must be healthy before Claude Code can use it.${NC}"
+echo -e "${BOLD}Checking service connectivity...${NC}"
+echo -e "${DIM}Waiting for services to become healthy.${NC}"
 echo ""
 
-FAILED=0
-SERVICES_OK=0
+MCP_OK=0
+MCP_FAIL=0
+REST_OK=0
+REST_FAIL=0
 
-# Check each MCP server individually
+# -- MCP Servers (Claude Code connects via SSE) --
+echo -e "  ${BOLD}MCP Servers${NC}"
 if wait_for_service "Kali MCP" "http://kali-mcp:9001/sse"; then
-    SERVICES_OK=$((SERVICES_OK + 1))
+    MCP_OK=$((MCP_OK + 1))
 else
-    FAILED=$((FAILED + 1))
-fi
-
-if wait_for_service "HexStrike MCP" "http://hexstrike:8888/health"; then
-    SERVICES_OK=$((SERVICES_OK + 1))
-else
-    FAILED=$((FAILED + 1))
+    MCP_FAIL=$((MCP_FAIL + 1))
 fi
 
 if wait_for_service "Ollama Pipeline" "http://ollama-mcp:9000/sse"; then
-    SERVICES_OK=$((SERVICES_OK + 1))
+    MCP_OK=$((MCP_OK + 1))
 else
-    FAILED=$((FAILED + 1))
+    MCP_FAIL=$((MCP_FAIL + 1))
+fi
+
+echo ""
+
+# -- REST API Services (accessible via HTTP, not MCP) --
+echo -e "  ${BOLD}REST API Services${NC}"
+if wait_for_service "HexStrike API" "http://hexstrike:8888/health"; then
+    REST_OK=$((REST_OK + 1))
+else
+    REST_FAIL=$((REST_FAIL + 1))
 fi
 
 # Summary
 echo ""
 echo -e "${DIM}──────────────────────────────────────────────────${NC}"
 
-if [ "$FAILED" -eq 0 ]; then
-    echo -e "${GREEN}${BOLD}  All $SERVICES_OK MCP servers connected.${NC}"
+TOTAL_OK=$((MCP_OK + REST_OK))
+TOTAL_FAIL=$((MCP_FAIL + REST_FAIL))
+
+if [ "$TOTAL_FAIL" -eq 0 ]; then
+    echo -e "${GREEN}${BOLD}  All $TOTAL_OK services connected.${NC}"
 else
-    echo -e "${YELLOW}${BOLD}  $SERVICES_OK/$((SERVICES_OK + FAILED)) MCP servers connected. $FAILED unreachable.${NC}"
-    echo -e "${DIM}  Claude Code will start — unreachable servers show as 'failed' in /mcp.${NC}"
+    echo -e "${YELLOW}${BOLD}  $TOTAL_OK/$((TOTAL_OK + TOTAL_FAIL)) services connected. $TOTAL_FAIL unreachable.${NC}"
+    echo -e "${DIM}  Claude Code will start — unreachable MCP servers show as 'failed' in /mcp.${NC}"
     echo -e "${DIM}  Use 'docker compose ps' in another terminal to check container health.${NC}"
 fi
 
 echo ""
 echo -e "${DIM}──────────────────────────────────────────────────${NC}"
-echo -e "  ${BOLD}MCP servers configured:${NC}"
+echo -e "  ${BOLD}MCP servers (connected via SSE):${NC}"
 echo -e "    kali            ${DIM}Kali Linux security tools (nmap, nikto, ...)${NC}"
-echo -e "    hexstrike       ${DIM}HexStrike AI (150+ tools, 12+ agents)${NC}"
 echo -e "    ollama-pipeline ${DIM}Ollama preprocessing (3-agent pipeline)${NC}"
+echo ""
+echo -e "  ${BOLD}REST API (accessible via HTTP):${NC}"
+echo -e "    hexstrike       ${DIM}HexStrike AI (150+ tools, 12+ agents)${NC}"
+echo -e "                    ${DIM}http://hexstrike:8888/api/...${NC}"
 echo ""
 echo -e "  ${BOLD}Quick start:${NC}"
 echo -e "    ${CYAN}/mcp${NC}              ${DIM}Check MCP server status${NC}"
