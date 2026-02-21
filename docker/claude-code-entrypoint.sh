@@ -40,8 +40,14 @@ print_banner() {
 check_service() {
     local name="$1"
     local url="$2"
-    local timeout="${3:-5}"
-    curl -sf --max-time "$timeout" "$url" > /dev/null 2>&1
+    local timeout="${3:-3}"
+    curl -s --max-time "$timeout" -o /dev/null "$url" 2>/dev/null
+    local rc=$?
+    # Exit code 28 = curl connected but the transfer timed out. This is
+    # expected for SSE/streaming endpoints (like /sse) that keep the
+    # connection open indefinitely.  Treat it the same as 0 (success):
+    # the server is up and responding.
+    [ "$rc" -eq 0 ] || [ "$rc" -eq 28 ]
 }
 
 # Wait for a service with retries. Prints status.
