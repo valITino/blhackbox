@@ -1,4 +1,4 @@
-.PHONY: help up up-full up-gateway down logs test test-local lint format clean \
+.PHONY: help up up-full up-gateway down logs test test-local lint format clean nuke \
        pull status health portainer gateway-logs ollama-pull ollama-shell \
        claude-code \
        neo4j-browser logs-ollama-mcp logs-kali logs-hexstrike \
@@ -45,10 +45,32 @@ lint: ## Run linter
 format: ## Auto-format code
 	ruff format blhackbox/ tests/
 
-clean: ## Remove containers, volumes, and build artifacts
+clean: ## Remove containers, volumes, networks, and build artifacts (keeps images)
 	$(COMPOSE) --profile gateway --profile neo4j --profile claude-code down -v --remove-orphans
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 	rm -rf dist/ build/ *.egg-info
+
+nuke: ## Full cleanup: containers + volumes + ALL images (frees max disk space)
+	@echo "\033[1;33m  WARNING: This will remove ALL blhackbox containers, volumes, AND images.\033[0m"
+	@echo "\033[2m  You will need to 'docker compose pull' or 'docker compose build' again.\033[0m"
+	@echo ""
+	$(COMPOSE) --profile gateway --profile neo4j --profile claude-code down -v --remove-orphans --rmi all
+	@echo ""
+	@echo "\033[2m  Pruning dangling images and build cache...\033[0m"
+	docker image prune -f
+	docker builder prune -f
+	@echo ""
+	@echo "\033[2m  Removing downloaded Ollama models (if volume still exists)...\033[0m"
+	docker volume rm blhackbox_ollama_models 2>/dev/null || true
+	docker volume rm blhackbox_portainer_data 2>/dev/null || true
+	docker volume rm blhackbox_neo4j_data 2>/dev/null || true
+	docker volume rm blhackbox_neo4j_logs 2>/dev/null || true
+	docker volume rm blhackbox_results 2>/dev/null || true
+	docker volume rm blhackbox_wordlists 2>/dev/null || true
+	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
+	rm -rf dist/ build/ *.egg-info
+	@echo ""
+	@echo "\033[32m  Done. Run 'docker system df' to verify disk usage.\033[0m"
 
 # ── Claude Code (Docker) ────────────────────────────────────────
 claude-code: ## Build and launch Claude Code in a Docker container
