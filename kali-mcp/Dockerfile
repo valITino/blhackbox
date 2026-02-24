@@ -1,27 +1,62 @@
 # Kali Linux MCP Server for blhackbox
 # Based on k3nn3dy-ai/kali-mcp architecture
 # Provides MCP-accessible security tools in a Docker container
+# NOTE: The primary Dockerfile used by docker-compose is docker/kali-mcp.Dockerfile.
+# This file is for standalone builds from the kali-mcp/ directory.
 
 FROM kalilinux/kali-rolling:latest
 
-# Install security tools
+# Install the full Kali security toolchain (must stay in sync with docker/kali-mcp.Dockerfile)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     nmap \
-    nikto \
-    gobuster \
-    dirb \
-    whatweb \
-    wafw00f \
     masscan \
-    hydra \
-    sqlmap \
-    wpscan \
+    netdiscover \
+    arp-scan \
+    traceroute \
+    hping3 \
     subfinder \
     amass \
     fierce \
     dnsenum \
+    dnsrecon \
+    dnsutils \
     whois \
+    theharvester \
+    nikto \
+    gobuster \
+    dirb \
+    dirsearch \
+    ffuf \
+    feroxbuster \
+    whatweb \
+    wafw00f \
+    wpscan \
+    arjun \
+    dalfox \
+    sqlmap \
+    hydra \
+    medusa \
+    john \
+    hashcat \
+    crackmapexec \
+    evil-winrm \
+    smbclient \
+    enum4linux \
+    responder \
+    netexec \
+    aircrack-ng \
+    bettercap \
+    binwalk \
+    foremost \
+    exiftool \
+    steghide \
+    hashid \
     curl \
+    wget \
+    netcat-openbsd \
+    socat \
+    sshpass \
+    proxychains4 \
     python3 \
     python3-pip \
     python3-venv \

@@ -2,8 +2,10 @@
        pull status health portainer gateway-logs ollama-pull ollama-shell \
        claude-code \
        neo4j-browser logs-ollama-mcp logs-kali logs-hexstrike \
+       logs-metasploit logs-wireshark \
        logs-agent-ingestion logs-agent-processing logs-agent-synthesis \
        restart-ollama-mcp restart-kali restart-hexstrike restart-agents \
+       restart-metasploit restart-wireshark \
        push-all wordlists recon report
 
 COMPOSE := docker compose
@@ -16,7 +18,7 @@ help: ## Show this help
 pull: ## Pull all pre-built images from Docker Hub
 	$(COMPOSE) pull
 
-up: ## Start core stack (8 containers — no gateway)
+up: ## Start core stack (10 containers — no gateway)
 	$(COMPOSE) up -d
 
 down: ## Stop all services (all profiles)
@@ -26,10 +28,10 @@ logs: ## Tail logs from all services
 	$(COMPOSE) logs -f
 
 # ── Stack variations ─────────────────────────────────────────────
-up-full: ## Start full stack: core + Neo4j (9 containers)
+up-full: ## Start full stack: core + Neo4j (11 containers)
 	$(COMPOSE) --profile neo4j up -d
 
-up-gateway: ## Start core + MCP Gateway for Claude Desktop / ChatGPT (9 containers)
+up-gateway: ## Start core + MCP Gateway for Claude Desktop / ChatGPT (11 containers)
 	$(COMPOSE) --profile gateway up -d
 
 # ── Testing & Code Quality ─────────────────────────────────────
@@ -92,6 +94,12 @@ health: ## Quick health check of all MCP servers
 	@printf "  %-22s " "Kali MCP (9001)"; \
 		docker exec blhackbox-kali-mcp python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:9001/sse')" > /dev/null 2>&1 \
 		&& echo "\033[32m[OK]\033[0m" || echo "\033[31m[FAIL]\033[0m"
+	@printf "  %-22s " "Metasploit MCP (9002)"; \
+		docker exec blhackbox-metasploit-mcp python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:9002/sse')" > /dev/null 2>&1 \
+		&& echo "\033[32m[OK]\033[0m" || echo "\033[31m[FAIL]\033[0m"
+	@printf "  %-22s " "WireMCP (9003)"; \
+		docker exec blhackbox-wire-mcp python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:9003/sse')" > /dev/null 2>&1 \
+		&& echo "\033[32m[OK]\033[0m" || echo "\033[31m[FAIL]\033[0m"
 	@printf "  %-22s " "HexStrike (8888)"; \
 		curl -sf --max-time 3 http://localhost:8888/health > /dev/null 2>&1 \
 		&& echo "\033[32m[OK]\033[0m" || echo "\033[31m[FAIL]\033[0m"
@@ -146,6 +154,12 @@ logs-ollama-mcp: ## Tail Ollama MCP server logs
 logs-kali: ## Tail Kali MCP server logs
 	$(COMPOSE) logs -f kali-mcp
 
+logs-metasploit: ## Tail Metasploit MCP server logs
+	$(COMPOSE) logs -f metasploit-mcp
+
+logs-wireshark: ## Tail WireMCP server logs
+	$(COMPOSE) logs -f wire-mcp
+
 logs-hexstrike: ## Tail HexStrike logs
 	$(COMPOSE) logs -f hexstrike
 
@@ -167,6 +181,12 @@ restart-ollama-mcp: ## Restart Ollama MCP server
 
 restart-kali: ## Restart Kali MCP server
 	$(COMPOSE) restart kali-mcp
+
+restart-metasploit: ## Restart Metasploit MCP server
+	$(COMPOSE) restart metasploit-mcp
+
+restart-wireshark: ## Restart WireMCP server
+	$(COMPOSE) restart wire-mcp
 
 restart-hexstrike: ## Restart HexStrike MCP server
 	$(COMPOSE) restart hexstrike
@@ -195,6 +215,8 @@ report: ## Generate report for a session (requires SESSION env var)
 # ── Build and push (Docker Hub: crhacky/blhackbox) ──────────────
 push-all: ## Build and push all custom images to Docker Hub
 	docker build -f docker/kali-mcp.Dockerfile -t crhacky/blhackbox:kali-mcp .
+	docker build -f docker/metasploit-mcp.Dockerfile -t crhacky/blhackbox:metasploit-mcp .
+	docker build -f docker/wire-mcp.Dockerfile -t crhacky/blhackbox:wire-mcp .
 	docker build -f docker/hexstrike.Dockerfile -t crhacky/blhackbox:hexstrike .
 	docker build -f docker/ollama-mcp.Dockerfile -t crhacky/blhackbox:ollama-mcp .
 	docker build -f docker/agent-ingestion.Dockerfile -t crhacky/blhackbox:agent-ingestion .
@@ -202,6 +224,8 @@ push-all: ## Build and push all custom images to Docker Hub
 	docker build -f docker/agent-synthesis.Dockerfile -t crhacky/blhackbox:agent-synthesis .
 	docker build -f docker/claude-code.Dockerfile -t crhacky/blhackbox:claude-code .
 	docker push crhacky/blhackbox:kali-mcp
+	docker push crhacky/blhackbox:metasploit-mcp
+	docker push crhacky/blhackbox:wire-mcp
 	docker push crhacky/blhackbox:hexstrike
 	docker push crhacky/blhackbox:ollama-mcp
 	docker push crhacky/blhackbox:agent-ingestion

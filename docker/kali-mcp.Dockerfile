@@ -6,25 +6,65 @@
 
 FROM kalilinux/kali-rolling
 
-# Install ALL security tools referenced in the server.py allowlist.
-# Must match the ALLOWED_TOOLS list in kali-mcp/server.py.
+# Install the full Kali security toolchain referenced in kali-mcp/server.py.
+# Grouped by category — must stay in sync with the ALLOWED_TOOLS allowlist.
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    # --- Network / Recon ---
     nmap \
-    nikto \
-    gobuster \
-    dirb \
-    whatweb \
-    wafw00f \
     masscan \
-    hydra \
-    sqlmap \
-    wpscan \
+    netdiscover \
+    arp-scan \
+    traceroute \
+    hping3 \
+    # --- DNS ---
     subfinder \
     amass \
     fierce \
     dnsenum \
+    dnsrecon \
+    dnsutils \
     whois \
+    theharvester \
+    # --- Web Application ---
+    nikto \
+    gobuster \
+    dirb \
+    dirsearch \
+    ffuf \
+    feroxbuster \
+    whatweb \
+    wafw00f \
+    wpscan \
+    arjun \
+    dalfox \
+    # --- Exploitation / Brute-force ---
+    sqlmap \
+    hydra \
+    medusa \
+    john \
+    hashcat \
+    crackmapexec \
+    evil-winrm \
+    smbclient \
+    enum4linux \
+    responder \
+    netexec \
+    # --- Wireless ---
+    aircrack-ng \
+    bettercap \
+    # --- Forensics / Binary ---
+    binwalk \
+    foremost \
+    exiftool \
+    steghide \
+    hashid \
+    # --- Utilities ---
     curl \
+    wget \
+    netcat-openbsd \
+    socat \
+    sshpass \
+    proxychains4 \
     python3 \
     python3-pip \
     python3-venv \

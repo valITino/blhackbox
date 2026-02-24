@@ -31,17 +31,75 @@ TARGET = "[TARGET_API_BASE_URL]"
 
 ## Available Resources — Use ALL of Them
 
-### Kali MCP Server (SSE, port 9001)
-API-relevant tools: `nmap`, `nikto`, `gobuster`, `sqlmap`, `whatweb`, `wafw00f`
+### 1. Kali MCP Server (SSE, port 9001)
 
-### HexStrike REST API (HTTP, port 8888)
+Execute via `run_kali_tool(tool, args, target, timeout)`:
+
+| Tool | Use Case |
+|------|----------|
+| `nmap` | Port scanning, service detection, NSE scripts |
+| `nikto` | Web server vulnerability scanning |
+| `gobuster` | Directory and file brute-forcing |
+| `dirsearch` | Web path discovery with extensions |
+| `ffuf` | Web fuzzer for directories and parameters |
+| `feroxbuster` | Recursive content discovery |
+| `sqlmap` | SQL injection testing |
+| `whatweb` | Technology fingerprinting |
+| `wafw00f` | WAF detection |
+| `arjun` | HTTP parameter discovery |
+| `dalfox` | XSS scanning and parameter analysis |
+| `hydra` | Credential brute-forcing |
+| `medusa` | Parallel network login brute-forcer |
+| `exiftool` | Metadata extraction |
+
+### 2. Metasploit MCP Server (SSE, port 9002)
+
+Full exploit lifecycle management via MSF RPC — 13+ dedicated tools:
+
+| Tool | Use Case |
+|------|----------|
+| `list_exploits` | Search Metasploit exploit modules by keyword or CVE |
+| `list_payloads` | Search payloads with platform/architecture filtering |
+| `run_exploit` | Execute exploits with check-first option |
+| `run_auxiliary_module` | Run auxiliary modules (scanners, fuzzers) |
+| `run_post_module` | Post-exploitation against active sessions |
+| `generate_payload` | Generate payloads (msfvenom equivalent) |
+| `list_sessions` | View active shells/meterpreter sessions |
+| `send_session_command` | Execute commands in active sessions |
+| `terminate_session` | End active sessions |
+| `start_listener` | Create multi/handler listeners |
+| `stop_job` | Stop background jobs |
+| `msf_console_execute` | Raw msfconsole command execution |
+
+### 3. WireMCP Server (SSE, port 9003)
+
+Network traffic capture and analysis via tshark — 7 tools:
+
+| Tool | Use Case |
+|------|----------|
+| `capture_packets` | Live packet capture with BPF filters |
+| `read_pcap` | Parse pcap files with display filters |
+| `get_conversations` | Extract TCP/UDP/IP conversations |
+| `get_statistics` | Protocol hierarchy and endpoint stats |
+| `extract_credentials` | Find cleartext creds (HTTP, FTP, SMTP, Telnet) |
+| `follow_stream` | Reconstruct TCP/UDP streams |
+| `list_interfaces` | List available capture interfaces |
+
+### 4. HexStrike REST API (HTTP, port 8888)
+
+150+ tools and 12+ AI agents:
+
 - Web recon agent: `POST http://hexstrike:8888/api/agents/web_recon/run`
 - Vulnerability scan agent: `POST http://hexstrike:8888/api/agents/vuln_scan/run`
 - Bug bounty agent: `POST http://hexstrike:8888/api/agents/bug_bounty/run`
 - Tools: `POST http://hexstrike:8888/api/tools/{tool_name}`
 
-### Ollama MCP Server (SSE, port 9000)
-Pipeline: `process_scan_results(raw_outputs, target, session_id)`
+### 5. Ollama MCP Server (SSE, port 9000)
+
+AI preprocessing pipeline via `process_scan_results()`:
+- Ingestion Agent — parses raw output to structured data
+- Processing Agent — deduplicates, correlates, validates
+- Synthesis Agent — produces AggregatedPayload with executive summary
 
 ---
 
@@ -53,7 +111,9 @@ Pipeline: `process_scan_results(raw_outputs, target, session_id)`
 2. **Kali MCP** — `wafw00f [TARGET]` to detect API gateway/WAF
 3. **Kali MCP** — `nmap -sV -p 80,443,8080,8443,3000,5000,8000 --script=http-title,http-headers [TARGET]`
 4. **Kali MCP** — `gobuster dir -u [TARGET] -w /usr/share/wordlists/dirb/common.txt -x json,xml,yaml -t 30` to discover API paths
-5. **HexStrike** — `POST /api/agents/web_recon/run` with `{"target": "[TARGET]"}`
+5. **Kali MCP** — `dirsearch -u [TARGET] -e json,xml,yaml,js` for additional path discovery
+6. **Kali MCP** — `arjun -u [TARGET]` for hidden HTTP parameter discovery
+7. **HexStrike** — `POST /api/agents/web_recon/run` with `{"target": "[TARGET]"}`
 
 Look for:
 - API documentation endpoints (`/swagger`, `/api-docs`, `/openapi.json`, `/graphql`)
@@ -65,7 +125,9 @@ Look for:
 
 1. **Kali MCP** — `gobuster dir -u [TARGET]/api -w /usr/share/wordlists/dirb/common.txt -t 30`
 2. **Kali MCP** — `gobuster dir -u [TARGET]/api/v1 -w /usr/share/wordlists/dirb/common.txt -t 30`
-3. Scan for common API patterns:
+3. **Kali MCP** — `ffuf -u [TARGET]/api/FUZZ -w /usr/share/wordlists/dirb/common.txt` for API endpoint fuzzing
+4. **Kali MCP** — `feroxbuster -u [TARGET]/api -w /usr/share/wordlists/dirb/common.txt` for recursive API discovery
+5. Scan for common API patterns:
    - REST: `/users`, `/accounts`, `/orders`, `/products`, `/files`, `/uploads`
    - Auth: `/login`, `/register`, `/token`, `/oauth`, `/auth`
    - Admin: `/admin`, `/dashboard`, `/config`, `/settings`
@@ -81,19 +143,30 @@ Look for:
    - Horizontal privilege escalation (IDOR — access other users' data)
    - Vertical privilege escalation (access admin functions as regular user)
    - Missing function-level access controls
+3. **Metasploit MCP** — `list_exploits` to search for authentication bypass exploits matching discovered API framework
 
 ### Step 4: Injection Testing
 
 1. **Kali MCP** — `sqlmap -u "[API_ENDPOINT]" --batch --level=3 --risk=2 --headers="Content-Type: application/json"`
-2. **HexStrike** — `POST /api/agents/vuln_scan/run` with `{"target": "[TARGET]"}`
-3. Test for:
+2. **Kali MCP** — `dalfox url "[API_ENDPOINT]"` for XSS testing on API responses
+3. **Metasploit MCP** — `run_auxiliary_module` with web-specific auxiliary scanners for API vulnerability detection
+4. **Metasploit MCP** — `run_exploit` with `check_first=true` against API framework vulnerabilities (e.g., deserialization, RCE)
+5. **HexStrike** — `POST /api/agents/vuln_scan/run` with `{"target": "[TARGET]"}`
+6. Test for:
    - SQL injection in query parameters, JSON body fields, headers
    - NoSQL injection (MongoDB operators in JSON body)
    - Command injection in file processing or system call endpoints
    - LDAP injection in authentication endpoints
    - Server-side template injection (SSTI)
 
-### Step 5: API-Specific Vulnerability Testing
+### Step 5: API Traffic Analysis
+
+1. **WireMCP** — `capture_packets` during API testing to capture all HTTP request/response traffic
+2. **WireMCP** — `extract_credentials` on captured traffic to find API keys, tokens, or cleartext credentials
+3. **WireMCP** — `follow_stream` to reconstruct full API conversations and inspect data flow
+4. **WireMCP** — `get_statistics` for protocol analysis of API traffic patterns
+
+### Step 6: API-Specific Vulnerability Testing
 
 1. **Kali MCP** — `nikto -h [TARGET]` for web-level vulnerabilities
 2. **HexStrike** — `POST /api/agents/bug_bounty/run` with `{"target": "[TARGET]"}`
@@ -109,7 +182,7 @@ Look for:
    - **API9** — Improper Inventory Management (shadow APIs)
    - **API10** — Unsafe Consumption of APIs
 
-### Step 6: Data Exposure & Security Headers
+### Step 7: Data Exposure & Security Headers
 
 1. **Kali MCP** — `nmap --script=http-security-headers [TARGET]`
 2. Check for:
@@ -120,13 +193,18 @@ Look for:
    - Information disclosure in headers (server version, framework)
    - Missing security headers (CSP, HSTS, X-Content-Type-Options)
 
-### Step 7: Data Processing
+### Step 8: Data Processing
 
 1. Collect ALL raw outputs:
    ```python
    raw_outputs = {
        "whatweb": "...", "wafw00f": "...", "nmap": "...",
-       "gobuster_api": "...", "nikto": "...", "sqlmap": "...",
+       "gobuster_api": "...", "dirsearch": "...", "ffuf": "...",
+       "feroxbuster": "...", "arjun": "...",
+       "nikto": "...", "sqlmap": "...", "dalfox": "...",
+       "metasploit_exploits": "...", "metasploit_auxiliary": "...",
+       "wiremcp_captures": "...", "wiremcp_credentials": "...",
+       "wiremcp_streams": "...", "wiremcp_statistics": "...",
        "hexstrike_web_recon": "...", "hexstrike_vuln_scan": "...",
        "hexstrike_bug_bounty": "..."
    }
@@ -134,7 +212,7 @@ Look for:
 2. Call `process_scan_results(raw_outputs, "[TARGET]", session_id)` on the **Ollama MCP Server**
 3. Wait for the `AggregatedPayload`
 
-### Step 8: API Security Report
+### Step 9: API Security Report
 
 Using the `AggregatedPayload`, produce a detailed report:
 
@@ -144,10 +222,11 @@ Using the `AggregatedPayload`, produce a detailed report:
 4. **Authorization Issues** — BOLA, IDOR, privilege escalation findings
 5. **Injection Vulnerabilities** — SQL, NoSQL, command injection findings
 6. **OWASP API Top 10 Mapping** — findings mapped to API-specific risks
-7. **Data Exposure** — sensitive data leaks, verbose errors, missing protections
-8. **Configuration Issues** — CORS, rate limiting, security headers
-9. **Attack Chains** — combined API vulnerability paths
-10. **Remediation Priorities** — ordered by severity and exploitability
+7. **Traffic Analysis** — WireMCP API traffic insights, credential findings, data flow analysis
+8. **Data Exposure** — sensitive data leaks, verbose errors, missing protections
+9. **Configuration Issues** — CORS, rate limiting, security headers
+10. **Attack Chains** — combined API vulnerability paths
+11. **Remediation Priorities** — ordered by severity and exploitability
 
 ---
 
@@ -156,7 +235,7 @@ Using the `AggregatedPayload`, produce a detailed report:
 - Focus on API-specific security concerns
 - Test all discovered endpoints and HTTP methods
 - Check both authenticated and unauthenticated access
-- Use ALL three systems (Kali MCP, HexStrike API, Ollama pipeline)
+- Use ALL five systems (Kali MCP, Metasploit MCP, WireMCP, HexStrike API, Ollama pipeline)
 - Record every tool output for post-processing
 - Map findings to OWASP API Security Top 10
 - Do not modify or delete data through the API

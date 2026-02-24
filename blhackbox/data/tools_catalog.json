@@ -24,6 +24,18 @@
     "phase": "passive"
   },
   {
+    "category": "dns",
+    "tool_name": "dnsrecon",
+    "description": "DNS enumeration and record brute-forcing",
+    "phase": "passive"
+  },
+  {
+    "category": "dns",
+    "tool_name": "theharvester",
+    "description": "OSINT email and subdomain harvesting",
+    "phase": "passive"
+  },
+  {
     "category": "intelligence",
     "tool_name": "analyze-target",
     "description": "AI-driven comprehensive target analysis",
@@ -45,6 +57,12 @@
     "category": "network",
     "tool_name": "masscan",
     "description": "High-speed port scanner for large ranges",
+    "phase": "active"
+  },
+  {
+    "category": "network",
+    "tool_name": "hping3",
+    "description": "TCP/IP packet assembler and analyzer",
     "phase": "active"
   },
   {
@@ -85,6 +103,12 @@
   },
   {
     "category": "web",
+    "tool_name": "feroxbuster",
+    "description": "Recursive content discovery tool",
+    "phase": "active"
+  },
+  {
+    "category": "web",
     "tool_name": "katana",
     "description": "Web crawler for endpoint discovery",
     "phase": "active"
@@ -93,6 +117,90 @@
     "category": "web",
     "tool_name": "wafw00f",
     "description": "Web application firewall detection",
+    "phase": "active"
+  },
+  {
+    "category": "web",
+    "tool_name": "arjun",
+    "description": "HTTP parameter discovery suite",
+    "phase": "active"
+  },
+  {
+    "category": "web",
+    "tool_name": "dalfox",
+    "description": "XSS scanning and parameter analysis",
+    "phase": "active"
+  },
+  {
+    "category": "exploitation",
+    "tool_name": "sqlmap",
+    "description": "Automated SQL injection testing",
+    "phase": "active"
+  },
+  {
+    "category": "exploitation",
+    "tool_name": "hydra",
+    "description": "Network credential brute-forcing",
+    "phase": "active"
+  },
+  {
+    "category": "exploitation",
+    "tool_name": "medusa",
+    "description": "Parallel network login brute-forcer",
+    "phase": "active"
+  },
+  {
+    "category": "exploitation",
+    "tool_name": "john",
+    "description": "Password hash cracking (John the Ripper)",
+    "phase": "active"
+  },
+  {
+    "category": "exploitation",
+    "tool_name": "hashcat",
+    "description": "GPU-accelerated password hash cracking",
+    "phase": "active"
+  },
+  {
+    "category": "exploitation",
+    "tool_name": "crackmapexec",
+    "description": "Network infrastructure penetration testing suite",
+    "phase": "active"
+  },
+  {
+    "category": "exploitation",
+    "tool_name": "metasploit",
+    "description": "Metasploit Framework for exploit execution, post-exploitation, and session management",
+    "phase": "active"
+  },
+  {
+    "category": "traffic_analysis",
+    "tool_name": "tshark",
+    "description": "Network traffic capture and analysis (Wireshark CLI)",
+    "phase": "active"
+  },
+  {
+    "category": "forensics",
+    "tool_name": "binwalk",
+    "description": "Firmware and binary analysis tool",
+    "phase": "active"
+  },
+  {
+    "category": "forensics",
+    "tool_name": "foremost",
+    "description": "File carving and recovery tool",
+    "phase": "active"
+  },
+  {
+    "category": "forensics",
+    "tool_name": "exiftool",
+    "description": "Metadata extraction from files and images",
+    "phase": "active"
+  },
+  {
+    "category": "forensics",
+    "tool_name": "steghide",
+    "description": "Steganography detection and extraction",
     "phase": "active"
   }
 ]

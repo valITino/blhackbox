@@ -48,7 +48,7 @@ internal LangGraph orchestrator or LLM planner. Here is what happens when you
 type a prompt:
 
 1. **You type a prompt** in your AI client (Claude Code, Claude Desktop, or ChatGPT).
-2. **The AI decides which tools to call** from two MCP servers and one REST API: Kali Linux MCP (nmap, nikto, gobuster, etc.), HexStrike REST API (150+ security tools, 12+ AI agents), and the Ollama preprocessing pipeline.
+2. **The AI decides which tools to call** from four MCP servers and one REST API: Kali Linux MCP (50+ security tools), Metasploit MCP (13+ exploit lifecycle tools), WireMCP (7 packet analysis tools), HexStrike REST API (150+ security tools, 12+ AI agents), and the Ollama preprocessing pipeline.
 3. **Each MCP server executes the tool call** in its Docker container and returns raw output to the AI.
 4. **The AI collects all raw outputs** and sends them to the Ollama MCP server via `process_scan_results()`.
 5. **Ollama preprocesses the data** through 3 agent containers in sequence (Ingestion -> Processing -> Synthesis), each calling the local Ollama LLM independently.
@@ -75,8 +75,16 @@ CLAUDE CODE (Docker container on blhackbox_net)
   |  Connects directly to each MCP server via SSE.
   |
   |--- kali (SSE, port 9001) ─────────────>  KALI MCP SERVER
-  |                                            nmap, nikto, gobuster,
-  |                                            subfinder, whois, etc.
+  |                                            50+ tools: nmap, nikto, gobuster,
+  |                                            sqlmap, hydra, john, hashcat, etc.
+  |
+  |--- metasploit (SSE, port 9002) ───────>  METASPLOIT MCP SERVER
+  |                                            13+ tools via MSF RPC: exploits,
+  |                                            sessions, payloads, listeners
+  |
+  |--- wireshark (SSE, port 9003) ────────>  WIREMCP SERVER
+  |                                            7 tools: packet capture, pcap
+  |                                            analysis, credential extraction
   |
   |--- hexstrike (REST API, port 8888) ────>  HEXSTRIKE REST API
   |                                            150+ tools, 12+ AI agents
@@ -116,7 +124,9 @@ aggregates all servers behind `localhost:8080/mcp`. See
 
 | Container | What it does | Internal Port | Default Profile |
 |-----------|-------------|:---:|:---:|
-| **Kali MCP** | Kali Linux security tools (nmap, nikto, gobuster, subfinder, etc.) | 9001 | default |
+| **Kali MCP** | Kali Linux security tools — 50+ tools (nmap, sqlmap, hydra, john, etc.) | 9001 | default |
+| **Metasploit MCP** | Metasploit Framework — 13+ exploit tools via MSF RPC | 9002 | default |
+| **WireMCP** | Wireshark/tshark — 7 packet capture and analysis tools | 9003 | default |
 | **HexStrike API** | 150+ security tools, 12+ AI agents (REST API) | 8888 | default |
 | **Ollama MCP** | Thin orchestrator — calls 3 agent containers in sequence | 9000 | default |
 | **Agent: Ingestion** | Parses raw tool output into structured typed data | 8001 | default |
@@ -153,7 +163,7 @@ cp .env.example .env
 # 3. Pull all pre-built Docker images
 docker compose pull
 
-# 4. Start the core stack (8 containers)
+# 4. Start the core stack (10 containers)
 docker compose up -d
 
 # 5. Download the Ollama model (required — runs inside the container)
@@ -167,8 +177,10 @@ make status     # Container status
 make health     # Quick health check of all MCP servers
 ```
 
-You should see 8 containers, all "Up" or "healthy":
+You should see 10 containers, all "Up" or "healthy":
 - `blhackbox-kali-mcp`
+- `blhackbox-metasploit-mcp`
+- `blhackbox-wire-mcp`
 - `blhackbox-hexstrike`
 - `blhackbox-ollama-mcp`
 - `blhackbox-agent-ingestion`
@@ -217,16 +229,20 @@ Checking service connectivity...
 
   MCP Servers
   Kali MCP               [ OK ]
+  Metasploit MCP         [ OK ]
+  WireMCP                [ OK ]
   Ollama Pipeline        [ OK ]
 
   REST API Services
   HexStrike API          [ OK ]
 
 ──────────────────────────────────────────────────
-  All 3 services connected.
+  All 5 services connected.
 
   MCP servers (connected via SSE):
-    kali            Kali Linux security tools (nmap, nikto, ...)
+    kali            Kali Linux security tools (50+ tools)
+    metasploit      Metasploit Framework (13+ exploit tools)
+    wireshark       WireMCP — tshark packet capture & analysis
     ollama-pipeline Ollama preprocessing (3-agent pipeline)
 
   REST API (accessible via HTTP):
@@ -341,7 +357,7 @@ Restart Claude Desktop. You should see a hammer icon with available tools.
 ### Step 3: Run a pentest
 
 Type your prompt in Claude Desktop. The flow is identical to Tutorial 1 — the
-gateway routes tool calls to the same MCP servers.
+gateway routes tool calls to the same MCP servers (kali, metasploit, wireshark, ollama).
 
 ---
 
@@ -376,11 +392,13 @@ STEP 1: YOU TYPE A PROMPT
         |
         v
 STEP 2: AI DECIDES WHICH TOOLS TO USE
-  Claude picks tools from Kali MCP and HexStrike API:
-    - subfinder (Kali)       -> find subdomains
-    - nmap -sV -sC (Kali)    -> port scan + service detection
-    - nikto (Kali)            -> web server scanning
-    - HexStrike OSINT agent   -> OSINT gathering
+  Claude picks tools from Kali MCP, Metasploit MCP, WireMCP, and HexStrike API:
+    - subfinder (Kali)           -> find subdomains
+    - nmap -sV -sC (Kali)       -> port scan + service detection
+    - nikto (Kali)               -> web server scanning
+    - list_exploits (Metasploit) -> find matching exploits
+    - capture_packets (WireMCP)  -> capture traffic during scanning
+    - HexStrike OSINT agent      -> OSINT gathering
         |
         v
 STEP 3: TOOLS EXECUTE IN DOCKER CONTAINERS
@@ -628,7 +646,9 @@ All custom images are published to `crhacky/blhackbox`:
 
 | Tag | Description |
 |-----|-------------|
-| `crhacky/blhackbox:kali-mcp` | Kali Linux MCP Server |
+| `crhacky/blhackbox:kali-mcp` | Kali Linux MCP Server (50+ tools) |
+| `crhacky/blhackbox:metasploit-mcp` | Metasploit MCP Server (13+ exploit tools) |
+| `crhacky/blhackbox:wire-mcp` | WireMCP Server (tshark, 7 tools) |
 | `crhacky/blhackbox:hexstrike` | HexStrike AI REST API Server |
 | `crhacky/blhackbox:ollama-mcp` | Ollama MCP Server (thin orchestrator) |
 | `crhacky/blhackbox:agent-ingestion` | Agent 1: Ingestion |
@@ -707,6 +727,8 @@ blhackbox/
 ├── .mcp.json                        # MCP server config (Claude Code Web)
 ├── docker/
 │   ├── kali-mcp.Dockerfile
+│   ├── metasploit-mcp.Dockerfile
+│   ├── wire-mcp.Dockerfile
 │   ├── hexstrike.Dockerfile
 │   ├── ollama-mcp.Dockerfile
 │   ├── agent-ingestion.Dockerfile
@@ -714,7 +736,9 @@ blhackbox/
 │   ├── agent-synthesis.Dockerfile
 │   ├── claude-code.Dockerfile       # MCP client container
 │   └── claude-code-entrypoint.sh    # Startup script with health checks
-├── kali-mcp/                        # adapted community Kali MCP server
+├── kali-mcp/                        # adapted community Kali MCP server (50+ tools)
+├── metasploit-mcp/                  # Metasploit Framework MCP server (13+ tools)
+├── wire-mcp/                        # WireMCP server (tshark, 7 tools)
 ├── mcp_servers/
 │   └── ollama_mcp_server.py         # thin MCP orchestrator
 ├── blhackbox/

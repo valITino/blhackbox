@@ -16,15 +16,16 @@ you will need them in Phase 4.
 **Objective:** Build a comprehensive map of the target's external attack surface
 before sending a single probe packet.
 
-Call the following tools via the **Kali MCP Server** and **HexStrike REST API**:
+Call the following tools via the **Kali MCP Server**, **Metasploit MCP Server**,
+**WireMCP Server**, and **HexStrike REST API**:
 
 | Category | Tools / Calls |
 |---|---|
-| Subdomain enumeration | `subfinder`, `amass enum -passive`, `assetfinder` |
-| DNS resolution & zone data | `dig`, `dnsrecon`, `dnsenum` |
-| OSINT & metadata | `theHarvester`, `recon-ng` modules, HexStrike OSINT agents |
-| Certificate transparency | `crt.sh` lookup, `certspotter` |
-| WHOIS & registrar info | `whois`, HexStrike WHOIS agent |
+| Subdomain enumeration | `subfinder`, `amass enum -passive`, `theharvester` (Kali MCP) |
+| DNS resolution & zone data | `dig`, `dnsrecon`, `dnsenum` (Kali MCP) |
+| OSINT & metadata | `theharvester`, `exiftool` (Kali MCP), HexStrike OSINT agents |
+| Certificate transparency | `crt.sh` lookup via Kali MCP |
+| WHOIS & registrar info | `whois` (Kali MCP), HexStrike WHOIS agent |
 
 **Store every raw output** in a dict keyed by tool name, e.g.:
 
@@ -47,8 +48,10 @@ Call the following tools:
 
 | Category | Tools / Calls |
 |---|---|
-| Port scanning | `nmap -sV -sC` (Kali), `masscan` (Kali) |
+| Port scanning | `nmap -sV -sC` (Kali MCP), `masscan` (Kali MCP) |
+| Exploit scanning | `list_exploits`, `run_auxiliary_module` (Metasploit MCP) |
 | Network/vuln scanning | HexStrike network scan agents, HexStrike vuln scan agents |
+| Traffic capture | `capture_packets` (WireMCP) during active scanning |
 | Service fingerprinting | `nmap --script=banner`, version detection probes |
 
 Append every raw output to the same `raw_outputs` dict.
@@ -64,10 +67,15 @@ Call the following tools:
 
 | Category | Tools / Calls |
 |---|---|
-| Web server scanning | `nikto` (Kali) |
-| Directory brute-forcing | `gobuster dir` (Kali) |
-| Technology fingerprinting | `whatweb` (Kali) |
-| CMS scanning | `wpscan` (Kali, if WordPress detected) |
+| Web server scanning | `nikto` (Kali MCP) |
+| Directory brute-forcing | `gobuster dir`, `ffuf`, `feroxbuster` (Kali MCP) |
+| Technology fingerprinting | `whatweb` (Kali MCP) |
+| Parameter discovery | `arjun` (Kali MCP) |
+| XSS testing | `dalfox` (Kali MCP) |
+| SQL injection | `sqlmap` (Kali MCP) |
+| CMS scanning | `wpscan` (Kali MCP, if WordPress detected) |
+| Exploit validation | `run_exploit` with `check_first=true` (Metasploit MCP) |
+| Credential extraction | `extract_credentials` (WireMCP) on captured traffic |
 | Web application agents | HexStrike web recon/enum agents |
 
 Append every raw output to `raw_outputs`.
@@ -210,5 +218,6 @@ in `blhackbox/prompts/templates/`. Available via MCP (`list_templates` /
 | `api-security` | API security testing (OWASP API Top 10) |
 | `bug-bounty` | Bug bounty hunting methodology with PoC-style reports |
 
-Each template ensures that **all available resources** (Kali MCP, HexStrike
-REST API, and Ollama preprocessing pipeline) are utilized for maximum coverage.
+Each template ensures that **all available resources** (Kali MCP, Metasploit MCP,
+WireMCP, HexStrike REST API, and Ollama preprocessing pipeline) are utilized for
+maximum coverage.

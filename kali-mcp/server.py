@@ -23,13 +23,39 @@ from mcp.server.fastmcp import FastMCP
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("kali-mcp")
 
-# Tool allowlist from environment
+# Full Kali Linux tool allowlist — expanded to cover the complete security
+# toolchain available in a kali-rolling container.
+#
+# Categories:
+#   Network/Recon: nmap, rustscan, masscan, netdiscover, arp-scan, traceroute, hping3
+#   DNS:           subfinder, amass, fierce, dnsenum, dnsrecon, dig, whois, theharvester
+#   Web:           nikto, gobuster, dirb, dirsearch, ffuf, feroxbuster, whatweb, wafw00f,
+#                  wpscan, httpx, katana, arjun, paramspider, dalfox
+#   Exploitation:  sqlmap, hydra, medusa, john, hashcat, crackmapexec, evil-winrm,
+#                  smbclient, enum4linux-ng, responder, netexec
+#   Wireless:      aircrack-ng, airodump-ng, aireplay-ng, wifite, bettercap
+#   Forensics:     binwalk, foremost, exiftool, steghide, strings, volatility3, hashid
+#   Misc:          curl, wget, netcat, socat, sshpass, proxychains4, chisel, ligolo-ng
 ALLOWED_TOOLS = set(
     t.strip()
     for t in os.environ.get(
         "ALLOWED_TOOLS",
-        "nmap,nikto,gobuster,dirb,whatweb,wafw00f,masscan,hydra,sqlmap,wpscan,"
-        "subfinder,amass,fierce,dnsenum,whois",
+        # --- Network / Recon ---
+        "nmap,rustscan,masscan,netdiscover,arp-scan,traceroute,hping3,"
+        # --- DNS ---
+        "subfinder,amass,fierce,dnsenum,dnsrecon,dig,whois,theharvester,"
+        # --- Web Application ---
+        "nikto,gobuster,dirb,dirsearch,ffuf,feroxbuster,whatweb,wafw00f,"
+        "wpscan,httpx,katana,arjun,paramspider,dalfox,"
+        # --- Exploitation / Brute-force ---
+        "sqlmap,hydra,medusa,john,hashcat,crackmapexec,evil-winrm,"
+        "smbclient,enum4linux-ng,responder,netexec,"
+        # --- Wireless ---
+        "aircrack-ng,airodump-ng,aireplay-ng,wifite,bettercap,"
+        # --- Forensics / Binary ---
+        "binwalk,foremost,exiftool,steghide,strings,hashid,"
+        # --- Utilities ---
+        "curl,wget,netcat,socat,sshpass,proxychains4",
     ).split(",")
     if t.strip()
 )

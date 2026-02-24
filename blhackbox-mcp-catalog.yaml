@@ -18,11 +18,27 @@ displayName: blhackbox Pentesting Framework
 
 registry:
   kali-mcp:
-    description: "Kali Linux security tools — nmap, nikto, gobuster, subfinder, whois, etc."
+    description: "Kali Linux security tools — 50+ tools: nmap, nikto, gobuster, sqlmap, hydra, john, hashcat, etc."
     title: "Kali MCP Server"
     type: "server"
     remote:
       url: "http://kali-mcp:9001/sse"
+      transport_type: sse
+
+  metasploit-mcp:
+    description: "Metasploit Framework — 13+ tools: exploit search, module execution, session management, listeners"
+    title: "Metasploit MCP Server"
+    type: "server"
+    remote:
+      url: "http://metasploit-mcp:9002/sse"
+      transport_type: sse
+
+  wire-mcp:
+    description: "Wireshark/tshark — 7 tools: packet capture, pcap analysis, credential extraction, stream following"
+    title: "WireMCP Server"
+    type: "server"
+    remote:
+      url: "http://wire-mcp:9003/sse"
       transport_type: sse
 
   ollama-mcp:
