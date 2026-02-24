@@ -188,3 +188,27 @@ Provide prioritized, actionable remediation guidance:
   assessment, not an attack.
 - Treat all findings and report contents as confidential. Share only with
   authorized recipients.
+
+---
+
+## Prompt Templates
+
+For more specialized or detailed assessment workflows, use the prompt templates
+in `blhackbox/prompts/templates/`. Available via MCP (`list_templates` /
+`get_template`) or CLI (`blhackbox templates list`):
+
+| Template | Use Case |
+|----------|----------|
+| `full-pentest` | Complete 5-phase end-to-end penetration test |
+| `full-attack-chain` | Recon through exploitation with attack chain reporting |
+| `quick-scan` | Fast high-level security scan for critical issues |
+| `recon-deep` | Comprehensive reconnaissance and attack surface mapping |
+| `web-app-assessment` | Focused web application security testing |
+| `network-infrastructure` | Network-focused infrastructure assessment |
+| `osint-gathering` | Passive open-source intelligence collection |
+| `vuln-assessment` | Systematic vulnerability identification and validation |
+| `api-security` | API security testing (OWASP API Top 10) |
+| `bug-bounty` | Bug bounty hunting methodology with PoC-style reports |
+
+Each template ensures that **all available resources** (Kali MCP, HexStrike
+REST API, and Ollama preprocessing pipeline) are utilized for maximum coverage.

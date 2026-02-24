@@ -494,6 +494,55 @@ async def _do_report(session_id: str, fmt: str, output: str | None) -> None:
 
 
 # ---------------------------------------------------------------------------
+# templates
+# ---------------------------------------------------------------------------
+
+
+@cli.group()
+def templates() -> None:
+    """Manage prompt templates for autonomous pentesting."""
+
+
+@templates.command("list")
+def templates_list() -> None:
+    """List available prompt templates."""
+    from blhackbox.prompts import list_templates
+
+    tpl_list = list_templates()
+
+    table = Table(title="Prompt Templates")
+    table.add_column("Name", style="cyan")
+    table.add_column("Title", style="white")
+    table.add_column("File", style="dim")
+
+    for tpl in tpl_list:
+        table.add_row(tpl["name"], tpl["title"], tpl["file"])
+
+    rich_console.print(table)
+    rich_console.print(
+        "\n[info]Use 'blhackbox templates show <name>' to view a template.[/info]"
+    )
+
+
+@templates.command("show")
+@click.argument("name")
+@click.option("--target", "-t", default=None, help="Replace [TARGET] placeholders.")
+def templates_show(name: str, target: str | None) -> None:
+    """Display a prompt template by name."""
+    from blhackbox.prompts import load_template
+
+    try:
+        content = load_template(name, target=target)
+    except (ValueError, FileNotFoundError) as exc:
+        rich_console.print(f"[error]{exc}[/error]")
+        raise SystemExit(1) from exc
+
+    from rich.markdown import Markdown
+
+    rich_console.print(Markdown(content))
+
+
+# ---------------------------------------------------------------------------
 # mcp serve
 # ---------------------------------------------------------------------------
 
