@@ -44,103 +44,21 @@ REPORT_FORMAT   = "[REPORT_FORMAT]"
 
 ---
 
-## Available Resources — Use ALL of Them
+## MCP Servers
 
-### 1. Kali MCP Server (SSE, port 9001)
+You have access to five MCP servers. The MCP host coordinates tool selection —
+focus on the **objective** of each phase and which server handles it.
 
-Execute via `run_kali_tool(tool, args, target, timeout)`:
+| Server | Capability Domain |
+|--------|-------------------|
+| **Kali MCP** | 50+ security tools — network scanning, DNS enumeration, subdomain discovery, web vulnerability scanning, directory brute-forcing, injection testing, credential testing, technology fingerprinting, WAF detection, metadata extraction |
+| **Metasploit MCP** | Exploit lifecycle — module search, auxiliary scanning, exploit validation, payload generation, session management, post-exploitation |
+| **WireMCP** | Network traffic analysis — packet capture, pcap parsing, conversation extraction, credential discovery, stream reconstruction, protocol statistics |
+| **HexStrike** | AI security agents — OSINT, vulnerability scanning, web reconnaissance, network assessment, intelligence analysis, bug bounty workflows |
+| **Ollama MCP** | AI preprocessing pipeline — raw data ingestion, deduplication, correlation, severity assessment, structured payload synthesis |
 
-| Tool | Use Case |
-|------|----------|
-| `nmap` | Port scanning, service detection, NSE scripts |
-| `masscan` | High-speed port scanning |
-| `nikto` | Web server vulnerability scanning |
-| `gobuster` | Directory and file brute-forcing |
-| `dirb` | Web content discovery |
-| `dirsearch` | Web path discovery with extensions |
-| `ffuf` | Web fuzzer for directories and parameters |
-| `feroxbuster` | Recursive content discovery |
-| `whatweb` | Technology fingerprinting |
-| `wafw00f` | WAF detection |
-| `wpscan` | WordPress vulnerability scanning |
-| `sqlmap` | SQL injection testing |
-| `hydra` | Credential brute-forcing |
-| `medusa` | Parallel network login brute-forcer |
-| `subfinder` | Passive subdomain enumeration |
-| `amass` | In-depth subdomain enumeration |
-| `fierce` | DNS reconnaissance |
-| `dnsenum` | DNS enumeration and zone transfers |
-| `dnsrecon` | DNS record brute-forcing |
-| `theharvester` | OSINT email and subdomain harvesting |
-| `whois` | Domain registration lookup |
-| `john` | Password hash cracking |
-| `hashcat` | GPU-accelerated password cracking |
-| `crackmapexec` | Network infrastructure pentesting suite |
-| `arjun` | HTTP parameter discovery |
-| `dalfox` | XSS scanning and parameter analysis |
-| `binwalk` | Firmware and binary analysis |
-| `exiftool` | Metadata extraction |
-
-### 2. Metasploit MCP Server (SSE, port 9002)
-
-Full exploit lifecycle management via MSF RPC — 13+ dedicated tools:
-
-| Tool | Use Case |
-|------|----------|
-| `list_exploits` | Search Metasploit exploit modules by keyword or CVE |
-| `list_payloads` | Search payloads with platform/architecture filtering |
-| `run_exploit` | Execute exploits with check-first option |
-| `run_auxiliary_module` | Run auxiliary modules (scanners, fuzzers) |
-| `run_post_module` | Post-exploitation against active sessions |
-| `generate_payload` | Generate payloads (msfvenom equivalent) |
-| `list_sessions` | View active shells/meterpreter sessions |
-| `send_session_command` | Execute commands in active sessions |
-| `terminate_session` | End active sessions |
-| `start_listener` | Create multi/handler listeners |
-| `stop_job` | Stop background jobs |
-| `msf_console_execute` | Raw msfconsole command execution |
-
-### 3. WireMCP Server (SSE, port 9003)
-
-Network traffic capture and analysis via tshark — 7 tools:
-
-| Tool | Use Case |
-|------|----------|
-| `capture_packets` | Live packet capture with BPF filters |
-| `read_pcap` | Parse pcap files with display filters |
-| `get_conversations` | Extract TCP/UDP/IP conversations |
-| `get_statistics` | Protocol hierarchy and endpoint stats |
-| `extract_credentials` | Find cleartext creds (HTTP, FTP, SMTP, Telnet) |
-| `follow_stream` | Reconstruct TCP/UDP streams |
-| `list_interfaces` | List available capture interfaces |
-
-### 4. HexStrike REST API (HTTP, port 8888)
-
-150+ tools and 12+ AI agents:
-
-```
-# List all available agents first:
-GET  http://hexstrike:8888/api/agents/list
-
-# Run tools:
-POST http://hexstrike:8888/api/tools/{tool_name}
-     Body: {"target": "[TARGET]", ...params}
-
-# Run AI agents:
-POST http://hexstrike:8888/api/agents/{agent_name}/run
-     Body: {"target": "[TARGET]", ...params}
-
-# Intelligence analysis:
-POST http://hexstrike:8888/api/intelligence/analyze-target
-     Body: {"target": "[TARGET]", "analysis_type": "comprehensive"}
-```
-
-### 5. Ollama MCP Server (SSE, port 9000)
-
-AI preprocessing pipeline via `process_scan_results()`:
-- Ingestion Agent — parses raw output to structured data
-- Processing Agent — deduplicates, correlates, validates
-- Synthesis Agent — produces AggregatedPayload with executive summary
+> **Tip:** Query each server's tool listing at the start of the engagement to
+> confirm which capabilities are available.
 
 ---
 
@@ -150,14 +68,11 @@ AI preprocessing pipeline via `process_scan_results()`:
 
 **Goal:** Complete attack surface map before any active probing.
 
-1. **Kali MCP** — `whois [TARGET]` — domain intelligence
-2. **Kali MCP** — `dnsenum [TARGET]` — full DNS enumeration
-3. **Kali MCP** — `dnsrecon -d [TARGET]` — DNS record brute-forcing
-4. **Kali MCP** — `subfinder -d [TARGET] -silent -all` — subdomain discovery
-5. **Kali MCP** — `amass enum -passive -d [TARGET]` — deep passive enumeration
-6. **Kali MCP** — `theharvester -d [TARGET] -b all` — OSINT email and subdomain harvesting
-7. **HexStrike** — `POST /api/agents/osint/run` — OSINT intelligence
-8. **HexStrike** — `POST /api/intelligence/analyze-target` — AI-driven analysis
+1. **Domain intelligence** — Use **Kali MCP** for WHOIS and domain registration data
+2. **DNS enumeration** — Use **Kali MCP** for comprehensive DNS record discovery and zone transfer checks
+3. **Subdomain discovery** — Use **Kali MCP** for passive subdomain enumeration (multiple tools for coverage)
+4. **OSINT harvesting** — Use **Kali MCP** to harvest emails, names, and subdomains from public sources
+5. **AI-driven intelligence** — Use **HexStrike** OSINT and intelligence analysis agents
 
 **Output:** Subdomain list, IP ranges, DNS records, WHOIS data, OSINT findings.
 
@@ -165,18 +80,16 @@ AI preprocessing pipeline via `process_scan_results()`:
 
 **Goal:** Map all live hosts, ports, services, and versions.
 
-1. **Kali MCP** — `masscan [TARGET] -p1-65535 --rate=1000` — full port sweep
-2. **Kali MCP** — `nmap -sV -sC -O -T4 -A [TARGET]` — aggressive service detection
-3. **Kali MCP** — `whatweb [TARGET]` — technology fingerprinting
-4. **Kali MCP** — `wafw00f [TARGET]` — WAF/CDN detection
-5. **Metasploit MCP** — `run_auxiliary_module` with `auxiliary/scanner/portscan/tcp` — additional port scanning
-6. **Metasploit MCP** — `list_exploits` — search for exploits matching discovered services
-7. **WireMCP** — `capture_packets` during active scanning to capture traffic for analysis
-8. **HexStrike** — `POST /api/agents/network_scan/run` — comprehensive network scan
-9. **HexStrike** — `POST /api/agents/vuln_scan/run` — automated vuln detection
+1. **High-speed port sweep** — Use **Kali MCP** for full port range scanning at high speed
+2. **Service detection** — Use **Kali MCP** for detailed service detection, OS fingerprinting, and default script scanning
+3. **Technology fingerprinting** — Use **Kali MCP** to identify web frameworks, servers, and CMS
+4. **WAF/CDN detection** — Use **Kali MCP** to detect web application firewalls and CDNs
+5. **Auxiliary scanning** — Use **Metasploit MCP** for supplemental port and service scanning
+6. **Exploit search** — Use **Metasploit MCP** to search for exploits matching discovered services
+7. **Traffic capture** — Use **WireMCP** to capture traffic during active scanning
+8. **AI-driven scanning** — Use **HexStrike** network scan and vulnerability scan agents
 
-For each discovered subdomain with web services:
-10. **Kali MCP** — `nmap -sV -T4 --top-ports 100 [SUBDOMAIN]`
+For each discovered subdomain with web services, perform service detection.
 
 **Output:** Host inventory with ports, services, versions, OS, technologies.
 
@@ -185,23 +98,17 @@ For each discovered subdomain with web services:
 **Goal:** Find all exploitable vulnerabilities across the attack surface.
 
 **Web Application Testing:**
-1. **Kali MCP** — `nikto -h [TARGET]` — web vulnerability scanning
-2. **Kali MCP** — `gobuster dir -u [TARGET] -w /usr/share/wordlists/dirb/common.txt -x php,html,txt,bak,old,conf,env,json,xml -t 50`
-3. **Kali MCP** — `ffuf -u [TARGET]/FUZZ -w /usr/share/wordlists/dirb/common.txt` — parameter and directory fuzzing
-4. **Kali MCP** — `feroxbuster -u [TARGET] -w /usr/share/wordlists/dirb/common.txt` — recursive content discovery
-5. **Kali MCP** — `arjun -u [TARGET]` — hidden HTTP parameter discovery
-6. **Kali MCP** — `dalfox url [TARGET]` — XSS scanning
-7. **Kali MCP** — `wpscan --url [TARGET] --enumerate vp,vt,u,dbe` (if WordPress)
-8. **HexStrike** — `POST /api/agents/web_recon/run`
-9. **HexStrike** — `POST /api/agents/bug_bounty/run`
+1. **Web vulnerability scanning** — Use **Kali MCP** for comprehensive web server vulnerability checks
+2. **Directory discovery** — Use **Kali MCP** for directory and file brute-forcing with common wordlists and extensions
+3. **Parameter discovery** — Use **Kali MCP** for hidden HTTP parameter discovery and fuzzing
+4. **XSS scanning** — Use **Kali MCP** for XSS detection and parameter analysis
+5. **CMS scanning** — Use **Kali MCP** for CMS-specific testing (if applicable)
+6. **Web reconnaissance** — Use **HexStrike** web recon and bug bounty agents
 
-**NSE Vulnerability Scripts:**
-10. **Kali MCP** — `nmap --script=vuln -p [PORTS] [TARGET]`
-11. **Kali MCP** — `nmap --script=http-sql-injection,http-vuln* -p 80,443 [TARGET]`
-
-**Metasploit Vulnerability Matching:**
-12. **Metasploit MCP** — `list_exploits` to search for modules matching discovered CVEs
-13. **Metasploit MCP** — `run_auxiliary_module` for service-specific vulnerability scanners
+**Vulnerability Scanning:**
+7. **NSE vulnerability scripts** — Use **Kali MCP** for targeted vulnerability detection scripts
+8. **Exploit matching** — Use **Metasploit MCP** to match discovered CVEs to exploit modules
+9. **Auxiliary scanners** — Use **Metasploit MCP** for service-specific vulnerability scanners
 
 **Output:** List of potential vulnerabilities with severity, CVE, affected service.
 
@@ -213,40 +120,37 @@ For each discovered subdomain with web services:
 > If `MAX_SEVERITY` is "info-only", skip this phase and proceed to Phase 5.
 
 **SQL Injection Exploitation:**
-1. **Kali MCP** — `sqlmap -u "[URL_WITH_PARAMS]" --batch --level=3 --risk=2 --dbs`
-2. If confirmed: `sqlmap -u "[URL]" --batch --tables -D [DATABASE]`
-3. If confirmed: `sqlmap -u "[URL]" --batch --dump -T [TABLE] -D [DATABASE] --limit=5`
+1. Use **Kali MCP** for automated SQL injection testing with increasing depth
+2. For confirmed injection points, enumerate databases, tables, and extract limited sample data (max 5 rows)
 
 **Credential Testing:**
-4. **Kali MCP** — `hydra -L /usr/share/wordlists/metasploit/default_users.txt -P /usr/share/wordlists/metasploit/default_pass.txt [TARGET] [SERVICE]`
-5. **Kali MCP** — `medusa -h [TARGET] -U users.txt -P passwords.txt -M [SERVICE]` — parallel brute-forcing
-6. Test discovered default/weak credentials against login panels
+3. Use **Kali MCP** for credential brute-forcing against discovered login services using default/common wordlists
+4. Test discovered default/weak credentials against login panels
 
 **Authentication Bypass:**
-6. Test for JWT vulnerabilities (none algorithm, key confusion)
-7. Test for IDOR by manipulating object references
-8. Test for privilege escalation by accessing admin endpoints
+5. Test for JWT vulnerabilities (none algorithm, key confusion)
+6. Test for IDOR by manipulating object references
+7. Test for privilege escalation by accessing admin endpoints
 
 **Server-Side Vulnerabilities:**
-10. Test for SSRF via parameter manipulation
-11. Test for command injection in input fields
-12. Test for LFI/RFI via path traversal patterns
+8. Test for SSRF via parameter manipulation
+9. Test for command injection in input fields
+10. Test for LFI/RFI via path traversal patterns
 
 **Metasploit Exploitation:**
-13. **Metasploit MCP** — `run_exploit` with `check_first=true` to validate discovered vulnerabilities
-14. **Metasploit MCP** — For confirmed shells, use `list_sessions` and `send_session_command` to gather evidence
-15. **Metasploit MCP** — `run_post_module` for post-exploitation data gathering
+11. Use **Metasploit MCP** to validate vulnerabilities with check-first mode
+12. For confirmed shells, use **Metasploit MCP** session commands to gather evidence
+13. Use **Metasploit MCP** for post-exploitation data gathering
 
 **Traffic Analysis:**
-16. **WireMCP** — `capture_packets` during exploitation to capture evidence traffic
-17. **WireMCP** — `extract_credentials` on captured traffic for cleartext credential discovery
-18. **WireMCP** — `follow_stream` to reconstruct exploit communication streams
+14. Use **WireMCP** to capture exploitation traffic as evidence
+15. Use **WireMCP** to extract credentials from captured traffic
+16. Use **WireMCP** to reconstruct exploit communication streams
 
 For each successful exploit, record:
 - Exact steps to reproduce
 - Request/response pairs
 - Impact assessment
-- Screenshots description (what you would see)
 
 **Output:** Validated exploits with proof of concept and impact.
 
@@ -288,25 +192,8 @@ Document each chain with:
 
 ### Phase 6: Data Processing
 
-1. Collect ALL raw outputs from Phases 1-5 into a single dict:
-   ```python
-   raw_outputs = {
-       "whois": "...", "dnsenum": "...", "dnsrecon": "...",
-       "subfinder": "...", "amass": "...", "theharvester": "...",
-       "nmap_full": "...", "masscan": "...",
-       "whatweb": "...", "wafw00f": "...", "nikto": "...",
-       "gobuster": "...", "ffuf": "...", "feroxbuster": "...",
-       "sqlmap": "...", "hydra": "...", "medusa": "...",
-       "dalfox": "...", "arjun": "...",
-       "nmap_vuln": "...", "wpscan": "...",
-       "metasploit_exploits": "...", "metasploit_sessions": "...",
-       "wiremcp_captures": "...", "wiremcp_credentials": "...",
-       "hexstrike_osint": "...", "hexstrike_intelligence": "...",
-       "hexstrike_network": "...", "hexstrike_vuln": "...",
-       "hexstrike_web_recon": "...", "hexstrike_bug_bounty": "..."
-   }
-   ```
-2. Call `process_scan_results(raw_outputs, "[TARGET]", session_id)` on the **Ollama MCP Server**
+1. Collect ALL raw outputs from Phases 1-5 into a single dict keyed by tool/source name
+2. Call `process_scan_results()` on the **Ollama MCP Server** with the collected data
 3. Wait for the `AggregatedPayload`
 
 ### Phase 7: Comprehensive Report
@@ -361,7 +248,7 @@ For each finding:
 - DNS and WHOIS intelligence summary
 
 #### 8. Anomalies & Scan Artifacts
-- Errors with security relevance from `AggregatedPayload.error_log`
+- Errors with security relevance
 - WAF/IDS detection events
 - Rate limiting indicators
 - Coverage gaps due to tool failures
@@ -389,6 +276,6 @@ For each finding:
 - **Do not modify data** — read-only exploitation only
 - **Do not cause denial of service** — no resource exhaustion, no crash exploits
 - **Log everything** — all tool outputs go to the raw_outputs dict
-- **Use ALL five systems** (Kali MCP, Metasploit MCP, WireMCP, HexStrike API, Ollama pipeline) for maximum coverage
+- **Use all five MCP servers** for maximum coverage
 - **Report honestly** — flag false positives, note coverage gaps, declare confidence levels
 - Treat all findings and report contents as **confidential**

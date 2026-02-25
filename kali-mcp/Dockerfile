@@ -8,12 +8,15 @@ FROM kalilinux/kali-rolling:latest
 
 # Install the full Kali security toolchain (must stay in sync with docker/kali-mcp.Dockerfile)
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    # --- Network / Recon ---
     nmap \
+    rustscan \
     masscan \
     netdiscover \
     arp-scan \
     traceroute \
     hping3 \
+    # --- DNS ---
     subfinder \
     amass \
     fierce \
@@ -22,6 +25,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     dnsutils \
     whois \
     theharvester \
+    # --- Web Application ---
     nikto \
     gobuster \
     dirb \
@@ -31,8 +35,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     whatweb \
     wafw00f \
     wpscan \
+    httpx-toolkit \
+    katana \
     arjun \
-    dalfox \
+    paramspider \
+    # --- Exploitation / Brute-force ---
     sqlmap \
     hydra \
     medusa \
@@ -42,15 +49,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     evil-winrm \
     smbclient \
     enum4linux \
+    enum4linux-ng \
     responder \
     netexec \
+    # --- Wireless ---
     aircrack-ng \
+    wifite \
     bettercap \
+    # --- Forensics / Binary ---
     binwalk \
     foremost \
     exiftool \
     steghide \
     hashid \
+    binutils \
+    # --- Utilities ---
     curl \
     wget \
     netcat-openbsd \
@@ -62,8 +75,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-venv \
     && rm -rf /var/lib/apt/lists/*
 
-# Create non-root user for tool execution
-RUN useradd -m -s /bin/bash kali-runner
+# dalfox is not in Kali apt repos — install from GitHub release binary
+RUN DALFOX_VERSION="2.9.3" && \
+    curl -sL "https://github.com/hahwul/dalfox/releases/download/v${DALFOX_VERSION}/dalfox_${DALFOX_VERSION}_linux_amd64.tar.gz" \
+    | tar xz -C /usr/local/bin dalfox
 
 WORKDIR /app
 
@@ -73,6 +88,6 @@ RUN python3 -m venv /app/venv && \
 
 COPY server.py /app/server.py
 
-USER kali-runner
+EXPOSE 9001
 
 ENTRYPOINT ["/app/venv/bin/python3", "/app/server.py"]

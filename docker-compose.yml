@@ -85,6 +85,9 @@ services:
         condition: service_healthy
 
   # -- KALI MCP SERVER -------------------------------------------------------
+  # Host-based clients can connect directly via SSE at http://localhost:9001/sse
+  # without the MCP Gateway. Claude Code (Docker) uses the internal URL
+  # http://kali-mcp:9001/sse instead.
   kali-mcp:
     image: crhacky/blhackbox:kali-mcp
     build:
@@ -94,6 +97,8 @@ services:
     restart: unless-stopped
     privileged: true
     init: true
+    ports:
+      - "${KALI_MCP_PORT:-9001}:9001"
     healthcheck:
       test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:9001/sse')\""]
       interval: 15s

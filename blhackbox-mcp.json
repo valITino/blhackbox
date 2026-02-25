@@ -1,9 +1,9 @@
 {
   "mcpServers": {
     "kali": {
-      "command": "docker",
-      "args": ["run", "-i", "--rm", "--network", "blhackbox-net", "blhackbox-kali-mcp"],
-      "description": "Kali Linux security tools — community MCP server adapted for blhackbox (50+ tools)"
+      "type": "sse",
+      "url": "http://localhost:9001/sse",
+      "description": "Kali Linux security tools — community MCP server adapted for blhackbox (50+ tools). Connects via SSE to docker compose service on port 9001."
     },
     "metasploit": {
       "command": "docker",

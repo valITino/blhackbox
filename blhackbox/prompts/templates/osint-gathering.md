@@ -21,64 +21,18 @@ TARGET = "[TARGET]"
 # Note: This template uses PASSIVE techniques only — no active scanning.
 ```
 
-## Available Resources — Use ALL of Them
+## MCP Servers
 
-### 1. Kali MCP Server (SSE, port 9001)
+You have access to five MCP servers. The MCP host coordinates tool selection —
+focus on the **objective** of each step and which server handles it.
 
-Execute via `run_kali_tool(tool, args, target, timeout)`:
-
-| Tool | Use Case |
-|------|----------|
-| `subfinder` | Passive subdomain enumeration |
-| `amass` | In-depth subdomain enumeration |
-| `dnsenum` | DNS enumeration and zone transfers |
-| `dnsrecon` | DNS record brute-forcing |
-| `fierce` | DNS reconnaissance |
-| `whois` | Domain registration lookup |
-| `theharvester` | OSINT email and subdomain harvesting |
-| `exiftool` | Metadata extraction from files |
-
-### 2. Metasploit MCP Server (SSE, port 9002)
-
-Full exploit lifecycle management via MSF RPC — 13+ dedicated tools.
-While Metasploit is primarily an exploitation framework, it provides useful
-auxiliary modules for passive information gathering:
-
-| Tool | Use Case |
-|------|----------|
-| `list_exploits` | Search exploit modules to understand target risk exposure |
-| `run_auxiliary_module` | Run passive recon auxiliaries (e.g., `auxiliary/gather/enum_dns`) |
-| `msf_console_execute` | Raw msfconsole for advanced recon queries |
-
-### 3. WireMCP Server (SSE, port 9003)
-
-Network traffic capture and analysis via tshark — 7 tools.
-Useful for analyzing existing packet captures or traffic samples related to the target:
-
-| Tool | Use Case |
-|------|----------|
-| `read_pcap` | Parse existing pcap files with display filters |
-| `get_conversations` | Extract TCP/UDP/IP conversations from captures |
-| `get_statistics` | Protocol hierarchy and endpoint stats |
-| `extract_credentials` | Find cleartext creds in traffic samples |
-| `follow_stream` | Reconstruct TCP/UDP streams |
-| `list_interfaces` | List available capture interfaces |
-
-### 4. HexStrike REST API (HTTP, port 8888)
-
-150+ tools and 12+ AI agents:
-
-- OSINT agent: `POST http://hexstrike:8888/api/agents/osint/run`
-- Intelligence analysis: `POST http://hexstrike:8888/api/intelligence/analyze-target`
-- List all available agents: `GET http://hexstrike:8888/api/agents/list`
-- Additional tools: `POST http://hexstrike:8888/api/tools/{tool_name}`
-
-### 5. Ollama MCP Server (SSE, port 9000)
-
-AI preprocessing pipeline via `process_scan_results()`:
-- Ingestion Agent — parses raw output to structured data
-- Processing Agent — deduplicates, correlates, validates
-- Synthesis Agent — produces AggregatedPayload with executive summary
+| Server | Capability Domain |
+|--------|-------------------|
+| **Kali MCP** | 50+ security tools — network scanning, DNS enumeration, subdomain discovery, web vulnerability scanning, directory brute-forcing, injection testing, credential testing, technology fingerprinting, WAF detection, metadata extraction |
+| **Metasploit MCP** | Exploit lifecycle — module search, auxiliary scanning, exploit validation, payload generation, session management, post-exploitation |
+| **WireMCP** | Network traffic analysis — packet capture, pcap parsing, conversation extraction, credential discovery, stream reconstruction, protocol statistics |
+| **HexStrike** | AI security agents — OSINT, vulnerability scanning, web reconnaissance, network assessment, intelligence analysis, bug bounty workflows |
+| **Ollama MCP** | AI preprocessing pipeline — raw data ingestion, deduplication, correlation, severity assessment, structured payload synthesis |
 
 ---
 
@@ -86,34 +40,29 @@ AI preprocessing pipeline via `process_scan_results()`:
 
 ### Step 1: Domain & Registrar Intelligence
 
-1. **Kali MCP** — `whois [TARGET]` to gather:
-   - Domain registrar and registration dates
-   - Registrant organization and contact info
-   - Nameserver infrastructure
-   - Domain status and expiry
-2. **Kali MCP** — `theharvester -d [TARGET] -b all` for OSINT email and subdomain harvesting
-3. **Kali MCP** — `exiftool` on any publicly available documents from the target for metadata extraction
-4. **HexStrike** — `POST /api/intelligence/analyze-target` with `{"target": "[TARGET]", "analysis_type": "comprehensive"}`
-5. **HexStrike** — `POST /api/agents/osint/run` with `{"target": "[TARGET]"}`
+1. **Domain registration** — Use **Kali MCP** for WHOIS lookups to gather registrar, registration dates, registrant organization, nameserver infrastructure, and domain status
+2. **OSINT harvesting** — Use **Kali MCP** to harvest emails, names, and subdomains from public sources
+3. **Metadata extraction** — Use **Kali MCP** to extract metadata from any publicly available documents from the target
+4. **AI-driven intelligence** — Use **HexStrike** intelligence analysis and OSINT agents for automated target profiling
 
 ### Step 2: DNS Intelligence
 
-1. **Kali MCP** — `dnsenum [TARGET]` for full DNS record enumeration:
+1. **DNS enumeration** — Use **Kali MCP** for full DNS record enumeration:
    - A, AAAA records (IP addresses)
    - MX records (mail infrastructure)
    - TXT records (SPF, DKIM, DMARC — reveals email providers)
    - NS records (nameserver infrastructure)
    - SOA records (zone authority)
    - SRV records (service discovery)
-2. **Kali MCP** — `dnsrecon -d [TARGET]` for DNS record brute-forcing and additional records
-3. **Kali MCP** — `fierce --domain [TARGET]` for DNS reconnaissance
-4. **Metasploit MCP** — `run_auxiliary_module` with `auxiliary/gather/enum_dns` for supplemental DNS enumeration
+2. **DNS brute-forcing** — Use **Kali MCP** for DNS record brute-forcing and additional record discovery
+3. **DNS reconnaissance** — Use **Kali MCP** for DNS recon and zone transfer checks
+4. **Auxiliary DNS enumeration** — Use **Metasploit MCP** for supplemental DNS enumeration
 5. Look for zone transfer opportunities (informational only)
 
 ### Step 3: Subdomain Discovery
 
-1. **Kali MCP** — `subfinder -d [TARGET] -silent -all` for passive subdomain enumeration
-2. **Kali MCP** — `amass enum -passive -d [TARGET]` for deep passive enumeration
+1. **Passive subdomain enumeration** — Use **Kali MCP** to enumerate subdomains through multiple passive sources
+2. **Deep passive enumeration** — Use **Kali MCP** for additional subdomain discovery tools for maximum coverage
 3. Compile and deduplicate all discovered subdomains
 4. Categorize subdomains by purpose (mail, dev, staging, api, admin, cdn, etc.)
 
@@ -131,31 +80,20 @@ From the gathered data, map:
 
 If any packet captures or traffic samples are available for analysis:
 
-1. **WireMCP** — `read_pcap` to parse existing traffic captures related to the target
-2. **WireMCP** — `get_conversations` to identify communication patterns and endpoints
-3. **WireMCP** — `get_statistics` for protocol distribution and endpoint analysis
-4. **WireMCP** — `extract_credentials` to find any cleartext credentials in traffic samples
+1. **Pcap parsing** — Use **WireMCP** to parse existing traffic captures related to the target
+2. **Conversation analysis** — Use **WireMCP** to identify communication patterns and endpoints
+3. **Protocol statistics** — Use **WireMCP** for protocol distribution and endpoint analysis
+4. **Credential extraction** — Use **WireMCP** to find any cleartext credentials in traffic samples
 
 ### Step 6: Exploit Landscape Research
 
-1. **Metasploit MCP** — `list_exploits` to search for known exploits targeting discovered technologies and services
+1. **Exploit search** — Use **Metasploit MCP** to search for known exploits targeting discovered technologies and services
 2. Document the target's potential risk exposure based on known exploit availability
 
 ### Step 7: Data Processing & Analysis
 
-1. Collect ALL raw outputs from Steps 1-6:
-   ```python
-   raw_outputs = {
-       "whois": "...", "dnsenum": "...", "dnsrecon": "...",
-       "fierce": "...", "theharvester": "...", "exiftool": "...",
-       "subfinder": "...", "amass": "...",
-       "metasploit_dns_enum": "...", "metasploit_exploit_search": "...",
-       "wiremcp_pcap": "...", "wiremcp_conversations": "...",
-       "wiremcp_statistics": "...",
-       "hexstrike_osint": "...", "hexstrike_intelligence": "..."
-   }
-   ```
-2. Call `process_scan_results(raw_outputs, "[TARGET]", session_id)` on the **Ollama MCP Server**
+1. Collect ALL raw outputs from Steps 1-6 into a single dict keyed by tool/source name
+2. Call `process_scan_results()` on the **Ollama MCP Server** with the collected data
 3. Wait for the `AggregatedPayload`
 
 ### Step 8: OSINT Report
@@ -180,7 +118,7 @@ Using the `AggregatedPayload`, produce a detailed intelligence report:
 - **PASSIVE ONLY** — do not send probe packets to the target
 - No port scanning, no web crawling, no active connections
 - Use only publicly available information sources
-- Use ALL five systems (Kali MCP, Metasploit MCP, WireMCP, HexStrike API, Ollama pipeline) for maximum coverage
+- Use all five MCP servers for maximum coverage
 - Record every tool output for post-processing
 - Flag potential subdomain takeover opportunities
 - Note any data exposure through DNS records (internal IPs, service names)
