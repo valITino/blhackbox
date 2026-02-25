@@ -11,7 +11,6 @@ FROM kalilinux/kali-rolling
 RUN apt-get update && apt-get install -y --no-install-recommends \
     # --- Network / Recon ---
     nmap \
-    rustscan \
     masscan \
     netdiscover \
     arp-scan \
@@ -37,7 +36,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     wafw00f \
     wpscan \
     httpx-toolkit \
-    katana \
     arjun \
     paramspider \
     # --- Exploitation / Brute-force ---
@@ -65,6 +63,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     hashid \
     binutils \
     # --- Utilities ---
+    unzip \
     curl \
     wget \
     netcat-openbsd \
@@ -80,6 +79,22 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN DALFOX_VERSION="2.9.3" && \
     curl -sL "https://github.com/hahwul/dalfox/releases/download/v${DALFOX_VERSION}/dalfox_${DALFOX_VERSION}_linux_amd64.tar.gz" \
     | tar xz -C /usr/local/bin dalfox
+
+# rustscan is not in Kali apt repos — install from GitHub release .deb
+RUN curl -sL "https://github.com/bee-san/RustScan/releases/download/2.4.1/rustscan.deb.zip" \
+    -o /tmp/rustscan.deb.zip && \
+    unzip -o /tmp/rustscan.deb.zip -d /tmp && \
+    dpkg -i /tmp/rustscan_2.4.1-1_amd64.deb || true && \
+    apt-get install -f -y && \
+    rm -f /tmp/rustscan.deb.zip /tmp/rustscan_*.deb
+
+# katana is not in Kali apt repos — install from GitHub release binary
+RUN KATANA_VERSION="1.4.0" && \
+    curl -sL "https://github.com/projectdiscovery/katana/releases/download/v${KATANA_VERSION}/katana_${KATANA_VERSION}_linux_amd64.zip" \
+    -o /tmp/katana.zip && \
+    unzip -o /tmp/katana.zip -d /usr/local/bin katana && \
+    chmod +x /usr/local/bin/katana && \
+    rm -f /tmp/katana.zip
 
 WORKDIR /app
 
