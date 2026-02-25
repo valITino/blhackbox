@@ -36,7 +36,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     wafw00f \
     wpscan \
     arjun \
-    dalfox \
     # --- Exploitation / Brute-force ---
     sqlmap \
     hydra \
@@ -69,6 +68,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-pip \
     python3-venv \
     && rm -rf /var/lib/apt/lists/*
+
+# dalfox is not in Kali apt repos — install from GitHub release binary
+RUN DALFOX_VERSION="2.9.3" && \
+    curl -sL "https://github.com/hahwul/dalfox/releases/download/v${DALFOX_VERSION}/dalfox_${DALFOX_VERSION}_linux_amd64.tar.gz" \
+    | tar xz -C /usr/local/bin dalfox
 
 WORKDIR /app
 
