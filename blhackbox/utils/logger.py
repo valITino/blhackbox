@@ -51,7 +51,9 @@ def get_logger(name: str) -> logging.Logger:
 
 def print_banner() -> None:
     """Print the Blhackbox startup banner."""
-    banner = r"""
+    from blhackbox import __version__
+
+    banner = rf"""
 [banner]
  ____  _ _                _    _
 | __ )| | |__   __ _  ___| | _| |__   _____  __
@@ -59,7 +61,7 @@ def print_banner() -> None:
 | |_) | | | | | (_| | (__|   <| |_) | (_) >  <
 |____/|_|_| |_|\__,_|\___|_|\_\_.__/ \___/_/\_\
 
- HexStrike Hybrid Autonomous Pentesting Framework v1.0.0
+ HexStrike Hybrid Autonomous Pentesting Framework v{__version__}
 [/banner]
 """
     console.print(banner)

@@ -1,0 +1,2 @@
+# WireMCP Server dependencies
+mcp>=1.23.0

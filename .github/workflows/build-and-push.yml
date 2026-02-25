@@ -40,6 +40,14 @@ jobs:
             dockerfile: docker/kali-mcp.Dockerfile
             tag_prefix: "kali-mcp-"
             scout: false
+          - service: metasploit-mcp
+            dockerfile: docker/metasploit-mcp.Dockerfile
+            tag_prefix: "metasploit-mcp-"
+            scout: false
+          - service: wire-mcp
+            dockerfile: docker/wire-mcp.Dockerfile
+            tag_prefix: "wire-mcp-"
+            scout: false
           - service: hexstrike
             dockerfile: docker/hexstrike.Dockerfile
             tag_prefix: "hexstrike-"

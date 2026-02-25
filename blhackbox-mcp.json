@@ -3,7 +3,17 @@
     "kali": {
       "command": "docker",
       "args": ["run", "-i", "--rm", "--network", "blhackbox-net", "blhackbox-kali-mcp"],
-      "description": "Kali Linux security tools — community MCP server adapted for blhackbox"
+      "description": "Kali Linux security tools — community MCP server adapted for blhackbox (50+ tools)"
+    },
+    "metasploit": {
+      "command": "docker",
+      "args": ["run", "-i", "--rm", "--network", "blhackbox-net", "blhackbox-metasploit-mcp"],
+      "description": "Metasploit Framework MCP Server — exploit lifecycle management (13+ tools via MSF RPC)"
+    },
+    "wireshark": {
+      "command": "docker",
+      "args": ["run", "-i", "--rm", "--network", "blhackbox-net", "--privileged", "blhackbox-wire-mcp"],
+      "description": "WireMCP Server — Wireshark/tshark for packet capture and network analysis (7 tools)"
     },
     "hexstrike": {
       "command": "python3",

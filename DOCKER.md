@@ -19,11 +19,13 @@ All custom images are published to a single Docker Hub repository, differentiate
 
 ## Images and Tags
 
-Seven custom images are published to `crhacky/blhackbox` on Docker Hub:
+Nine custom images are published to `crhacky/blhackbox` on Docker Hub:
 
 | Service | Tag | Dockerfile | Base |
 |---|---|---|---|
 | **Kali MCP** | `crhacky/blhackbox:kali-mcp` | `docker/kali-mcp.Dockerfile` | `kalilinux/kali-rolling` |
+| **Metasploit MCP** | `crhacky/blhackbox:metasploit-mcp` | `docker/metasploit-mcp.Dockerfile` | `kalilinux/kali-rolling` |
+| **WireMCP** | `crhacky/blhackbox:wire-mcp` | `docker/wire-mcp.Dockerfile` | `debian:bookworm-slim` |
 | **HexStrike** | `crhacky/blhackbox:hexstrike` | `docker/hexstrike.Dockerfile` | `python:3.13-slim-bookworm` |
 | **Ollama MCP** | `crhacky/blhackbox:ollama-mcp` | `docker/ollama-mcp.Dockerfile` | `python:3.13-slim` |
 | **Agent: Ingestion** | `crhacky/blhackbox:agent-ingestion` | `docker/agent-ingestion.Dockerfile` | `python:3.13-slim` |
@@ -54,7 +56,9 @@ In v2, **Claude (or OpenAI) IS the orchestrator** natively via MCP.
 
 ```
 Claude Code ──┬──> Kali MCP (SSE, port 9001)
-(container)   ├──> HexStrike API (REST, port 8888)
+(container)   ├──> Metasploit MCP (SSE, port 9002)
+              ├──> WireMCP (SSE, port 9003)
+              ├──> HexStrike API (REST, port 8888)
               └──> Ollama MCP (SSE, port 9000)
                         │
                         ├──► agent-ingestion:8001
@@ -82,7 +86,7 @@ Note: HexStrike is a REST API, not routed through the MCP Gateway.
 
 ## Usage
 
-### Core Stack (8 containers)
+### Core Stack (10 containers)
 
 ```bash
 git clone https://github.com/valITino/blhackbox.git
@@ -124,7 +128,9 @@ make health                # MCP server health check
 
 | Service | Image | Port | Profile | Role |
 |---|---|---|---|---|
-| `kali-mcp` | `crhacky/blhackbox:kali-mcp` | `9001` | default | Kali Linux security tools |
+| `kali-mcp` | `crhacky/blhackbox:kali-mcp` | `9001` | default | Kali Linux security tools (50+) |
+| `metasploit-mcp` | `crhacky/blhackbox:metasploit-mcp` | `9002` | default | Metasploit Framework (13+ tools) |
+| `wire-mcp` | `crhacky/blhackbox:wire-mcp` | `9003` | default | Wireshark/tshark (7 tools) |
 | `hexstrike` | `crhacky/blhackbox:hexstrike` | `8888` | default | HexStrike AI (150+ tools) |
 | `ollama-mcp` | `crhacky/blhackbox:ollama-mcp` | `9000` | default | Thin MCP orchestrator |
 | `agent-ingestion` | `crhacky/blhackbox:agent-ingestion` | `8001` | default | Agent 1: parse raw output |
@@ -148,6 +154,8 @@ The Claude Code container's `.mcp.json` connects directly to each server:
 {
   "mcpServers": {
     "kali":            { "type": "sse", "url": "http://kali-mcp:9001/sse" },
+    "metasploit":      { "type": "sse", "url": "http://metasploit-mcp:9002/sse" },
+    "wireshark":       { "type": "sse", "url": "http://wire-mcp:9003/sse" },
     "ollama-pipeline": { "type": "sse", "url": "http://ollama-mcp:9000/sse" }
   }
 }
@@ -182,6 +190,8 @@ Requires `--profile gateway` (`make up-gateway`).
 | `NEO4J_URI` | `bolt://neo4j:7687` | Neo4j connection URI (optional) |
 | `NEO4J_USER` | `neo4j` | Neo4j username (optional) |
 | `NEO4J_PASSWORD` | - | Neo4j password, min 8 chars (optional) |
+| `MSFRPC_USER` | `msf` | Metasploit RPC username |
+| `MSFRPC_PASS` | `msf` | Metasploit RPC password |
 | `OPENAI_API_KEY` | - | For OpenAI MCP clients (optional) |
 
 ---
@@ -191,10 +201,29 @@ Requires `--profile gateway` (`make up-gateway`).
 ### Kali MCP (`crhacky/blhackbox:kali-mcp`)
 
 - **Base**: `kalilinux/kali-rolling`
-- **Tools**: nmap, nikto, gobuster, dirb, whatweb, wafw00f, masscan, hydra, sqlmap, wpscan, subfinder, amass, fierce, dnsenum, whois
+- **Tools (50+)**: nmap, masscan, hping3, subfinder, amass, fierce, dnsenum, dnsrecon, theharvester, nikto, gobuster, dirb, dirsearch, ffuf, feroxbuster, whatweb, wafw00f, wpscan, arjun, dalfox, sqlmap, hydra, medusa, john, hashcat, crackmapexec, evil-winrm, enum4linux-ng, responder, netexec, aircrack-ng, bettercap, binwalk, foremost, exiftool, steghide, curl, wget, netcat, socat, and more
 - **Entrypoint**: Kali MCP server (`server.py`)
 - **Transport**: SSE on port 9001
 - **Privileged**: Yes (required for raw socket access)
+
+### Metasploit MCP (`crhacky/blhackbox:metasploit-mcp`)
+
+- **Base**: `kalilinux/kali-rolling` (includes `metasploit-framework`)
+- **Tools (13+)**: list_exploits, list_payloads, run_exploit, run_auxiliary_module, run_post_module, generate_payload, list_sessions, send_session_command, terminate_session, list_listeners, start_listener, stop_job, msf_console_execute
+- **Architecture**: FastMCP server connects to msfrpcd via MSF RPC
+- **Entrypoint**: `entrypoint.sh` (starts msfrpcd + MCP server)
+- **Transport**: SSE on port 9002
+- **Privileged**: Yes (required for exploit execution)
+- **Inspired by**: [GH05TCREW/MetasploitMCP](https://github.com/GH05TCREW/MetasploitMCP), [LYFTIUM-INC/msfconsole-mcp](https://github.com/LYFTIUM-INC/msfconsole-mcp)
+
+### WireMCP (`crhacky/blhackbox:wire-mcp`)
+
+- **Base**: `debian:bookworm-slim`
+- **Tools (7)**: capture_packets, read_pcap, get_conversations, get_statistics, extract_credentials, follow_stream, list_interfaces
+- **Entrypoint**: WireMCP server (`server.py`)
+- **Transport**: SSE on port 9003
+- **Privileged**: Yes (required for packet capture)
+- **Inspired by**: [0xKoda/WireMCP](https://github.com/0xKoda/WireMCP), [khuynh22/mcp-wireshark](https://github.com/khuynh22/mcp-wireshark)
 
 ### HexStrike (`crhacky/blhackbox:hexstrike`)
 
@@ -260,16 +289,16 @@ Named volumes for persistent data:
 
 ## CI/CD Pipeline
 
-Seven custom images are built and pushed to Docker Hub via GitHub Actions:
+Nine custom images are built and pushed to Docker Hub via GitHub Actions:
 
 ```
 PR opened  ───>  CI (lint + test + pip-audit)
                       │
-PR merged  ───>  CI  ───>  Build & Push (7 images)  ───>  Docker Hub
+PR merged  ───>  CI  ───>  Build & Push (9 images)  ───>  Docker Hub
                            (on CI success)
-Tag v*     ──────────────>  Build & Push (7 images)  ───>  Docker Hub
+Tag v*     ──────────────>  Build & Push (9 images)  ───>  Docker Hub
 
-Manual     ──────────────>  Build & Push (7 images)  ───>  Docker Hub
+Manual     ──────────────>  Build & Push (9 images)  ───>  Docker Hub
 ```
 
 Docker Scout vulnerability scanning runs on the ollama-mcp image.
@@ -282,7 +311,7 @@ Docker Scout vulnerability scanning runs on the ollama-mcp image.
 # Pull all pre-built images from Docker Hub
 docker compose pull
 
-# Start core stack (8 containers)
+# Start core stack (10 containers)
 docker compose up -d
 
 # Start with MCP Gateway for Claude Desktop (9 containers)

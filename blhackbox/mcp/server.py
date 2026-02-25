@@ -12,6 +12,8 @@ Blhackbox MCP provides *orchestrated workflows*:
   - get_findings    → retrieve structured findings for a target
   - list_tools      → discover available tools across all backends
   - generate_report → produce HTML/PDF reports from session data
+  - list_templates  → discover available prompt templates
+  - get_template    → retrieve a prompt template for autonomous pentesting
 """
 
 from __future__ import annotations
@@ -164,6 +166,46 @@ _TOOLS: list[Tool] = [
             "required": ["session_id"],
         },
     ),
+    Tool(
+        name="list_templates",
+        description=(
+            "List all available prompt templates for autonomous pentesting. "
+            "Templates provide structured workflows for different assessment "
+            "types (full pentest, recon, web app, network, OSINT, vuln assessment, "
+            "API security, bug bounty, quick scan)."
+        ),
+        inputSchema={
+            "type": "object",
+            "properties": {},
+        },
+    ),
+    Tool(
+        name="get_template",
+        description=(
+            "Retrieve a prompt template by name. Returns the full template "
+            "content with [TARGET] placeholders replaced if a target is provided. "
+            "Each template instructs the AI to use all available MCP servers "
+            "(Kali MCP, Ollama pipeline) and the HexStrike REST API."
+        ),
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "description": (
+                        "Template name: full-pentest, full-attack-chain, quick-scan, "
+                        "recon-deep, web-app-assessment, network-infrastructure, "
+                        "osint-gathering, vuln-assessment, api-security, bug-bounty"
+                    ),
+                },
+                "target": {
+                    "type": "string",
+                    "description": "Target to replace [TARGET] placeholders with",
+                },
+            },
+            "required": ["name"],
+        },
+    ),
 ]
 
 
@@ -200,6 +242,10 @@ async def _dispatch(name: str, args: dict[str, Any]) -> str:
         return await _do_list_tools()
     elif name == "generate_report":
         return await _do_generate_report(args)
+    elif name == "list_templates":
+        return await _do_list_templates()
+    elif name == "get_template":
+        return await _do_get_template(args)
     else:
         return f"Unknown tool: {name}"
 
@@ -311,6 +357,25 @@ async def _do_generate_report(args: dict[str, Any]) -> str:
         out = generate_html_report(session_data)
 
     return json.dumps({"report_path": str(out), "format": fmt})
+
+
+async def _do_list_templates() -> str:
+    from blhackbox.prompts import list_templates
+
+    templates = list_templates()
+    return json.dumps({"templates": templates}, indent=2)
+
+
+async def _do_get_template(args: dict[str, Any]) -> str:
+    from blhackbox.prompts import load_template
+
+    name = args["name"]
+    target = args.get("target")
+    try:
+        content = load_template(name, target=target)
+        return content
+    except (ValueError, FileNotFoundError) as exc:
+        return json.dumps({"error": str(exc)})
 
 
 # ---------------------------------------------------------------------------
