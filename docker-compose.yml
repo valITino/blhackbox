@@ -124,10 +124,10 @@ services:
       MSFRPC_SSL: "true"
     healthcheck:
       test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:9002/sse')\""]
-      interval: 30s
+      interval: 15s
       timeout: 10s
-      retries: 10
-      start_period: 120s
+      retries: 5
+      start_period: 30s
     networks:
       - blhackbox_net
 
@@ -367,7 +367,7 @@ services:
       kali-mcp:
         condition: service_healthy
       metasploit-mcp:
-        condition: service_started
+        condition: service_healthy
       wire-mcp:
         condition: service_healthy
       hexstrike:

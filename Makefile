@@ -77,6 +77,13 @@ nuke: ## Full cleanup: containers + volumes + ALL images (frees max disk space)
 # ── Claude Code (Docker) ────────────────────────────────────────
 claude-code: ## Build and launch Claude Code in a Docker container
 	$(COMPOSE) --profile claude-code pull claude-code || $(COMPOSE) --profile claude-code build claude-code
+	@echo ""
+	@echo "\033[1m  Pre-flight Container Status\033[0m"
+	@echo "\033[2m  ──────────────────────────────────────\033[0m"
+	@$(COMPOSE) ps --format "table {{.Name}}\t{{.Status}}" 2>/dev/null || $(COMPOSE) ps
+	@echo ""
+	@echo "\033[2m  Waiting for all dependencies to become healthy...\033[0m"
+	@echo ""
 	$(COMPOSE) --profile claude-code run --rm claude-code
 
 # ── Health & Status ──────────────────────────────────────────────
