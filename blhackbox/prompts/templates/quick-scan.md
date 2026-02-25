@@ -20,70 +20,18 @@ TARGET = "[TARGET]"
 # Examples: "example.com", "192.168.1.100", "https://app.example.com"
 ```
 
-## Available Resources — Use ALL of Them
+## MCP Servers
 
-### 1. Kali MCP Server (SSE, port 9001)
+You have access to five MCP servers. The MCP host coordinates tool selection —
+focus on the **objective** of each step and which server handles it.
 
-Execute via `run_kali_tool(tool, args, target, timeout)`:
-
-| Tool | Use Case |
-|------|----------|
-| `nmap` | Port scanning, service detection, NSE scripts |
-| `whatweb` | Technology fingerprinting |
-| `wafw00f` | WAF detection |
-| `subfinder` | Passive subdomain enumeration |
-| `whois` | Domain registration lookup |
-| `dnsrecon` | DNS record brute-forcing |
-| `theharvester` | OSINT email and subdomain harvesting |
-| `dirsearch` | Web path discovery with extensions |
-| `ffuf` | Web fuzzer for directories and parameters |
-
-### 2. Metasploit MCP Server (SSE, port 9002)
-
-Full exploit lifecycle management via MSF RPC — 13+ dedicated tools:
-
-| Tool | Use Case |
-|------|----------|
-| `list_exploits` | Search Metasploit exploit modules by keyword or CVE |
-| `list_payloads` | Search payloads with platform/architecture filtering |
-| `run_exploit` | Execute exploits with check-first option |
-| `run_auxiliary_module` | Run auxiliary modules (scanners, fuzzers) |
-| `run_post_module` | Post-exploitation against active sessions |
-| `generate_payload` | Generate payloads (msfvenom equivalent) |
-| `list_sessions` | View active shells/meterpreter sessions |
-| `send_session_command` | Execute commands in active sessions |
-| `terminate_session` | End active sessions |
-| `start_listener` | Create multi/handler listeners |
-| `stop_job` | Stop background jobs |
-| `msf_console_execute` | Raw msfconsole command execution |
-
-### 3. WireMCP Server (SSE, port 9003)
-
-Network traffic capture and analysis via tshark — 7 tools:
-
-| Tool | Use Case |
-|------|----------|
-| `capture_packets` | Live packet capture with BPF filters |
-| `read_pcap` | Parse pcap files with display filters |
-| `get_conversations` | Extract TCP/UDP/IP conversations |
-| `get_statistics` | Protocol hierarchy and endpoint stats |
-| `extract_credentials` | Find cleartext creds (HTTP, FTP, SMTP, Telnet) |
-| `follow_stream` | Reconstruct TCP/UDP streams |
-| `list_interfaces` | List available capture interfaces |
-
-### 4. HexStrike REST API (HTTP, port 8888)
-
-150+ tools and 12+ AI agents:
-
-- Intelligence analysis: `POST http://hexstrike:8888/api/intelligence/analyze-target`
-- Network scan agent: `POST http://hexstrike:8888/api/agents/network_scan/run`
-
-### 5. Ollama MCP Server (SSE, port 9000)
-
-AI preprocessing pipeline via `process_scan_results()`:
-- Ingestion Agent — parses raw output to structured data
-- Processing Agent — deduplicates, correlates, validates
-- Synthesis Agent — produces AggregatedPayload with executive summary
+| Server | Capability Domain |
+|--------|-------------------|
+| **Kali MCP** | 50+ security tools — network scanning, DNS enumeration, subdomain discovery, web vulnerability scanning, directory brute-forcing, injection testing, credential testing, technology fingerprinting, WAF detection, metadata extraction |
+| **Metasploit MCP** | Exploit lifecycle — module search, auxiliary scanning, exploit validation, payload generation, session management, post-exploitation |
+| **WireMCP** | Network traffic analysis — packet capture, pcap parsing, conversation extraction, credential discovery, stream reconstruction, protocol statistics |
+| **HexStrike** | AI security agents — OSINT, vulnerability scanning, web reconnaissance, network assessment, intelligence analysis, bug bounty workflows |
+| **Ollama MCP** | AI preprocessing pipeline — raw data ingestion, deduplication, correlation, severity assessment, structured payload synthesis |
 
 ---
 
@@ -93,37 +41,26 @@ Run these steps concurrently where possible for speed:
 
 ### Step 1: Parallel Discovery (run simultaneously)
 
-1. **Kali MCP** — `nmap -sV -sC -T4 --top-ports 1000 [TARGET]`
-2. **Kali MCP** — `whatweb [TARGET]`
-3. **Kali MCP** — `wafw00f [TARGET]`
-4. **Kali MCP** — `subfinder -d [TARGET] -silent`
-5. **Kali MCP** — `whois [TARGET]`
-6. **Metasploit MCP** — `list_exploits` to quickly identify known exploit modules for the target
-7. **Metasploit MCP** — `run_auxiliary_module` with `auxiliary/scanner/portscan/tcp` for supplemental scanning
-8. **WireMCP** — `capture_packets` during scanning to capture network traffic for quick analysis
-9. **HexStrike** — `POST /api/intelligence/analyze-target` with `{"target": "[TARGET]", "analysis_type": "quick"}`
-10. **HexStrike** — `POST /api/agents/network_scan/run` with `{"target": "[TARGET]"}`
+1. **Port scanning & service detection** — Use **Kali MCP** for top-port service scanning
+2. **Technology fingerprinting** — Use **Kali MCP** to identify web technologies
+3. **WAF detection** — Use **Kali MCP** to check for web application firewalls
+4. **Subdomain enumeration** — Use **Kali MCP** for passive subdomain discovery
+5. **Domain registration** — Use **Kali MCP** for WHOIS lookups
+6. **Exploit search** — Use **Metasploit MCP** to identify known exploit modules for the target
+7. **Auxiliary scanning** — Use **Metasploit MCP** for supplemental port scanning
+8. **Traffic capture** — Use **WireMCP** to capture network traffic during scanning
+9. **AI intelligence** — Use **HexStrike** for automated target analysis and network scanning
 
 ### Step 2: Quick Analysis
 
-1. **WireMCP** — `extract_credentials` on captured traffic for immediate credential findings
-2. **WireMCP** — `get_statistics` for quick protocol distribution overview
-3. **Metasploit MCP** — `run_exploit` with `check_first=true` against any high-severity findings for rapid validation
+1. **Credential extraction** — Use **WireMCP** on captured traffic for immediate credential findings
+2. **Traffic statistics** — Use **WireMCP** for quick protocol distribution overview
+3. **Exploit validation** — Use **Metasploit MCP** to validate any high-severity findings with check-first mode
 
 ### Step 3: Data Processing
 
-1. Collect ALL raw outputs:
-   ```python
-   raw_outputs = {
-       "nmap": "...", "whatweb": "...", "wafw00f": "...",
-       "subfinder": "...", "whois": "...",
-       "metasploit_exploits": "...", "metasploit_auxiliary": "...",
-       "wiremcp_captures": "...", "wiremcp_credentials": "...",
-       "wiremcp_statistics": "...",
-       "hexstrike_intelligence": "...", "hexstrike_network": "..."
-   }
-   ```
-2. Call `process_scan_results(raw_outputs, "[TARGET]", session_id)` on the **Ollama MCP Server**
+1. Collect ALL raw outputs from previous steps into a single dict keyed by tool/source name
+2. Call `process_scan_results()` on the **Ollama MCP Server** with the collected data
 3. Wait for the `AggregatedPayload`
 
 ### Step 4: Quick Report
@@ -131,9 +68,9 @@ Run these steps concurrently where possible for speed:
 Using the `AggregatedPayload`, produce a concise report:
 
 1. **Risk Level** — overall risk assessment in one line
-2. **Critical Findings** — any critical/high findings with immediate action items (including Metasploit-validated exploits)
+2. **Critical Findings** — any critical/high findings with immediate action items
 3. **Attack Surface** — open ports, services, subdomains, technologies
-4. **Network Traffic Insights** — WireMCP credential findings and traffic anomalies
+4. **Network Traffic Insights** — credential findings and traffic anomalies
 5. **Recommendations** — top 3-5 actions to improve security posture
 6. **Next Steps** — which deeper assessment template to run next
 
@@ -143,5 +80,5 @@ Using the `AggregatedPayload`, produce a concise report:
 
 - Prioritize speed over completeness
 - Focus on quickly identifying critical issues
-- Use ALL five systems (Kali MCP, Metasploit MCP, WireMCP, HexStrike API, Ollama pipeline)
+- Use all five MCP servers for maximum coverage
 - This is a high-level assessment — recommend deeper templates for follow-up
