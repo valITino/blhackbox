@@ -1,14 +1,11 @@
 # Prompt Templates for Autonomous Pentesting
 
-These templates provide structured workflows for Claude Code to execute
-autonomous penetration tests through the blhackbox framework. Each template
-instructs Claude to use **all available resources**:
+These templates provide structured workflows for autonomous penetration tests
+through the blhackbox framework. Each template describes **what** needs to be
+done in each phase — the MCP host decides **which** tools and servers to use.
 
-| Resource | Protocol | Port | Description |
-|----------|----------|------|-------------|
-| **Kali MCP Server** | SSE | 9001 | 15+ Kali Linux security tools (nmap, nikto, gobuster, etc.) |
-| **HexStrike REST API** | HTTP | 8888 | 150+ tools and 12+ AI agents |
-| **Ollama MCP Server** | SSE | 9000 | 3-agent preprocessing pipeline (Ingestion, Processing, Synthesis) |
+All raw outputs must pass through the **Ollama MCP preprocessing pipeline**
+(Ingestion → Processing → Synthesis) before the final report is generated.
 
 ## Available Templates
 
@@ -63,6 +60,6 @@ Load them via the `blhackbox.prompts` module or read them directly from disk.
 
 ## Legal Notice
 
-All templates include authorization disclaimers. You **must** have explicit,
-written authorization from the target owner before executing any assessment.
-Unauthorized access to computer systems is illegal.
+All templates are intended for authorized testing only. You **must** have
+explicit, written authorization from the target owner before executing any
+assessment. Unauthorized access to computer systems is illegal.

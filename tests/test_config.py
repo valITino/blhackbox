@@ -16,7 +16,7 @@ class TestSettings:
     def test_defaults(self) -> None:
         s = Settings()
         assert "hexstrike" in s.hexstrike_url or "localhost" in s.hexstrike_url
-        assert s.hexstrike_timeout == 120
+        assert s.hexstrike_timeout == 300
         assert s.hexstrike_max_retries == 3
         assert s.log_level == "INFO"
 

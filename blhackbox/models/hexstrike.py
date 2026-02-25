@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 
 
 class HexStrikeToolResponse(BaseModel):
-    """Response from POST /api/tools/<category>/<tool>."""
+    """Response from POST /api/tools/<tool>."""
 
     success: bool = True
     tool: str = ""
