@@ -11,6 +11,7 @@ FROM kalilinux/kali-rolling
 RUN apt-get update && apt-get install -y --no-install-recommends \
     # --- Network / Recon ---
     nmap \
+    rustscan \
     masscan \
     netdiscover \
     arp-scan \
@@ -35,7 +36,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     whatweb \
     wafw00f \
     wpscan \
+    httpx-toolkit \
+    katana \
     arjun \
+    paramspider \
     # --- Exploitation / Brute-force ---
     sqlmap \
     hydra \
@@ -46,10 +50,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     evil-winrm \
     smbclient \
     enum4linux \
+    enum4linux-ng \
     responder \
     netexec \
     # --- Wireless ---
     aircrack-ng \
+    wifite \
     bettercap \
     # --- Forensics / Binary ---
     binwalk \
@@ -57,6 +63,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     exiftool \
     steghide \
     hashid \
+    binutils \
     # --- Utilities ---
     curl \
     wget \

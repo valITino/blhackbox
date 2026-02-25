@@ -26,7 +26,7 @@ logger = logging.getLogger("kali-mcp")
 # Full Kali Linux tool allowlist — expanded to cover the complete security
 # toolchain available in a kali-rolling container.
 #
-# Categories:
+# Categories (57 tools):
 #   Network/Recon: nmap, rustscan, masscan, netdiscover, arp-scan, traceroute, hping3
 #   DNS:           subfinder, amass, fierce, dnsenum, dnsrecon, dig, whois, theharvester
 #   Web:           nikto, gobuster, dirb, dirsearch, ffuf, feroxbuster, whatweb, wafw00f,
@@ -34,8 +34,8 @@ logger = logging.getLogger("kali-mcp")
 #   Exploitation:  sqlmap, hydra, medusa, john, hashcat, crackmapexec, evil-winrm,
 #                  smbclient, enum4linux-ng, responder, netexec
 #   Wireless:      aircrack-ng, airodump-ng, aireplay-ng, wifite, bettercap
-#   Forensics:     binwalk, foremost, exiftool, steghide, strings, volatility3, hashid
-#   Misc:          curl, wget, netcat, socat, sshpass, proxychains4, chisel, ligolo-ng
+#   Forensics:     binwalk, foremost, exiftool, steghide, strings, hashid
+#   Utilities:     curl, wget, netcat, socat, sshpass, proxychains4
 ALLOWED_TOOLS = set(
     t.strip()
     for t in os.environ.get(
