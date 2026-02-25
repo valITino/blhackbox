@@ -126,8 +126,8 @@ services:
       test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:9002/sse')\""]
       interval: 30s
       timeout: 10s
-      retries: 5
-      start_period: 60s
+      retries: 10
+      start_period: 120s
     networks:
       - blhackbox_net
 
@@ -367,7 +367,7 @@ services:
       kali-mcp:
         condition: service_healthy
       metasploit-mcp:
-        condition: service_healthy
+        condition: service_started
       wire-mcp:
         condition: service_healthy
       hexstrike:
