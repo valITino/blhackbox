@@ -84,10 +84,28 @@ jobs:
         uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3.10.0
 
       - name: Log in to Docker Hub
-        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3.4.0
-        with:
-          username: crhacky
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+        env:
+          DOCKERHUB_USERNAME: crhacky
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          max_attempts=5
+          attempt=1
+          backoff=3
+          while [ "$attempt" -le "$max_attempts" ]; do
+            echo "Docker login attempt ${attempt}/${max_attempts}..."
+            if echo "${DOCKERHUB_TOKEN}" | docker login -u "${DOCKERHUB_USERNAME}" --password-stdin 2>&1; then
+              echo "Docker login succeeded on attempt ${attempt}"
+              exit 0
+            fi
+            if [ "$attempt" -lt "$max_attempts" ]; then
+              echo "Login failed, retrying in ${backoff}s..."
+              sleep "$backoff"
+              backoff=$((backoff * 2))
+            fi
+            attempt=$((attempt + 1))
+          done
+          echo "::error::Docker login failed after ${max_attempts} attempts"
+          exit 1
 
       - name: Extract metadata (tags, labels)
         id: meta
