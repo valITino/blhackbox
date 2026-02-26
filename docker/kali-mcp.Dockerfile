@@ -8,10 +8,11 @@ FROM kalilinux/kali-rolling
 
 # Install the full Kali security toolchain referenced in kali-mcp/server.py.
 # Grouped by category — must stay in sync with the ALLOWED_TOOLS allowlist.
+# NOTE: rustscan, katana, and dalfox are NOT in Kali apt repos — they are
+# installed from GitHub release binaries in separate RUN steps below.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     # --- Network / Recon ---
     nmap \
-    rustscan \
     masscan \
     netdiscover \
     arp-scan \
@@ -37,7 +38,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     wafw00f \
     wpscan \
     httpx-toolkit \
-    katana \
     arjun \
     paramspider \
     # --- Exploitation / Brute-force ---
@@ -67,6 +67,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # --- Utilities ---
     curl \
     wget \
+    unzip \
     netcat-openbsd \
     socat \
     sshpass \
@@ -75,6 +76,23 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-pip \
     python3-venv \
     && rm -rf /var/lib/apt/lists/*
+
+# rustscan is not in Kali apt repos — install .deb from GitHub release
+RUN RUSTSCAN_VERSION="2.4.1" && \
+    curl -sL "https://github.com/bee-san/RustScan/releases/download/${RUSTSCAN_VERSION}/rustscan.deb.zip" \
+        -o /tmp/rustscan.deb.zip && \
+    cd /tmp && unzip rustscan.deb.zip && \
+    dpkg -i rustscan_*.deb && \
+    rm -rf /tmp/rustscan*
+
+# katana is not in Kali apt repos — install from GitHub release binary
+RUN KATANA_VERSION="1.4.0" && \
+    curl -sL "https://github.com/projectdiscovery/katana/releases/download/v${KATANA_VERSION}/katana_${KATANA_VERSION}_linux_amd64.zip" \
+        -o /tmp/katana.zip && \
+    cd /tmp && unzip katana.zip -d katana_extract && \
+    mv katana_extract/katana /usr/local/bin/katana && \
+    chmod +x /usr/local/bin/katana && \
+    rm -rf /tmp/katana*
 
 # dalfox is not in Kali apt repos — install from GitHub release binary
 RUN DALFOX_VERSION="2.9.3" && \

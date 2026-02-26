@@ -300,3 +300,19 @@ class TestDockerfileConsistency:
             assert "dalfox" in content, f"dalfox installation not found in {path}"
             assert "github.com/hahwul/dalfox" in content, \
                 f"dalfox should be installed from GitHub release in {path}"
+
+    def test_rustscan_installed_via_github(self) -> None:
+        """rustscan is not in Kali apt repos — verify GitHub release install."""
+        for path in ["docker/kali-mcp.Dockerfile", "kali-mcp/Dockerfile"]:
+            content = self._read_dockerfile(path)
+            assert "rustscan" in content, f"rustscan installation not found in {path}"
+            assert "github.com/bee-san/RustScan" in content, \
+                f"rustscan should be installed from GitHub release in {path}"
+
+    def test_katana_installed_via_github(self) -> None:
+        """katana is not in Kali apt repos — verify GitHub release install."""
+        for path in ["docker/kali-mcp.Dockerfile", "kali-mcp/Dockerfile"]:
+            content = self._read_dockerfile(path)
+            assert "katana" in content, f"katana installation not found in {path}"
+            assert "github.com/projectdiscovery/katana" in content, \
+                f"katana should be installed from GitHub release in {path}"
