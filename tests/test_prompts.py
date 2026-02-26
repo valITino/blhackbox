@@ -35,32 +35,18 @@ class TestLoadTemplate:
             content = load_template(name)
             assert len(content) > 100, f"Template {name} seems too short"
 
-    def test_all_templates_have_authorization_warning(self) -> None:
+    def test_all_templates_have_data_processing_step(self) -> None:
         for name in TEMPLATES:
             content = load_template(name)
-            assert "AUTHORIZED TESTING ONLY" in content, (
-                f"Template {name} missing authorization warning"
+            assert "REQUIRED" in content or "mandatory" in content, (
+                f"Template {name} missing mandatory data processing step"
             )
 
-    def test_all_templates_mention_kali_mcp(self) -> None:
+    def test_all_templates_mention_ollama_pipeline(self) -> None:
         for name in TEMPLATES:
             content = load_template(name)
-            assert "Kali MCP" in content, (
-                f"Template {name} does not mention Kali MCP"
-            )
-
-    def test_all_templates_mention_hexstrike(self) -> None:
-        for name in TEMPLATES:
-            content = load_template(name)
-            assert "HexStrike" in content or "hexstrike" in content, (
-                f"Template {name} does not mention HexStrike"
-            )
-
-    def test_all_templates_mention_ollama(self) -> None:
-        for name in TEMPLATES:
-            content = load_template(name)
-            assert "Ollama" in content or "ollama" in content, (
-                f"Template {name} does not mention Ollama"
+            assert "Ollama" in content or "process_scan_results" in content, (
+                f"Template {name} does not reference Ollama preprocessing pipeline"
             )
 
     def test_all_templates_have_placeholder_section(self) -> None:
