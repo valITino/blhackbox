@@ -9,10 +9,13 @@ These run as separate Docker containers, NOT inside the ollama-mcp server.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
+from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import Any
 
 import uvicorn
 from fastapi import FastAPI, HTTPException
@@ -24,8 +27,35 @@ logger = logging.getLogger("blhackbox.agent_server")
 OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://ollama:11434")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.3")
 
+# Timeout (seconds) for Ollama requests — generous to cover cold-start model
+# loading, which can take minutes on first invocation.
+OLLAMA_TIMEOUT = float(os.getenv("OLLAMA_TIMEOUT", "300"))
+
+# Context window size — large pentest outputs need more than the default 2048.
+OLLAMA_NUM_CTX = int(os.getenv("OLLAMA_NUM_CTX", "8192"))
+
+# Keep the model in memory between sequential agent calls to avoid repeated
+# cold-start loading.  Default: 10 minutes.
+OLLAMA_KEEP_ALIVE = os.getenv("OLLAMA_KEEP_ALIVE", "10m")
+
+# Number of retries for transient Ollama failures.
+OLLAMA_RETRIES = int(os.getenv("OLLAMA_RETRIES", "2"))
+
 # Prompt directory — resolved at container build time
 _PROMPTS_DIR = Path(__file__).resolve().parent.parent / "prompts" / "agents"
+
+
+def _serialize_data(data: dict | str) -> str:
+    """Convert request data to a proper JSON string for Ollama.
+
+    If *data* is already a string it is returned as-is.  If it is a dict
+    (the typical case for Processing / Synthesis agents), it is serialised
+    with ``json.dumps`` so that Ollama receives valid JSON — **not** the
+    Python repr that ``str()`` would produce.
+    """
+    if isinstance(data, str):
+        return data
+    return json.dumps(data, default=str)
 
 
 class ProcessRequest(BaseModel):
@@ -41,13 +71,12 @@ class BaseAgentServer:
 
     The agent loads its system prompt from
     ``blhackbox/prompts/agents/<agent_name>.md`` and exposes:
-      - GET  /health   — lightweight liveness check (does NOT call Ollama)
+      - GET  /health   — liveness check (also verifies Ollama reachability)
       - POST /process  — send data to Ollama and return structured JSON
     """
 
     def __init__(self, agent_name: str) -> None:
         self.agent_name = agent_name
-        self.app = FastAPI(title=f"blhackbox {agent_name} Agent")
 
         prompt_file = _PROMPTS_DIR / f"{agent_name.lower()}.md"
         if prompt_file.exists():
@@ -59,8 +88,39 @@ class BaseAgentServer:
                 "Respond only in valid JSON."
             )
 
+        # Create FastAPI app with lifespan for model warmup
+        self.app = FastAPI(
+            title=f"blhackbox {agent_name} Agent",
+            lifespan=self._lifespan,
+        )
+
         # Register routes
         self._register_routes()
+
+    @asynccontextmanager
+    async def _lifespan(self, app: FastAPI):
+        """Warm up Ollama model on startup to avoid cold-start 502s."""
+        await self._warmup_model()
+        yield
+
+    async def _warmup_model(self) -> None:
+        """Send a tiny request to Ollama to trigger model loading.
+
+        This runs during FastAPI startup so the model is already in memory
+        by the time the first real /process request arrives.
+        """
+        logger.info("Warming up Ollama model %s at %s …", OLLAMA_MODEL, OLLAMA_HOST)
+        try:
+            client = AsyncClient(host=OLLAMA_HOST, timeout=OLLAMA_TIMEOUT)
+            await client.chat(
+                model=OLLAMA_MODEL,
+                messages=[{"role": "user", "content": "hello"}],
+                keep_alive=OLLAMA_KEEP_ALIVE,
+            )
+            logger.info("Model %s is warm and ready", OLLAMA_MODEL)
+        except Exception as exc:
+            # Non-fatal — the model will load on first real request.
+            logger.warning("Model warmup failed (will retry on first request): %s", exc)
 
     def _register_routes(self) -> None:
         app = self.app
@@ -69,30 +129,68 @@ class BaseAgentServer:
 
         @app.get("/health")
         async def health() -> dict:
-            return {"status": "ok", "agent": agent_name}
+            """Liveness check — also verifies Ollama is reachable."""
+            result: dict[str, Any] = {"status": "ok", "agent": agent_name}
+            try:
+                client = AsyncClient(host=OLLAMA_HOST, timeout=10.0)
+                models = await client.list()
+                result["ollama"] = "reachable"
+                result["models_loaded"] = len(models.get("models", []))
+            except Exception:
+                result["ollama"] = "unreachable"
+            return result
 
         @app.post("/process")
         async def process(req: ProcessRequest) -> dict:
-            try:
-                client = AsyncClient(host=OLLAMA_HOST)
-                response = await client.chat(
-                    model=OLLAMA_MODEL,
-                    messages=[
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": str(req.data)},
-                    ],
-                    format="json",
-                )
-            except ResponseError as exc:
-                raise HTTPException(
-                    status_code=502,
-                    detail=f"Ollama error: {exc}",
-                ) from exc
-            except Exception as exc:
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Ollama unreachable at {OLLAMA_HOST}: {exc}",
-                ) from exc
+            user_content = _serialize_data(req.data)
+            last_exc: Exception | None = None
+
+            for attempt in range(1 + OLLAMA_RETRIES):
+                try:
+                    client = AsyncClient(
+                        host=OLLAMA_HOST, timeout=OLLAMA_TIMEOUT,
+                    )
+                    response = await client.chat(
+                        model=OLLAMA_MODEL,
+                        messages=[
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": user_content},
+                        ],
+                        format="json",
+                        options={"num_ctx": OLLAMA_NUM_CTX},
+                        keep_alive=OLLAMA_KEEP_ALIVE,
+                    )
+                    # Success — break out of retry loop
+                    break
+                except ResponseError as exc:
+                    last_exc = exc
+                    logger.warning(
+                        "%s: Ollama ResponseError (attempt %d/%d): %s",
+                        agent_name, attempt + 1, 1 + OLLAMA_RETRIES, exc,
+                    )
+                    if attempt < OLLAMA_RETRIES:
+                        await asyncio.sleep(2 ** attempt)
+                        continue
+                    raise HTTPException(
+                        status_code=502,
+                        detail=f"Ollama error after {1 + OLLAMA_RETRIES} attempts: {exc}",
+                    ) from exc
+                except Exception as exc:
+                    last_exc = exc
+                    logger.warning(
+                        "%s: Ollama request failed (attempt %d/%d): %s",
+                        agent_name, attempt + 1, 1 + OLLAMA_RETRIES, exc,
+                    )
+                    if attempt < OLLAMA_RETRIES:
+                        await asyncio.sleep(2 ** attempt)
+                        continue
+                    raise HTTPException(
+                        status_code=503,
+                        detail=(
+                            f"Ollama unreachable at {OLLAMA_HOST} after "
+                            f"{1 + OLLAMA_RETRIES} attempts: {exc}"
+                        ),
+                    ) from exc
 
             content = response.message.content or ""
             if not content:

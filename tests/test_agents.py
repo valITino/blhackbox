@@ -15,7 +15,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from blhackbox.agents.base_agent import BaseAgent
+from blhackbox.agents.base_agent import BaseAgent, _serialize_data
 from blhackbox.agents.ingestion_agent import IngestionAgent
 from blhackbox.agents.processing_agent import ProcessingAgent
 from blhackbox.agents.synthesis_agent import SynthesisAgent
@@ -218,3 +218,88 @@ class TestAgentInstantiation:
             agent = cls()
             assert agent.ollama_host == "http://localhost:11434"
             assert agent.model == "llama3.3"
+
+
+# ---------------------------------------------------------------------------
+# _serialize_data — ensures dicts become valid JSON
+# ---------------------------------------------------------------------------
+
+
+class TestSerializeData:
+    def test_string_passthrough(self) -> None:
+        assert _serialize_data("raw text") == "raw text"
+
+    def test_dict_to_json(self) -> None:
+        data = {"key": "value", "nested": {"a": 1}}
+        result = _serialize_data(data)
+        parsed = json.loads(result)
+        assert parsed == data
+
+    def test_empty_dict(self) -> None:
+        assert _serialize_data({}) == "{}"
+
+    def test_dict_not_python_repr(self) -> None:
+        """Ensure the output is JSON with double quotes, not Python repr."""
+        data = {"key": "value"}
+        result = _serialize_data(data)
+        # JSON uses double quotes; Python repr uses single quotes
+        assert '"key"' in result
+        assert "'" not in result
+
+
+# ---------------------------------------------------------------------------
+# BaseAgent retry logic
+# ---------------------------------------------------------------------------
+
+
+class TestBaseAgentRetry:
+    @pytest.mark.asyncio
+    async def test_retries_on_failure(self) -> None:
+        """Should retry on transient failures before returning empty dict."""
+        agent = IngestionAgent()
+        mock_client = AsyncMock()
+        mock_client.chat.side_effect = Exception("transient error")
+
+        with patch("blhackbox.agents.base_agent.AsyncClient", return_value=mock_client), \
+             patch("blhackbox.agents.base_agent._OLLAMA_RETRIES", 1), \
+             patch("blhackbox.agents.base_agent.asyncio.sleep", new_callable=AsyncMock):
+            result = await agent.process("some data")
+            assert result == {}
+            # 1 retry = 2 total attempts
+            assert mock_client.chat.call_count == 2
+
+    @pytest.mark.asyncio
+    async def test_succeeds_after_retry(self) -> None:
+        """Should succeed if the retry works."""
+        agent = IngestionAgent()
+        mock_response = SimpleNamespace(
+            message=SimpleNamespace(content='{"hosts": []}')
+        )
+        mock_client = AsyncMock()
+        mock_client.chat.side_effect = [Exception("transient"), mock_response]
+
+        with patch("blhackbox.agents.base_agent.AsyncClient", return_value=mock_client), \
+             patch("blhackbox.agents.base_agent._OLLAMA_RETRIES", 1), \
+             patch("blhackbox.agents.base_agent.asyncio.sleep", new_callable=AsyncMock):
+            result = await agent.process("some data")
+            assert result == {"hosts": []}
+
+    @pytest.mark.asyncio
+    async def test_dict_data_sent_as_json(self) -> None:
+        """Verify dict data is serialised to JSON for Ollama, not Python repr."""
+        agent = IngestionAgent()
+        mock_response = SimpleNamespace(
+            message=SimpleNamespace(content='{"hosts": []}')
+        )
+        mock_client = AsyncMock()
+        mock_client.chat.return_value = mock_response
+
+        dict_data = {"ingestion_output": {"hosts": []}, "processing_output": {}}
+
+        with patch("blhackbox.agents.base_agent.AsyncClient", return_value=mock_client):
+            await agent.process(dict_data)
+            call_args = mock_client.chat.call_args
+            user_content = call_args.kwargs["messages"][1]["content"]
+            # Must be valid JSON
+            parsed = json.loads(user_content)
+            assert parsed == dict_data
