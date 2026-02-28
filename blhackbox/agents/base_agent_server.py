@@ -143,7 +143,6 @@ class BaseAgentServer:
         @app.post("/process")
         async def process(req: ProcessRequest) -> dict:
             user_content = _serialize_data(req.data)
-            last_exc: Exception | None = None
 
             for attempt in range(1 + OLLAMA_RETRIES):
                 try:
@@ -163,7 +162,6 @@ class BaseAgentServer:
                     # Success — break out of retry loop
                     break
                 except ResponseError as exc:
-                    last_exc = exc
                     logger.warning(
                         "%s: Ollama ResponseError (attempt %d/%d): %s",
                         agent_name, attempt + 1, 1 + OLLAMA_RETRIES, exc,
@@ -176,7 +174,6 @@ class BaseAgentServer:
                         detail=f"Ollama error after {1 + OLLAMA_RETRIES} attempts: {exc}",
                     ) from exc
                 except Exception as exc:
-                    last_exc = exc
                     logger.warning(
                         "%s: Ollama request failed (attempt %d/%d): %s",
                         agent_name, attempt + 1, 1 + OLLAMA_RETRIES, exc,

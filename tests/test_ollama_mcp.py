@@ -285,8 +285,9 @@ class TestCallAgentRetry:
         mock_client.post.side_effect = httpx.ConnectError("unreachable")
 
         warnings: list[str] = []
+        sleep_path = "mcp_servers.ollama_mcp_server.asyncio.sleep"
         with patch("mcp_servers.ollama_mcp_server.AGENT_RETRIES", 2), \
-             patch("mcp_servers.ollama_mcp_server.asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
+             patch(sleep_path, new_callable=AsyncMock) as mock_sleep:
             result = await _call_agent(
                 mock_client, "http://agent:8001", "data",
                 "session1", "example.com", "TestAgent", warnings,
