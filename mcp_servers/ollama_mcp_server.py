@@ -16,6 +16,7 @@ Uses FastMCP for automatic tool schema generation and protocol handling.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
@@ -61,6 +62,13 @@ AGENT_SYNTHESIS_URL = os.environ.get(
     "AGENT_SYNTHESIS_URL", "http://agent-synthesis:8003"
 )
 
+# HTTP timeout for agent calls — must exceed the agent's own Ollama timeout
+# (default 300 s) plus overhead.  360 s gives a comfortable margin.
+AGENT_TIMEOUT = float(os.environ.get("AGENT_TIMEOUT", "360"))
+
+# Number of retries for transient agent failures (502, 503, connection errors).
+AGENT_RETRIES = int(os.environ.get("AGENT_RETRIES", "2"))
+
 # ---------------------------------------------------------------------------
 # FastMCP Server
 # ---------------------------------------------------------------------------
@@ -84,27 +92,58 @@ async def _call_agent(
     agent_name: str,
     warnings: list[str],
 ) -> dict[str, Any]:
-    """Call an agent container's POST /process endpoint."""
+    """Call an agent container's POST /process endpoint with retry logic.
+
+    Retries on connection errors and 5xx HTTP status codes using exponential
+    backoff.  Non-retryable errors (4xx, JSON decode failures) fail
+    immediately.
+    """
     payload = {"data": data, "session_id": session_id, "target": target}
-    try:
-        response = await client.post(f"{url}/process", json=payload)
-        response.raise_for_status()
-        return response.json()
-    except httpx.ConnectError:
-        msg = f"{agent_name} unreachable at {url}"
-        logger.error(msg)
-        warnings.append(msg)
-        return {}
-    except httpx.HTTPStatusError as exc:
-        msg = f"{agent_name} returned HTTP {exc.response.status_code}"
-        logger.error(msg)
-        warnings.append(msg)
-        return {}
-    except Exception as exc:
-        msg = f"{agent_name} failed: {exc}"
-        logger.error(msg)
-        warnings.append(msg)
-        return {}
+    last_error: str = ""
+
+    for attempt in range(1 + AGENT_RETRIES):
+        try:
+            response = await client.post(f"{url}/process", json=payload)
+            response.raise_for_status()
+            return response.json()
+        except httpx.ConnectError as exc:
+            last_error = f"{agent_name} unreachable at {url}: {exc}"
+            logger.warning(
+                "%s (attempt %d/%d)", last_error, attempt + 1, 1 + AGENT_RETRIES,
+            )
+        except httpx.HTTPStatusError as exc:
+            status = exc.response.status_code
+            # Extract detail from the JSON error body when available
+            detail = ""
+            try:
+                detail = exc.response.json().get("detail", "")
+            except Exception:
+                detail = exc.response.text[:200]
+            last_error = (
+                f"{agent_name} returned HTTP {status}: {detail}"
+            )
+            logger.warning(
+                "%s (attempt %d/%d)", last_error, attempt + 1, 1 + AGENT_RETRIES,
+            )
+            # Only retry on server errors (5xx), not client errors (4xx)
+            if status < 500:
+                break
+        except Exception as exc:
+            last_error = f"{agent_name} failed: {exc}"
+            logger.warning(
+                "%s (attempt %d/%d)", last_error, attempt + 1, 1 + AGENT_RETRIES,
+            )
+
+        # Exponential backoff before next retry
+        if attempt < AGENT_RETRIES:
+            backoff = 2 ** attempt
+            logger.info("Retrying %s in %ds …", agent_name, backoff)
+            await asyncio.sleep(backoff)
+
+    # All retries exhausted
+    logger.error("%s: all %d attempts failed — %s", agent_name, 1 + AGENT_RETRIES, last_error)
+    warnings.append(last_error)
+    return {}
 
 
 @mcp.tool()
@@ -139,8 +178,9 @@ async def process_scan_results(
         raw_combined += f"=== {tool_name} ===\n{output}\n\n"
     total_raw_size = len(raw_combined.encode("utf-8"))
 
-    async with httpx.AsyncClient(timeout=180.0) as client:
+    async with httpx.AsyncClient(timeout=AGENT_TIMEOUT) as client:
         # ── Agent 1: Ingestion ────────────────────────────────────────
+        logger.info("Calling IngestionAgent at %s …", AGENT_INGESTION_URL)
         ingestion_output = await _call_agent(
             client, AGENT_INGESTION_URL, raw_combined,
             session_id, target, "IngestionAgent", warnings,
@@ -149,6 +189,7 @@ async def process_scan_results(
             warnings.append("IngestionAgent returned empty output")
 
         # ── Agent 2: Processing ───────────────────────────────────────
+        logger.info("Calling ProcessingAgent at %s …", AGENT_PROCESSING_URL)
         processing_output = await _call_agent(
             client, AGENT_PROCESSING_URL, ingestion_output,
             session_id, target, "ProcessingAgent", warnings,
@@ -157,10 +198,13 @@ async def process_scan_results(
             warnings.append("ProcessingAgent returned empty output")
 
         # ── Agent 3: Synthesis ────────────────────────────────────────
+        # Keys match what the synthesis agent prompt expects:
+        #   "ingestion_output" and "processing_output"
         synthesis_input = {
-            "ingested": ingestion_output,
-            "processed": processing_output,
+            "ingestion_output": ingestion_output,
+            "processing_output": processing_output,
         }
+        logger.info("Calling SynthesisAgent at %s …", AGENT_SYNTHESIS_URL)
         synthesis_output = await _call_agent(
             client, AGENT_SYNTHESIS_URL, synthesis_input,
             session_id, target, "SynthesisAgent", warnings,

@@ -12,8 +12,10 @@ standard Ollama instance running unchanged as a Docker container.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
+import os
 from pathlib import Path
 from typing import Any
 
@@ -23,6 +25,23 @@ logger = logging.getLogger("blhackbox.agents.base")
 
 # Resolve prompts directory relative to this file
 _PROMPTS_DIR = Path(__file__).resolve().parent.parent / "prompts" / "agents"
+
+# Configurable via environment — mirrors the server defaults.
+_OLLAMA_TIMEOUT = float(os.getenv("OLLAMA_TIMEOUT", "300"))
+_OLLAMA_NUM_CTX = int(os.getenv("OLLAMA_NUM_CTX", "8192"))
+_OLLAMA_KEEP_ALIVE = os.getenv("OLLAMA_KEEP_ALIVE", "10m")
+_OLLAMA_RETRIES = int(os.getenv("OLLAMA_RETRIES", "2"))
+
+
+def _serialize_data(data: dict | str) -> str:
+    """Convert data to a proper JSON string for Ollama.
+
+    Dicts are serialised with ``json.dumps`` so that Ollama receives valid
+    JSON instead of the Python repr that ``str()`` would produce.
+    """
+    if isinstance(data, str):
+        return data
+    return json.dumps(data, default=str)
 
 
 class BaseAgent:
@@ -54,31 +73,46 @@ class BaseAgent:
     async def process(self, data: dict | str) -> dict[str, Any]:
         """Send data to Ollama for processing and return parsed JSON.
 
-        If Ollama is unreachable or returns invalid JSON, returns an empty dict
-        rather than raising — the caller is responsible for degraded handling.
+        Retries transient failures with exponential backoff.  If Ollama is
+        unreachable or returns invalid JSON after all attempts, returns an
+        empty dict — the caller is responsible for degraded handling.
         """
-        try:
-            client = AsyncClient(host=self.ollama_host)
-            response = await client.chat(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": self.system_prompt},
-                    {"role": "user", "content": str(data)},
-                ],
-                format="json",
-            )
-        except ResponseError as exc:
-            logger.error(
-                "%s: Ollama error: %s", self.__class__.__name__, exc
-            )
-            return {}
-        except Exception as exc:
-            logger.error(
-                "%s: Ollama request failed: %s", self.__class__.__name__, exc
-            )
-            return {}
+        user_content = _serialize_data(data)
 
-        return self._parse(response)
+        for attempt in range(1 + _OLLAMA_RETRIES):
+            try:
+                client = AsyncClient(
+                    host=self.ollama_host, timeout=_OLLAMA_TIMEOUT,
+                )
+                response = await client.chat(
+                    model=self.model,
+                    messages=[
+                        {"role": "system", "content": self.system_prompt},
+                        {"role": "user", "content": user_content},
+                    ],
+                    format="json",
+                    options={"num_ctx": _OLLAMA_NUM_CTX},
+                    keep_alive=_OLLAMA_KEEP_ALIVE,
+                )
+                return self._parse(response)
+            except ResponseError as exc:
+                logger.warning(
+                    "%s: Ollama error (attempt %d/%d): %s",
+                    self.__class__.__name__, attempt + 1, 1 + _OLLAMA_RETRIES, exc,
+                )
+            except Exception as exc:
+                logger.warning(
+                    "%s: Ollama request failed (attempt %d/%d): %s",
+                    self.__class__.__name__, attempt + 1, 1 + _OLLAMA_RETRIES, exc,
+                )
+
+            if attempt < _OLLAMA_RETRIES:
+                await asyncio.sleep(2 ** attempt)
+
+        logger.error(
+            "%s: all %d attempts failed", self.__class__.__name__, 1 + _OLLAMA_RETRIES,
+        )
+        return {}
 
     def _parse(self, response: Any) -> dict[str, Any]:
         """Extract and parse the JSON content from Ollama's response."""

@@ -12,7 +12,7 @@ from __future__ import annotations
 import asyncio
 import sys
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
@@ -270,3 +270,121 @@ class TestBuildErrorLog:
         assert len(entries) == 1
         assert entries[0].security_relevance == "high"
         assert entries[0].security_note == "Active rate limiting suggests WAF presence"
+
+
+# ---------------------------------------------------------------------------
+# _call_agent retry logic
+# ---------------------------------------------------------------------------
+
+
+class TestCallAgentRetry:
+    @pytest.mark.asyncio
+    async def test_retries_on_connect_error(self) -> None:
+        """Should retry on connection errors with exponential backoff."""
+        mock_client = AsyncMock()
+        mock_client.post.side_effect = httpx.ConnectError("unreachable")
+
+        warnings: list[str] = []
+        sleep_path = "mcp_servers.ollama_mcp_server.asyncio.sleep"
+        with patch("mcp_servers.ollama_mcp_server.AGENT_RETRIES", 2), \
+             patch(sleep_path, new_callable=AsyncMock) as mock_sleep:
+            result = await _call_agent(
+                mock_client, "http://agent:8001", "data",
+                "session1", "example.com", "TestAgent", warnings,
+            )
+            assert result == {}
+            # 2 retries = 3 total attempts
+            assert mock_client.post.call_count == 3
+            # Should have slept between retries
+            assert mock_sleep.call_count == 2
+
+    @pytest.mark.asyncio
+    async def test_retries_on_5xx_error(self) -> None:
+        """Should retry on 5xx HTTP errors."""
+        mock_response = MagicMock()
+        mock_response.status_code = 502
+        mock_response.json.return_value = {"detail": "Ollama error"}
+
+        mock_client = AsyncMock()
+        mock_client.post.side_effect = httpx.HTTPStatusError(
+            "error", request=MagicMock(), response=mock_response,
+        )
+
+        warnings: list[str] = []
+        with patch("mcp_servers.ollama_mcp_server.AGENT_RETRIES", 1), \
+             patch("mcp_servers.ollama_mcp_server.asyncio.sleep", new_callable=AsyncMock):
+            result = await _call_agent(
+                mock_client, "http://agent:8001", "data",
+                "session1", "example.com", "TestAgent", warnings,
+            )
+            assert result == {}
+            # 1 retry = 2 total attempts
+            assert mock_client.post.call_count == 2
+
+    @pytest.mark.asyncio
+    async def test_no_retry_on_4xx_error(self) -> None:
+        """Should NOT retry on client errors (4xx)."""
+        mock_response = MagicMock()
+        mock_response.status_code = 400
+        mock_response.json.return_value = {"detail": "bad request"}
+
+        mock_client = AsyncMock()
+        mock_client.post.side_effect = httpx.HTTPStatusError(
+            "error", request=MagicMock(), response=mock_response,
+        )
+
+        warnings: list[str] = []
+        with patch("mcp_servers.ollama_mcp_server.AGENT_RETRIES", 2), \
+             patch("mcp_servers.ollama_mcp_server.asyncio.sleep", new_callable=AsyncMock):
+            result = await _call_agent(
+                mock_client, "http://agent:8001", "data",
+                "session1", "example.com", "TestAgent", warnings,
+            )
+            assert result == {}
+            # No retry on 4xx — should only attempt once
+            assert mock_client.post.call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_succeeds_after_retry(self) -> None:
+        """Should succeed if the second attempt works."""
+        mock_success = MagicMock()
+        mock_success.json.return_value = {"hosts": ["10.0.0.1"]}
+        mock_success.raise_for_status = MagicMock()
+
+        mock_client = AsyncMock()
+        mock_client.post.side_effect = [
+            httpx.ConnectError("transient"),
+            mock_success,
+        ]
+
+        warnings: list[str] = []
+        with patch("mcp_servers.ollama_mcp_server.AGENT_RETRIES", 1), \
+             patch("mcp_servers.ollama_mcp_server.asyncio.sleep", new_callable=AsyncMock):
+            result = await _call_agent(
+                mock_client, "http://agent:8001", "data",
+                "session1", "example.com", "TestAgent", warnings,
+            )
+            assert result == {"hosts": ["10.0.0.1"]}
+            assert warnings == []
+
+    @pytest.mark.asyncio
+    async def test_error_detail_extracted(self) -> None:
+        """Should extract error detail from the JSON response body."""
+        mock_response = MagicMock()
+        mock_response.status_code = 502
+        mock_response.json.return_value = {"detail": "Ollama error: model not found"}
+
+        mock_client = AsyncMock()
+        mock_client.post.side_effect = httpx.HTTPStatusError(
+            "error", request=MagicMock(), response=mock_response,
+        )
+
+        warnings: list[str] = []
+        with patch("mcp_servers.ollama_mcp_server.AGENT_RETRIES", 0):
+            result = await _call_agent(
+                mock_client, "http://agent:8001", "data",
+                "session1", "example.com", "TestAgent", warnings,
+            )
+            assert result == {}
+            assert len(warnings) == 1
+            assert "model not found" in warnings[0]
