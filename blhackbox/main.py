@@ -439,17 +439,23 @@ async def _do_graph_summary(target: str) -> None:
 @click.option(
     "--format",
     "fmt",
-    type=click.Choice(["pdf", "html"]),
+    type=click.Choice(["pdf", "html", "md"]),
     default="pdf",
     help="Report format.",
 )
 @click.option("--output", "-o", type=click.Path(), help="Output file path.")
-def report(session: str, fmt: str, output: str | None) -> None:
+@click.option(
+    "--both",
+    is_flag=True,
+    default=False,
+    help="Generate both .md and .pdf reports in the organized reports folder.",
+)
+def report(session: str, fmt: str, output: str | None, both: bool) -> None:
     """Generate a report from scan session results."""
-    _run_async(_do_report(session, fmt, output))
+    _run_async(_do_report(session, fmt, output, both))
 
 
-async def _do_report(session_id: str, fmt: str, output: str | None) -> None:
+async def _do_report(session_id: str, fmt: str, output: str | None, both: bool = False) -> None:
     import re
     from pathlib import Path
 
@@ -481,16 +487,29 @@ async def _do_report(session_id: str, fmt: str, output: str | None) -> None:
 
     session_data = ScanSession.model_validate_json(session_path.read_text())
 
-    if fmt == "pdf":
+    if both:
+        from blhackbox.reporting.md_generator import generate_md_report
+        from blhackbox.reporting.pdf_generator import generate_pdf_report
+
+        md_out = generate_md_report(session_data)
+        rich_console.print(f"[success]Markdown report generated: {md_out}[/success]")
+        pdf_out = generate_pdf_report(session_data)
+        rich_console.print(f"[success]PDF report generated: {pdf_out}[/success]")
+    elif fmt == "md":
+        from blhackbox.reporting.md_generator import generate_md_report
+
+        out = generate_md_report(session_data, output)
+        rich_console.print(f"[success]Report generated: {out}[/success]")
+    elif fmt == "pdf":
         from blhackbox.reporting.pdf_generator import generate_pdf_report
 
         out = generate_pdf_report(session_data, output)
+        rich_console.print(f"[success]Report generated: {out}[/success]")
     else:
         from blhackbox.reporting.html_generator import generate_html_report
 
         out = generate_html_report(session_data, output)
-
-    rich_console.print(f"[success]Report generated: {out}[/success]")
+        rich_console.print(f"[success]Report generated: {out}[/success]")
 
 
 # ---------------------------------------------------------------------------

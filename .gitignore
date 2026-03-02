@@ -32,6 +32,10 @@ results/*.pdf
 results/*.html
 !results/.gitkeep
 
+# Organized reports (keep folder structure, ignore generated files)
+reports/reports-*
+!reports/.gitkeep
+
 # Neo4j data
 neo4j_data/
 neo4j_logs/

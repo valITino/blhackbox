@@ -46,6 +46,7 @@ class Settings(BaseSettings):
     )
     log_level: str = Field(default="INFO", description="Logging level")
     results_dir: Path = Field(default=Path("./results"), description="Directory for scan results")
+    reports_dir: Path = Field(default=Path("./reports"), description="Directory for organized reports")
     wordlists_dir: Path = Field(default=Path("./wordlists"), description="Directory for wordlists")
 
 

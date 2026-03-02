@@ -146,8 +146,10 @@ _TOOLS: list[Tool] = [
     Tool(
         name="generate_report",
         description=(
-            "Generate a professional pentest report (HTML) from a session. "
-            "Returns the report file path."
+            "Generate a professional pentest report from a session. "
+            "Reports are saved to an organized folder structure: "
+            "reports/reports-DDMMYYYY/report-<target>-DDMMYYYY.<ext>. "
+            "Use format 'both' to generate .md and .pdf together."
         ),
         inputSchema={
             "type": "object",
@@ -158,9 +160,9 @@ _TOOLS: list[Tool] = [
                 },
                 "format": {
                     "type": "string",
-                    "enum": ["html", "pdf"],
-                    "description": "Report format (default: html)",
-                    "default": "html",
+                    "enum": ["html", "pdf", "md", "both"],
+                    "description": "Report format. Use 'both' for .md + .pdf (default: both)",
+                    "default": "both",
                 },
             },
             "required": ["session_id"],
@@ -329,7 +331,7 @@ async def _do_generate_report(args: dict[str, Any]) -> str:
     from blhackbox.models.base import ScanSession
 
     session_id = args["session_id"]
-    fmt = args.get("format", "html")
+    fmt = args.get("format", "both")
 
     safe_id = re.sub(r"[^a-zA-Z0-9_\-]", "", session_id)
     if not safe_id:
@@ -347,7 +349,23 @@ async def _do_generate_report(args: dict[str, Any]) -> str:
         session_path.read_text(encoding="utf-8")
     )
 
-    if fmt == "pdf":
+    if fmt == "both":
+        from blhackbox.reporting.md_generator import generate_md_report
+        from blhackbox.reporting.pdf_generator import generate_pdf_report
+
+        md_out = generate_md_report(session_data)
+        pdf_out = generate_pdf_report(session_data)
+        return json.dumps({
+            "reports": [
+                {"path": str(md_out), "format": "md"},
+                {"path": str(pdf_out), "format": "pdf"},
+            ],
+        })
+    elif fmt == "md":
+        from blhackbox.reporting.md_generator import generate_md_report
+
+        out = generate_md_report(session_data)
+    elif fmt == "pdf":
         from blhackbox.reporting.pdf_generator import generate_pdf_report
 
         out = generate_pdf_report(session_data)

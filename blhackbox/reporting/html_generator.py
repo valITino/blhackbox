@@ -12,6 +12,7 @@ from jinja2 import BaseLoader, Environment
 
 from blhackbox.config import settings
 from blhackbox.models.base import ScanSession
+from blhackbox.reporting.paths import get_report_path
 
 if TYPE_CHECKING:
     from blhackbox.models.aggregated_payload import AggregatedPayload
@@ -267,10 +268,9 @@ def generate_html_report(
     if output_path:
         out = Path(output_path)
     else:
-        out_dir = settings.results_dir
-        out_dir.mkdir(parents=True, exist_ok=True)
-        out = out_dir / f"report_{session.id}.html"
+        out = get_report_path(session.target.value, "html")
 
+    out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(html, encoding="utf-8")
     logger.info("HTML report generated: %s", out)
     return out
@@ -581,10 +581,9 @@ def generate_html_report_from_payload(
     if output_path:
         out = Path(output_path)
     else:
-        out_dir = settings.results_dir
-        out_dir.mkdir(parents=True, exist_ok=True)
-        out = out_dir / f"report_{payload.session_id}.html"
+        out = get_report_path(payload.target, "html")
 
+    out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(html, encoding="utf-8")
     logger.info("HTML report (aggregated) generated: %s", out)
     return out
