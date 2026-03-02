@@ -10,7 +10,6 @@ from typing import TYPE_CHECKING
 
 from jinja2 import BaseLoader, Environment
 
-from blhackbox.config import settings
 from blhackbox.models.base import ScanSession
 from blhackbox.reporting.paths import get_report_path
 

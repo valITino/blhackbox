@@ -53,7 +53,7 @@ def generate_md_report(
     total_findings = len(session.findings)
 
     lines: list[str] = []
-    lines.append(f"# Blhackbox Security Assessment Report")
+    lines.append("# Blhackbox Security Assessment Report")
     lines.append("")
     lines.append(f"**Target:** {session.target.value}  ")
     lines.append(f"**Session:** {session.id}  ")
@@ -239,7 +239,11 @@ def generate_md_report_from_payload(
         lines.append("## Anomalies & Scan Artifacts")
         lines.append("")
         for a in anomalies:
-            lines.append(f"- **[{a.type}]** Count: {a.count} | Relevance: {a.security_relevance} — {a.security_note}")
+            lines.append(
+                f"- **[{a.type}]** Count: {a.count}"
+                f" | Relevance: {a.security_relevance}"
+                f" — {a.security_note}"
+            )
         lines.append("")
 
     # Scan Metadata

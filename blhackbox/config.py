@@ -48,9 +48,15 @@ class Settings(BaseSettings):
         default=10, description="Maximum tool iterations per recon session"
     )
     log_level: str = Field(default="INFO", description="Logging level")
-    results_dir: Path = Field(default=_REPO_ROOT / "results", description="Directory for scan results")
-    reports_dir: Path = Field(default=_REPO_ROOT / "reports", description="Directory for organized reports")
-    wordlists_dir: Path = Field(default=_REPO_ROOT / "wordlists", description="Directory for wordlists")
+    results_dir: Path = Field(
+        default=_REPO_ROOT / "results", description="Directory for scan results"
+    )
+    reports_dir: Path = Field(
+        default=_REPO_ROOT / "reports", description="Directory for organized reports"
+    )
+    wordlists_dir: Path = Field(
+        default=_REPO_ROOT / "wordlists", description="Directory for wordlists"
+    )
 
 
 # Singleton instance
