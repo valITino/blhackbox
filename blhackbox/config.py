@@ -7,6 +7,9 @@ from pathlib import Path
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# Repo root: blhackbox/config.py -> parent -> parent = repo root
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+
 
 class Settings(BaseSettings):
     """Application-wide settings, loaded from environment / .env file."""
@@ -45,9 +48,9 @@ class Settings(BaseSettings):
         default=10, description="Maximum tool iterations per recon session"
     )
     log_level: str = Field(default="INFO", description="Logging level")
-    results_dir: Path = Field(default=Path("./results"), description="Directory for scan results")
-    reports_dir: Path = Field(default=Path("./reports"), description="Directory for organized reports")
-    wordlists_dir: Path = Field(default=Path("./wordlists"), description="Directory for wordlists")
+    results_dir: Path = Field(default=_REPO_ROOT / "results", description="Directory for scan results")
+    reports_dir: Path = Field(default=_REPO_ROOT / "reports", description="Directory for organized reports")
+    wordlists_dir: Path = Field(default=_REPO_ROOT / "wordlists", description="Directory for wordlists")
 
 
 # Singleton instance
