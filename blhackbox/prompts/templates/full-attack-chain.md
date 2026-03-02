@@ -10,8 +10,8 @@ exploitation and post-exploitation — with full reporting.
 
 ```
 # ┌──────────────────────────────────────────────────────────────────┐
-# │  EDIT THE VALUES BELOW before running this template.            │
-# │  Replace everything between the quotes with your actual values. │
+# │  EDIT THE VALUES BELOW before running this template.             │
+# │  Replace everything between the quotes with your actual values.  │
 # └──────────────────────────────────────────────────────────────────┘
 
 TARGET          = "[TARGET]"
