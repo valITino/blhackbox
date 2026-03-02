@@ -46,12 +46,12 @@ REPORT_FORMAT   = "[REPORT_FORMAT]"
 **Goal:** Complete attack surface map before any active probing.
 
 1. **Domain intelligence** — WHOIS and domain registration data
-2. **DNS enumeration** — Comprehensive DNS record discovery and zone transfer checks
+2. **DNS enumeration**
 3. **Subdomain discovery** — Passive subdomain enumeration (multiple tools for coverage)
-4. **OSINT harvesting** — Harvest emails, names, and subdomains from public sources
+4. **OSINT harvesting**
 5. **AI-driven intelligence** — OSINT and intelligence analysis agents
 
-**Output:** Subdomain list, IP ranges, DNS records, WHOIS data, OSINT findings.
+**Output:** A list of the findings
 
 ### Phase 2: Active Scanning & Service Discovery
 
@@ -59,7 +59,7 @@ REPORT_FORMAT   = "[REPORT_FORMAT]"
 
 1. **High-speed port sweep** — Full port range scanning at high speed
 2. **Service detection** — Detailed service detection, OS fingerprinting, and default script scanning
-3. **Technology fingerprinting** — Identify web frameworks, servers, and CMS
+3. **Technology fingerprinting** — Identify web frameworks, servers, and CMS and anything more to find
 4. **WAF/CDN detection** — Detect web application firewalls and CDNs
 5. **Auxiliary scanning** — Supplemental port and service scanning
 6. **Exploit search** — Search for exploits matching discovered services
@@ -68,7 +68,7 @@ REPORT_FORMAT   = "[REPORT_FORMAT]"
 
 For each discovered subdomain with web services, perform service detection.
 
-**Output:** Host inventory with ports, services, versions, OS, technologies.
+**Output:** Host inventory with ports, services, versions, OS, technologies, for each all the exploits.
 
 ### Phase 3: Vulnerability Identification
 
@@ -91,10 +91,12 @@ For each discovered subdomain with web services, perform service detection.
 
 ### Phase 4: Exploitation & Validation
 
-**Goal:** Validate vulnerabilities through controlled exploitation.
+**Goal:** Validate vulnerabilities through controlled, proper exploitation. 
 
 > Only proceed with exploitation up to the `MAX_SEVERITY` level configured above.
 > If `MAX_SEVERITY` is "info-only", skip this phase and proceed to Phase 5.
+
+#### And here are some more exploits that you should test through:
 
 **SQL Injection Exploitation:**
 1. Automated SQL injection testing with increasing depth
@@ -129,13 +131,15 @@ For each successful exploit, record:
 - Request/response pairs
 - Impact assessment
 
-**Output:** Validated exploits with proof of concept and impact.
+**Output:** Validated exploits with proof of concept and impact. Be specific and correct.
 
 ### Phase 5: Attack Chain Construction
 
 **Goal:** Identify how individual findings chain together for maximum impact.
 
 Analyze all findings from Phases 1-4 and construct attack chains:
+
+#### You can see some example chain patterns that you can make use of if necessary:
 
 **Chain Pattern 1: External to Internal Access**
 ```
@@ -168,6 +172,7 @@ Document each chain with:
 4. Business impact assessment
 
 ### Phase 6: Data Processing (REQUIRED)
+Make sure to use all tools (all the MCP Servers available) and also HexStrike and execute everything parallel. and then: 
 
 > **This step is mandatory.** All raw outputs must be processed through the
 > Ollama agents before generating the final report.
@@ -176,7 +181,7 @@ Document each chain with:
 2. Send all collected data through the **Ollama MCP preprocessing pipeline** (`process_scan_results()`)
 3. Wait for the `AggregatedPayload`
 
-### Phase 7: Comprehensive Report
+### Phase 7: Comprehensive Report (really make it comprehensive, be specific and detailed)
 
 Using the `AggregatedPayload` and all exploitation evidence, produce a
 professional penetration test report:
