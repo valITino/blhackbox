@@ -111,12 +111,24 @@ mcp = FastMCP(
     "screenshot-mcp",
     host="0.0.0.0",
     port=MCP_PORT,
-    description=(
+    instructions=(
         "Headless browser screenshot server for bug bounty PoC evidence capture. "
         "Captures web page screenshots, element screenshots, and supports "
         "annotation for proof-of-concept documentation."
     ),
 )
+
+
+# ---------------------------------------------------------------------------
+# Health check endpoint
+# ---------------------------------------------------------------------------
+
+@mcp.custom_route("/health", methods=["GET"])
+async def health_check(request):
+    """Lightweight health probe for Docker and Makefile checks."""
+    from starlette.responses import JSONResponse
+
+    return JSONResponse({"status": "healthy", "service": "screenshot-mcp", "port": MCP_PORT})
 
 
 @mcp.tool()

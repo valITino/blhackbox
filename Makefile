@@ -108,7 +108,7 @@ health: ## Quick health check of all MCP servers
 		docker exec blhackbox-wire-mcp python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:9003/sse')" > /dev/null 2>&1 \
 		&& echo "\033[32m[OK]\033[0m" || echo "\033[31m[FAIL]\033[0m"
 	@printf "  %-22s " "Screenshot MCP (9004)"; \
-		docker exec blhackbox-screenshot-mcp python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:9004/sse')" > /dev/null 2>&1 \
+		docker exec blhackbox-screenshot-mcp python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:9004/health')" > /dev/null 2>&1 \
 		&& echo "\033[32m[OK]\033[0m" || echo "\033[31m[FAIL]\033[0m"
 	@printf "  %-22s " "HexStrike (8888)"; \
 		curl -sf --max-time 3 http://localhost:8888/health > /dev/null 2>&1 \
