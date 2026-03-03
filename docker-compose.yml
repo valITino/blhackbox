@@ -175,6 +175,9 @@ services:
     container_name: blhackbox-screenshot-mcp
     restart: unless-stopped
     init: true
+    shm_size: '2gb'
+    cap_add:
+      - SYS_ADMIN
     environment:
       SCREENSHOTS_DIR: "/tmp/screenshots"
       NAVIGATION_TIMEOUT: "30000"
@@ -188,8 +191,8 @@ services:
       test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:9004/sse')\""]
       interval: 15s
       timeout: 10s
-      retries: 5
-      start_period: 15s
+      retries: 8
+      start_period: 30s
     networks:
       - blhackbox_net
 

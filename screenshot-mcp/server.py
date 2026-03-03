@@ -42,7 +42,15 @@ DEFAULT_HEIGHT = 720
 NAVIGATION_TIMEOUT = int(os.environ.get("NAVIGATION_TIMEOUT", "30000"))
 MAX_CONCURRENT = int(os.environ.get("MAX_CONCURRENT_SCREENSHOTS", "3"))
 
-_semaphore = asyncio.Semaphore(MAX_CONCURRENT)
+_semaphore: asyncio.Semaphore | None = None
+
+
+def _get_semaphore() -> asyncio.Semaphore:
+    """Return the concurrency semaphore, creating it inside the running loop."""
+    global _semaphore
+    if _semaphore is None:
+        _semaphore = asyncio.Semaphore(MAX_CONCURRENT)
+    return _semaphore
 
 # ---------------------------------------------------------------------------
 # Playwright helpers
@@ -139,7 +147,7 @@ async def take_screenshot(
     height = _clamp(height, 1, MAX_HEIGHT)
     wait_timeout = _clamp(wait_timeout, 0, 30000)
 
-    async with _semaphore:
+    async with _get_semaphore():
         try:
             browser = await _get_browser()
             context = await browser.new_context(
@@ -222,7 +230,7 @@ async def take_element_screenshot(
     height = _clamp(height, 1, MAX_HEIGHT)
     wait_timeout = _clamp(wait_timeout, 0, 30000)
 
-    async with _semaphore:
+    async with _get_semaphore():
         try:
             browser = await _get_browser()
             context = await browser.new_context(
