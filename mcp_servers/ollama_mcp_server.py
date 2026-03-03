@@ -296,6 +296,7 @@ def _build_findings(
                 http_headers=findings_data.get("http_headers", []),
                 whois=findings_data.get("whois", {}),
                 dns_records=findings_data.get("dns_records", []),
+                screenshots=findings_data.get("screenshots", []),
             )
         except Exception:
             return Findings()

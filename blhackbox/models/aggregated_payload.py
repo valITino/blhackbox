@@ -119,6 +119,20 @@ class HTTPHeaderEntry(BaseModel):
     x_powered_by: str = ""
 
 
+class ScreenshotEntry(BaseModel):
+    """A screenshot captured as PoC evidence for bug bounty reports."""
+
+    url: str = ""
+    file_path: str = ""
+    format: str = "png"
+    width: int = 0
+    height: int = 0
+    file_size_bytes: int = 0
+    timestamp: str = ""
+    description: str = ""
+    finding_id: str = ""
+
+
 class DNSRecordEntry(BaseModel):
     """A DNS record."""
 
@@ -159,6 +173,7 @@ class Findings(BaseModel):
     http_headers: list[HTTPHeaderEntry] = Field(default_factory=list)
     whois: WhoisRecord = Field(default_factory=WhoisRecord)
     dns_records: list[DNSRecordEntry] = Field(default_factory=list)
+    screenshots: list[ScreenshotEntry] = Field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------

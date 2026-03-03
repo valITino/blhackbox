@@ -22,6 +22,7 @@ from blhackbox.models.aggregated_payload import (
     HostPort,
     HTTPHeaderEntry,
     RemediationEntry,
+    ScreenshotEntry,
     ServiceEntry,
     SSLCertEntry,
     TechnologyEntry,
@@ -47,6 +48,7 @@ class TestAggregatedPayload:
         assert payload.findings.credentials == []
         assert payload.findings.http_headers == []
         assert payload.findings.dns_records == []
+        assert payload.findings.screenshots == []
         assert payload.error_log == []
         assert payload.attack_surface.external_services == 0
         assert payload.executive_summary.risk_level == "info"
@@ -338,6 +340,37 @@ class TestHostPort:
         assert port.nse_scripts == {"http-title": "Default Page"}
 
 
+class TestScreenshotEntry:
+    def test_defaults(self) -> None:
+        ss = ScreenshotEntry()
+        assert ss.url == ""
+        assert ss.file_path == ""
+        assert ss.format == "png"
+        assert ss.width == 0
+        assert ss.height == 0
+        assert ss.file_size_bytes == 0
+        assert ss.timestamp == ""
+        assert ss.description == ""
+        assert ss.finding_id == ""
+
+    def test_full(self) -> None:
+        ss = ScreenshotEntry(
+            url="https://example.com/admin",
+            file_path="/tmp/screenshots/admin_20260303.png",
+            format="png",
+            width=1280,
+            height=1024,
+            file_size_bytes=45678,
+            timestamp="2026-03-03T12:00:00Z",
+            description="Admin panel login page",
+            finding_id="CVE-2021-44228",
+        )
+        assert ss.url == "https://example.com/admin"
+        assert ss.width == 1280
+        assert ss.file_size_bytes == 45678
+        assert ss.finding_id == "CVE-2021-44228"
+
+
 class TestFindings:
     def test_empty_findings(self) -> None:
         findings = Findings()
@@ -352,6 +385,7 @@ class TestFindings:
         assert findings.credentials == []
         assert findings.http_headers == []
         assert findings.dns_records == []
+        assert findings.screenshots == []
 
     def test_findings_with_all_sublists(self) -> None:
         findings = Findings(
@@ -366,6 +400,7 @@ class TestFindings:
             credentials=[CredentialEntry(host="10.0.0.1", service="ssh")],
             http_headers=[HTTPHeaderEntry(host="example.com", port=80)],
             dns_records=[DNSRecordEntry(type="A", name="example.com", value="10.0.0.1")],
+            screenshots=[ScreenshotEntry(url="https://example.com/admin")],
         )
         assert len(findings.hosts) == 1
         assert len(findings.ports) == 1
@@ -378,6 +413,7 @@ class TestFindings:
         assert len(findings.credentials) == 1
         assert len(findings.http_headers) == 1
         assert len(findings.dns_records) == 1
+        assert len(findings.screenshots) == 1
 
 
 class TestAggregatedMetadata:

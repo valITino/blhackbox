@@ -11,12 +11,15 @@ Each tool call returns structured output:
 from __future__ import annotations
 
 import asyncio
+import base64
 import json
 import logging
 import os
+import re
 import shlex
 import shutil
 from datetime import UTC, datetime
+from pathlib import Path
 
 from mcp.server.fastmcp import FastMCP
 
@@ -61,6 +64,9 @@ ALLOWED_TOOLS = set(
 )
 
 MCP_PORT = int(os.environ.get("MCP_PORT", "9001"))
+
+# Directory for storing screenshot evidence files
+SCREENSHOTS_DIR = Path(os.environ.get("SCREENSHOTS_DIR", "/tmp/screenshots"))
 
 mcp = FastMCP("kali-mcp", host="0.0.0.0", port=MCP_PORT)
 
@@ -143,15 +149,158 @@ async def run_kali_tool(
 
 
 @mcp.tool()
+async def take_screenshot(
+    url: str,
+    output_format: str = "png",
+    width: int = 1280,
+    height: int = 1024,
+    delay: int = 3,
+    timeout: int = 30,
+    full_page: bool = False,
+) -> str:
+    """Capture a screenshot of a URL for PoC evidence in bug bounty reports.
+
+    Uses cutycapt (Qt WebKit headless renderer) to capture web pages as images.
+    Returns the screenshot as a base64-encoded string alongside metadata.
+
+    Args:
+        url: The URL to screenshot (must start with http:// or https://).
+        output_format: Image format — "png" (default) or "jpeg".
+        width: Viewport width in pixels (default 1280).
+        height: Viewport height in pixels (default 1024).
+        delay: Wait time in seconds after page load before capture (default 3).
+        timeout: Maximum time in seconds for the entire capture (default 30).
+        full_page: If true, capture the full scrollable page height.
+
+    Returns:
+        JSON string with screenshot_base64, file_path, metadata, or error.
+    """
+    timestamp = datetime.now(UTC).isoformat()
+
+    # Validate URL
+    if not re.match(r"^https?://", url):
+        return json.dumps({
+            "error": "URL must start with http:// or https://",
+            "url": url,
+            "timestamp": timestamp,
+        })
+
+    # Validate format
+    fmt = output_format.lower()
+    if fmt not in ("png", "jpeg"):
+        return json.dumps({
+            "error": f"Unsupported format '{output_format}'. Use 'png' or 'jpeg'.",
+            "timestamp": timestamp,
+        })
+
+    # Check for cutycapt
+    cutycapt_path = shutil.which("cutycapt")
+    if not cutycapt_path:
+        return json.dumps({
+            "error": "cutycapt is not installed in this container",
+            "timestamp": timestamp,
+        })
+
+    # Create output directory
+    SCREENSHOTS_DIR.mkdir(parents=True, exist_ok=True)
+
+    # Generate safe filename from URL
+    safe_name = re.sub(r"[^a-zA-Z0-9._-]", "_", url)[:100]
+    ts_slug = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
+    ext = "jpg" if fmt == "jpeg" else "png"
+    out_file = SCREENSHOTS_DIR / f"{safe_name}_{ts_slug}.{ext}"
+
+    # Build cutycapt command
+    cmd_parts = [
+        "cutycapt",
+        f"--url={url}",
+        f"--out={out_file}",
+        f"--out-format={fmt}",
+        f"--min-width={width}",
+        f"--min-height={height}",
+        f"--delay={delay * 1000}",  # cutycapt uses milliseconds
+        "--insecure",  # Allow self-signed certs (common in pentesting)
+    ]
+
+    if full_page:
+        # cutycapt captures full page by default when min-height is large
+        cmd_parts.append("--min-height=10000")
+
+    logger.info("Taking screenshot: %s -> %s", url, out_file)
+
+    try:
+        # cutycapt requires a virtual display (Xvfb)
+        xvfb_cmd = ["xvfb-run", "--auto-servernum", "--server-args=-screen 0 1920x1080x24"]
+        proc = await asyncio.create_subprocess_exec(
+            *xvfb_cmd, *cmd_parts,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout_bytes, stderr_bytes = await asyncio.wait_for(
+            proc.communicate(), timeout=timeout
+        )
+        stderr = stderr_bytes.decode("utf-8", errors="replace")
+        exit_code = proc.returncode or 0
+    except TimeoutError:
+        return json.dumps({
+            "error": f"Screenshot timed out after {timeout}s",
+            "url": url,
+            "tool_name": "cutycapt",
+            "timestamp": timestamp,
+        })
+    except Exception as exc:
+        return json.dumps({
+            "error": f"Screenshot capture failed: {exc}",
+            "url": url,
+            "tool_name": "cutycapt",
+            "timestamp": timestamp,
+        })
+
+    if exit_code != 0 or not out_file.exists():
+        return json.dumps({
+            "error": f"cutycapt exited with code {exit_code}",
+            "stderr": stderr[:500],
+            "url": url,
+            "tool_name": "cutycapt",
+            "timestamp": timestamp,
+        })
+
+    # Read and base64-encode the screenshot
+    file_bytes = out_file.read_bytes()
+    file_size = len(file_bytes)
+    b64_data = base64.b64encode(file_bytes).decode("ascii")
+
+    return json.dumps({
+        "screenshot_base64": b64_data,
+        "file_path": str(out_file),
+        "url": url,
+        "format": fmt,
+        "width": width,
+        "height": height,
+        "file_size_bytes": file_size,
+        "tool_name": "cutycapt",
+        "timestamp": timestamp,
+    })
+
+
+@mcp.tool()
 def list_available_tools() -> str:
     """List all available Kali Linux security tools in this container."""
     tools = {}
-    for tool_name in sorted(ALLOWED_TOOLS):
+
+    # Include screenshot tool alongside regular tools
+    all_tool_names = sorted(ALLOWED_TOOLS | {"cutycapt"})
+    for tool_name in all_tool_names:
         path = shutil.which(tool_name)
-        tools[tool_name] = {
+        entry: dict = {
             "installed": path is not None,
             "path": path or "not found",
         }
+        if tool_name == "cutycapt":
+            entry["category"] = "screenshot"
+            entry["note"] = "Use take_screenshot() MCP tool for screenshots"
+        tools[tool_name] = entry
+
     return json.dumps({"tools": tools}, indent=2)
 
 

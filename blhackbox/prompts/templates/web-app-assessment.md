@@ -88,7 +88,15 @@ For each discovered form, parameter, or input point:
 3. **Stream reconstruction** — Reconstruct full HTTP conversations and inspect request/response pairs
 4. **Protocol statistics** — Protocol hierarchy analysis of web traffic
 
-### Step 7: Security Header & SSL/TLS Analysis
+### Step 7: Screenshot Evidence
+
+For each confirmed vulnerability and interesting finding:
+
+1. **Vulnerability screenshots** — Capture screenshots of vulnerable pages and error responses using `take_screenshot()`
+2. **Admin panel screenshots** — Screenshot discovered admin panels, login pages, and exposed dashboards
+3. **Information disclosure screenshots** — Screenshot exposed `.git`, `.env`, debug pages, and config files
+
+### Step 8: Security Header & SSL/TLS Analysis
 
 1. **Security headers** — HTTP security header analysis
 2. Check for missing headers:
@@ -100,7 +108,7 @@ For each discovered form, parameter, or input point:
    - `Referrer-Policy`
    - `Permissions-Policy`
 
-### Step 8: Data Processing (REQUIRED)
+### Step 9: Data Processing (REQUIRED)
 
 > **This step is mandatory.** All raw outputs must be processed through the
 > Ollama agents before generating the final report.
@@ -109,7 +117,7 @@ For each discovered form, parameter, or input point:
 2. Send all collected data through the **Ollama MCP preprocessing pipeline** (`process_scan_results()`)
 3. Wait for the `AggregatedPayload`
 
-### Step 9: Web Application Report
+### Step 10: Web Application Report
 
 Using the `AggregatedPayload`, produce a detailed report:
 

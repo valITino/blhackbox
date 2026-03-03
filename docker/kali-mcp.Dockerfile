@@ -62,6 +62,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     steghide \
     hashid \
     binutils \
+    # --- Screenshot / Evidence ---
+    cutycapt \
+    xvfb \
     # --- Utilities ---
     unzip \
     curl \

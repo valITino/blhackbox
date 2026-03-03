@@ -108,29 +108,41 @@ Focus on high-impact, high-bounty vulnerability classes:
 3. Check for CORS misconfiguration
 4. Check for subdomain takeover opportunities on dangling CNAME records
 
-### Step 5: Traffic Analysis
+### Step 5: Screenshot Evidence Collection
+
+For each confirmed vulnerability and high-value target:
+
+1. **Vulnerability screenshots** — Capture screenshots of vulnerable pages, error messages, and exposed panels using `take_screenshot()`
+2. **Login/admin panel screenshots** — Screenshot all discovered login pages and admin panels
+3. **Information disclosure screenshots** — Screenshot exposed config files, debug pages, `.git` directories, `.env` leaks
+4. **Injection PoC screenshots** — Capture XSS/SQLi responses showing successful injection
+
+> **Tip:** Use `take_screenshot(url="...", full_page=True)` for long pages.
+> Screenshots are returned as base64 and saved to `/tmp/screenshots/` inside the Kali container.
+
+### Step 6: Traffic Analysis
 
 1. **Packet capture** — Capture HTTP traffic during bug bounty testing
 2. **Credential extraction** — Find leaked API keys, tokens, or cleartext credentials in traffic
 3. **Stream reconstruction** — Reconstruct full HTTP conversations for proof-of-concept evidence
 4. **Protocol statistics** — Protocol analysis and anomaly detection
 
-### Step 6: CMS & Framework-Specific Testing
+### Step 7: CMS & Framework-Specific Testing
 
 1. **CMS scanning** — CMS-specific vulnerability and plugin scanning (if applicable)
 2. **AI vulnerability scanning** — Vulnerability scan agents
 3. Check for known CVEs in identified frameworks and versions
 
-### Step 7: Data Processing (REQUIRED)
+### Step 8: Data Processing (REQUIRED)
 
 > **This step is mandatory.** All raw outputs must be processed through the
 > Ollama agents before generating the final report.
 
-1. Collect ALL raw outputs from Steps 1-6 into a single dict keyed by tool/source name
+1. Collect ALL raw outputs from Steps 1-7 into a single dict keyed by tool/source name
 2. Send all collected data through the **Ollama MCP preprocessing pipeline** (`process_scan_results()`)
 3. Wait for the `AggregatedPayload`
 
-### Step 8: Bug Bounty Report
+### Step 9: Bug Bounty Report
 
 Using the `AggregatedPayload`, produce findings in bug bounty format:
 
@@ -141,7 +153,7 @@ For EACH vulnerability, provide:
 3. **Summary** — one-paragraph description of the vulnerability
 4. **Steps to Reproduce** — numbered, exact steps to reproduce
 5. **Impact** — what an attacker can achieve (data access, account takeover, RCE, etc.)
-6. **Proof of Concept** — tool output, request/response pairs, traffic captures, screenshots description
+6. **Proof of Concept** — tool output, request/response pairs, traffic captures, and screenshots (captured via `take_screenshot()`)
 7. **Affected Endpoint** — exact URL, parameter, and method
 8. **Remediation** — how to fix the vulnerability
 9. **References** — CVEs, CWEs, OWASP categories
