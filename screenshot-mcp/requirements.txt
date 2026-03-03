@@ -1,0 +1,4 @@
+# Screenshot MCP Server dependencies
+mcp[cli]>=1.23.0
+playwright>=1.49.0
+Pillow>=11.0.0

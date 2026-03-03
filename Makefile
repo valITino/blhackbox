@@ -2,10 +2,10 @@
        pull status health portainer gateway-logs ollama-pull ollama-shell \
        claude-code \
        neo4j-browser logs-ollama-mcp logs-kali logs-hexstrike \
-       logs-metasploit logs-wireshark \
+       logs-metasploit logs-wireshark logs-screenshot \
        logs-agent-ingestion logs-agent-processing logs-agent-synthesis \
        restart-ollama-mcp restart-kali restart-hexstrike restart-agents \
-       restart-metasploit restart-wireshark \
+       restart-metasploit restart-wireshark restart-screenshot \
        push-all wordlists recon report
 
 COMPOSE := docker compose
@@ -18,7 +18,7 @@ help: ## Show this help
 pull: ## Pull all pre-built images from Docker Hub
 	$(COMPOSE) pull
 
-up: ## Start core stack (10 containers — no gateway)
+up: ## Start core stack (11 containers — no gateway)
 	$(COMPOSE) up -d
 
 down: ## Stop all services (all profiles)
@@ -107,6 +107,9 @@ health: ## Quick health check of all MCP servers
 	@printf "  %-22s " "WireMCP (9003)"; \
 		docker exec blhackbox-wire-mcp python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:9003/sse')" > /dev/null 2>&1 \
 		&& echo "\033[32m[OK]\033[0m" || echo "\033[31m[FAIL]\033[0m"
+	@printf "  %-22s " "Screenshot MCP (9004)"; \
+		docker exec blhackbox-screenshot-mcp python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:9004/sse')" > /dev/null 2>&1 \
+		&& echo "\033[32m[OK]\033[0m" || echo "\033[31m[FAIL]\033[0m"
 	@printf "  %-22s " "HexStrike (8888)"; \
 		curl -sf --max-time 3 http://localhost:8888/health > /dev/null 2>&1 \
 		&& echo "\033[32m[OK]\033[0m" || echo "\033[31m[FAIL]\033[0m"
@@ -167,6 +170,9 @@ logs-metasploit: ## Tail Metasploit MCP server logs
 logs-wireshark: ## Tail WireMCP server logs
 	$(COMPOSE) logs -f wire-mcp
 
+logs-screenshot: ## Tail Screenshot MCP server logs
+	$(COMPOSE) logs -f screenshot-mcp
+
 logs-hexstrike: ## Tail HexStrike logs
 	$(COMPOSE) logs -f hexstrike
 
@@ -194,6 +200,9 @@ restart-metasploit: ## Restart Metasploit MCP server
 
 restart-wireshark: ## Restart WireMCP server
 	$(COMPOSE) restart wire-mcp
+
+restart-screenshot: ## Restart Screenshot MCP server
+	$(COMPOSE) restart screenshot-mcp
 
 restart-hexstrike: ## Restart HexStrike MCP server
 	$(COMPOSE) restart hexstrike
@@ -224,6 +233,7 @@ push-all: ## Build and push all custom images to Docker Hub
 	docker build -f docker/kali-mcp.Dockerfile -t crhacky/blhackbox:kali-mcp .
 	docker build -f docker/metasploit-mcp.Dockerfile -t crhacky/blhackbox:metasploit-mcp .
 	docker build -f docker/wire-mcp.Dockerfile -t crhacky/blhackbox:wire-mcp .
+	docker build -f docker/screenshot-mcp.Dockerfile -t crhacky/blhackbox:screenshot-mcp .
 	docker build -f docker/hexstrike.Dockerfile -t crhacky/blhackbox:hexstrike .
 	docker build -f docker/ollama-mcp.Dockerfile -t crhacky/blhackbox:ollama-mcp .
 	docker build -f docker/agent-ingestion.Dockerfile -t crhacky/blhackbox:agent-ingestion .
@@ -233,6 +243,7 @@ push-all: ## Build and push all custom images to Docker Hub
 	docker push crhacky/blhackbox:kali-mcp
 	docker push crhacky/blhackbox:metasploit-mcp
 	docker push crhacky/blhackbox:wire-mcp
+	docker push crhacky/blhackbox:screenshot-mcp
 	docker push crhacky/blhackbox:hexstrike
 	docker push crhacky/blhackbox:ollama-mcp
 	docker push crhacky/blhackbox:agent-ingestion

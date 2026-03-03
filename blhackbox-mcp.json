@@ -15,6 +15,11 @@
       "args": ["run", "-i", "--rm", "--network", "blhackbox-net", "--privileged", "blhackbox-wire-mcp"],
       "description": "WireMCP Server — Wireshark/tshark for packet capture and network analysis (7 tools)"
     },
+    "screenshot": {
+      "type": "sse",
+      "url": "http://localhost:9004/sse",
+      "description": "Screenshot MCP Server — headless Chromium screenshots for bug bounty PoC evidence capture (4 tools)"
+    },
     "hexstrike": {
       "command": "python3",
       "args": ["hexstrike/hexstrike_mcp.py"],

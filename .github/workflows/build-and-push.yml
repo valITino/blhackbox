@@ -48,6 +48,10 @@ jobs:
             dockerfile: docker/wire-mcp.Dockerfile
             tag_prefix: "wire-mcp-"
             scout: false
+          - service: screenshot-mcp
+            dockerfile: docker/screenshot-mcp.Dockerfile
+            tag_prefix: "screenshot-mcp-"
+            scout: false
           - service: hexstrike
             dockerfile: docker/hexstrike.Dockerfile
             tag_prefix: "hexstrike-"
