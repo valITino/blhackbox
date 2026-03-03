@@ -126,9 +126,15 @@ For each discovered subdomain with web services, perform service detection.
 15. Extract credentials from captured traffic
 16. Reconstruct exploit communication streams
 
+**Screenshot Evidence:**
+17. Capture web page screenshots of confirmed vulnerabilities for PoC documentation
+18. Use element screenshots to target specific DOM evidence (XSS payloads, error messages)
+19. Annotate screenshots with labels and highlight boxes for clear PoC documentation
+
 For each successful exploit, record:
 - Exact steps to reproduce
 - Request/response pairs
+- Annotated screenshots
 - Impact assessment
 
 **Output:** Validated exploits with proof of concept and impact. Be specific and correct.
