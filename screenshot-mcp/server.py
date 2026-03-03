@@ -41,6 +41,7 @@ DEFAULT_WIDTH = 1280
 DEFAULT_HEIGHT = 720
 NAVIGATION_TIMEOUT = int(os.environ.get("NAVIGATION_TIMEOUT", "30000"))
 MAX_CONCURRENT = int(os.environ.get("MAX_CONCURRENT_SCREENSHOTS", "3"))
+MCP_PORT = int(os.environ.get("SCREENSHOT_MCP_PORT", "9004"))
 
 _semaphore: asyncio.Semaphore | None = None
 
@@ -108,6 +109,8 @@ def _build_output_path(url: str, suffix: str = "") -> Path:
 
 mcp = FastMCP(
     "screenshot-mcp",
+    host="0.0.0.0",
+    port=MCP_PORT,
     description=(
         "Headless browser screenshot server for bug bounty PoC evidence capture. "
         "Captures web page screenshots, element screenshots, and supports "
@@ -408,6 +411,6 @@ async def annotate_screenshot(
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    port = int(os.environ.get("SCREENSHOT_MCP_PORT", "9004"))
-    logger.info("Starting Screenshot MCP server on port %d", port)
-    mcp.run(transport="sse", port=port)
+    transport = os.environ.get("MCP_TRANSPORT", "sse")
+    logger.info("Starting Screenshot MCP server (%s on port %d)", transport, MCP_PORT)
+    mcp.run(transport=transport)

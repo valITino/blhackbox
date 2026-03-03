@@ -41,12 +41,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# Copy requirements and install Python dependencies
+# Copy requirements first for better layer caching
 COPY screenshot-mcp/requirements.txt /app/requirements.txt
-RUN pip install --no-cache-dir -r /app/requirements.txt
+
+# Install Python MCP SDK and dependencies in a venv
+RUN python3 -m venv /app/venv && \
+    /app/venv/bin/pip install --no-cache-dir -r /app/requirements.txt
 
 # Install Playwright browsers (Chromium only to minimize image size)
-RUN playwright install chromium
+RUN /app/venv/bin/playwright install chromium
 
 # Copy server code
 COPY screenshot-mcp/server.py /app/server.py
@@ -56,4 +59,4 @@ RUN mkdir -p /tmp/screenshots
 
 EXPOSE 9004
 
-ENTRYPOINT ["python3", "/app/server.py"]
+ENTRYPOINT ["/app/venv/bin/python3", "/app/server.py"]
