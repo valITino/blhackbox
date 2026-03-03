@@ -359,15 +359,16 @@ services:
       start_period: 30s
     networks:
       - blhackbox_net
-    # GPU support -- enabled by default for NVIDIA GPUs.
-    # If you do NOT have an NVIDIA GPU, comment out the 'deploy' block below.
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
+    # GPU support -- disabled by default for broad compatibility.
+    # If you have an NVIDIA GPU and nvidia-container-toolkit installed,
+    # uncomment the 'deploy' block below to enable GPU acceleration.
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
 
   # -- NEO4J (OPTIONAL) ------------------------------------------------------
   # Enable with: docker compose --profile neo4j up -d
