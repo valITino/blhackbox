@@ -131,6 +131,7 @@ aggregates all servers behind `localhost:8080/mcp`. See
 | **Kali MCP** | Kali Linux security tools — 50+ tools (nmap, sqlmap, hydra, john, etc.) | 9001 | default |
 | **Metasploit MCP** | Metasploit Framework — 13+ exploit tools via MSF RPC | 9002 | default |
 | **WireMCP** | Wireshark/tshark — 7 packet capture and analysis tools | 9003 | default |
+| **Screenshot MCP** | Headless Chromium — 4 screenshot and annotation tools | 9004 | default |
 | **HexStrike API** | 150+ security tools, 12+ AI agents (REST API) | 8888 | default |
 | **Ollama MCP** | Thin orchestrator — calls 3 agent containers in sequence | 9000 | default |
 | **Agent: Ingestion** | Parses raw tool output into structured typed data | 8001 | default |
@@ -208,7 +209,7 @@ no MCP Gateway, no host install, no Node.js.
 ### Step 1: Start the stack
 
 Follow [Installation](#installation) above. Make sure `ANTHROPIC_API_KEY` is
-set in your `.env` file. All 8 containers must be healthy (`make health`).
+set in your `.env` file. All 11 containers must be healthy (`make health`).
 
 ### Step 2: Launch Claude Code
 
@@ -236,6 +237,7 @@ Checking service connectivity...
   Kali MCP               [ OK ]
   Metasploit MCP         [ OK ]
   WireMCP                [ OK ]
+  Screenshot MCP         [ OK ]
   Ollama Pipeline        [ OK ]
 
   REST API Services
@@ -269,9 +271,9 @@ You are now inside an interactive Claude Code session.
 /mcp
 ```
 
-You should see the MCP servers listed: `kali` and `ollama-pipeline`,
-each with their available tools. HexStrike is a REST API accessible at
-`http://hexstrike:8888/api/...`.
+You should see the MCP servers listed: `kali`, `metasploit`, `wireshark`,
+`screenshot`, and `ollama-pipeline`, each with their available tools.
+HexStrike is a REST API accessible at `http://hexstrike:8888/api/...`.
 
 ### Step 4: Run your first pentest
 
@@ -289,7 +291,11 @@ Claude Code will autonomously:
 
 ```bash
 make logs-kali             # Kali MCP server activity
+make logs-metasploit       # Metasploit MCP activity
+make logs-wireshark        # WireMCP activity
+make logs-screenshot       # Screenshot MCP activity
 make logs-hexstrike        # HexStrike activity
+make logs-ollama-mcp       # Ollama MCP server activity
 make logs-agent-ingestion  # Ingestion Agent processing
 make logs-agent-synthesis  # Synthesis Agent building payload
 ```
@@ -363,7 +369,7 @@ Restart Claude Desktop. You should see a hammer icon with available tools.
 ### Step 3: Run a pentest
 
 Type your prompt in Claude Desktop. The flow is identical to Tutorial 1 — the
-gateway routes tool calls to the same MCP servers (kali, metasploit, wireshark, ollama).
+gateway routes tool calls to the same MCP servers (kali, metasploit, wireshark, screenshot, ollama).
 
 ---
 
@@ -398,7 +404,7 @@ STEP 1: YOU TYPE A PROMPT
         |
         v
 STEP 2: AI DECIDES WHICH TOOLS TO USE
-  Claude picks tools from Kali MCP, Metasploit MCP, WireMCP, and HexStrike API:
+  Claude picks tools from Kali MCP, Metasploit MCP, WireMCP, Screenshot MCP, and HexStrike API:
     - subfinder (Kali)           -> find subdomains
     - nmap -sV -sC (Kali)       -> port scan + service detection
     - nikto (Kali)               -> web server scanning
@@ -451,8 +457,9 @@ STEP 7 (OPTIONAL): RESULTS STORED IN NEO4J
 | **Claude Desktop** | **Yes** | GUI app on host; needs `localhost:8080/mcp` gateway |
 | **ChatGPT / OpenAI** | **Yes** | GUI/web app on host; needs `localhost:8080/mcp` gateway |
 
-The MCP Gateway (`docker/mcp-gateway:latest`) aggregates all three MCP servers
-behind a single Streamable HTTP endpoint at `localhost:8080/mcp`. It requires:
+The MCP Gateway (`docker/mcp-gateway:latest`) aggregates all MCP servers
+(kali, metasploit, wireshark, screenshot, ollama) behind a single Streamable
+HTTP endpoint at `localhost:8080/mcp`. It requires:
 - Docker socket mount (`/var/run/docker.sock`)
 - The `--profile gateway` flag to enable
 
@@ -615,9 +622,9 @@ blhackbox mcp
 ```bash
 make help                  # Show all available targets
 make pull                  # Pull all pre-built images from Docker Hub
-make up                    # Start core stack (8 containers)
-make up-full               # Start with Neo4j (9 containers)
-make up-gateway            # Start with MCP Gateway for Claude Desktop (9 containers)
+make up                    # Start core stack (11 containers)
+make up-full               # Start with Neo4j (12 containers)
+make up-gateway            # Start with MCP Gateway for Claude Desktop (12 containers)
 make down                  # Stop all services
 make claude-code           # Build and launch Claude Code in Docker
 make status                # Container status table
@@ -628,7 +635,15 @@ make ollama-pull           # Pull Ollama model
 make portainer             # Open Portainer dashboard (shows setup instructions)
 make gateway-logs          # Live MCP Gateway logs (requires --profile gateway)
 make restart-agents        # Restart all 3 agent containers
+make logs-kali             # Tail Kali MCP logs
+make logs-metasploit       # Tail Metasploit MCP logs
+make logs-wireshark        # Tail WireMCP logs
+make logs-screenshot       # Tail Screenshot MCP logs
+make logs-hexstrike        # Tail HexStrike logs
+make logs-ollama-mcp       # Tail Ollama MCP logs
 make logs-agent-ingestion  # Tail Ingestion Agent logs
+make logs-agent-processing # Tail Processing Agent logs
+make logs-agent-synthesis  # Tail Synthesis Agent logs
 make push-all              # Build and push all images to Docker Hub
 ```
 
@@ -640,7 +655,7 @@ Only needed if you want to modify Dockerfiles or agent code:
 
 ```bash
 git submodule update --init --recursive   # fetch kali-mcp + hexstrike source
-docker compose build                      # build all 7 custom images locally
+docker compose build                      # build all 10 custom images locally
 docker compose up -d
 ```
 
