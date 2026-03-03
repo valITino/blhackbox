@@ -22,11 +22,12 @@
     },
     "hexstrike": {
       "command": "python3",
-      "args": ["hexstrike/hexstrike_mcp.py"],
+      "args": ["hexstrike-mcp/server.py"],
       "env": {
-        "HEXSTRIKE_URL": "http://localhost:8888"
+        "HEXSTRIKE_URL": "http://localhost:8888",
+        "MCP_TRANSPORT": "stdio"
       },
-      "description": "HexStrike AI MCP Server — github.com/0x4m4/hexstrike-ai (150+ tools, 12+ security execution agents)"
+      "description": "HexStrike AI MCP Server — 150+ security tools, 12+ AI agents, target analysis (6 tools)"
     },
     "blhackbox-aggregator": {
       "command": "python3",

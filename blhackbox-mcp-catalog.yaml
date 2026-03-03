@@ -5,8 +5,8 @@
 # endpoint at http://localhost:8080/mcp for host-based clients (Claude Desktop,
 # ChatGPT).
 #
-# Only actual MCP servers are listed here. HexStrike is a Flask REST API
-# and is NOT included — it does not speak MCP protocol.
+# All MCP servers are listed here. The hexstrike-mcp container wraps the
+# HexStrike Flask REST API with MCP protocol.
 #
 # This catalog is ONLY used when the gateway profile is enabled:
 #   docker compose --profile gateway up -d
@@ -47,6 +47,14 @@ registry:
     type: "server"
     remote:
       url: "http://screenshot-mcp:9004/sse"
+      transport_type: sse
+
+  hexstrike-mcp:
+    description: "HexStrike AI — 150+ security tools, 12+ AI agents, target analysis with risk scoring"
+    title: "HexStrike MCP Server"
+    type: "server"
+    remote:
+      url: "http://hexstrike-mcp:9005/sse"
       transport_type: sse
 
   ollama-mcp:
