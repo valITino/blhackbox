@@ -7,6 +7,8 @@
 FROM python:3.13-slim
 
 # Install system dependencies for Playwright Chromium
+# Note: libasound2t64 is the transitional name on Debian trixie+; fall back to
+# libasound2 on bookworm and older.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     # Playwright Chromium dependencies
     libnss3 \
@@ -25,11 +27,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libgbm1 \
     libpango-1.0-0 \
     libcairo2 \
-    libasound2 \
+    libx11-xcb1 \
+    libxcb1 \
+    libxext6 \
+    libx11-6 \
     # Fonts for proper web page rendering
     fonts-dejavu-core \
     fonts-liberation \
     fonts-noto-color-emoji \
+    && (apt-get install -y --no-install-recommends libasound2 2>/dev/null \
+        || apt-get install -y --no-install-recommends libasound2t64) \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
