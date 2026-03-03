@@ -22,7 +22,7 @@ MAX_RETRIES=20
 RETRY_INTERVAL=3
 
 # Ensure internal Docker hostnames bypass any egress proxy.
-export no_proxy="${no_proxy:+${no_proxy},}mcp-gateway,kali-mcp,metasploit-mcp,wire-mcp,hexstrike,ollama-mcp,ollama,agent-ingestion,agent-processing,agent-synthesis,localhost,127.0.0.1"
+export no_proxy="${no_proxy:+${no_proxy},}mcp-gateway,kali-mcp,metasploit-mcp,wire-mcp,screenshot-mcp,hexstrike,ollama-mcp,ollama,agent-ingestion,agent-processing,agent-synthesis,localhost,127.0.0.1"
 export NO_PROXY="$no_proxy"
 
 # ── Functions ───────────────────────────────────────────────────────
@@ -103,6 +103,12 @@ else
     MCP_FAIL=$((MCP_FAIL + 1))
 fi
 
+if wait_for_service "Screenshot MCP" "http://screenshot-mcp:9004/sse"; then
+    MCP_OK=$((MCP_OK + 1))
+else
+    MCP_FAIL=$((MCP_FAIL + 1))
+fi
+
 if wait_for_service "Ollama Pipeline" "http://ollama-mcp:9000/sse"; then
     MCP_OK=$((MCP_OK + 1))
 else
@@ -140,6 +146,7 @@ echo -e "  ${BOLD}MCP servers (connected via SSE):${NC}"
 echo -e "    kali            ${DIM}Kali Linux security tools (50+ tools)${NC}"
 echo -e "    metasploit      ${DIM}Metasploit Framework (13+ exploit tools)${NC}"
 echo -e "    wireshark       ${DIM}WireMCP — tshark packet capture & analysis${NC}"
+echo -e "    screenshot      ${DIM}Screenshot MCP — headless Chromium evidence capture${NC}"
 echo -e "    ollama-pipeline ${DIM}Ollama preprocessing (3-agent pipeline)${NC}"
 echo ""
 echo -e "  ${BOLD}REST API (accessible via HTTP):${NC}"

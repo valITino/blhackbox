@@ -12,6 +12,7 @@
 #   kali-mcp         (FastMCP SSE, port 9001) — Kali Linux security tools (50+)
 #   metasploit-mcp   (FastMCP SSE, port 9002) — Metasploit Framework (13+ tools)
 #   wire-mcp         (FastMCP SSE, port 9003) — Wireshark/tshark (7 tools)
+#   screenshot-mcp   (FastMCP SSE, port 9004) — Headless Chromium screenshots (4 tools)
 #   ollama-mcp       (FastMCP SSE, port 9000) — Ollama preprocessing pipeline
 #   hexstrike        (Flask REST API, port 8888) — HexStrike AI tools (NOT MCP protocol)
 #
@@ -70,7 +71,7 @@ services:
       - --transport=streaming
       - --port=8080
       - --catalog=/catalog.yaml
-      - --servers=kali-mcp,metasploit-mcp,wire-mcp,ollama-mcp
+      - --servers=kali-mcp,metasploit-mcp,wire-mcp,screenshot-mcp,ollama-mcp
       - --log-calls
     networks:
       - blhackbox_net
@@ -80,6 +81,8 @@ services:
       metasploit-mcp:
         condition: service_healthy
       wire-mcp:
+        condition: service_healthy
+      screenshot-mcp:
         condition: service_healthy
       ollama-mcp:
         condition: service_healthy
@@ -156,6 +159,37 @@ services:
       timeout: 10s
       retries: 5
       start_period: 10s
+    networks:
+      - blhackbox_net
+
+  # -- SCREENSHOT MCP SERVER -------------------------------------------------
+  # Headless Chromium screenshot server for bug bounty PoC evidence capture.
+  # Provides 4 MCP tools: take_screenshot, take_element_screenshot,
+  # list_screenshots, annotate_screenshot.
+  # Uses Playwright + Chromium for reliable headless web page capture.
+  screenshot-mcp:
+    image: crhacky/blhackbox:screenshot-mcp
+    build:
+      context: .
+      dockerfile: docker/screenshot-mcp.Dockerfile
+    container_name: blhackbox-screenshot-mcp
+    restart: unless-stopped
+    init: true
+    environment:
+      SCREENSHOTS_DIR: "/tmp/screenshots"
+      NAVIGATION_TIMEOUT: "30000"
+      MAX_CONCURRENT_SCREENSHOTS: "3"
+      SCREENSHOT_MCP_PORT: "${SCREENSHOT_MCP_PORT:-9004}"
+    ports:
+      - "${SCREENSHOT_MCP_PORT:-9004}:9004"
+    volumes:
+      - results:/tmp/screenshots
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:9004/sse')\""]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 15s
     networks:
       - blhackbox_net
 
@@ -380,14 +414,16 @@ services:
     environment:
       ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY}"
       # Bypass egress proxies (e.g. GitHub Codespaces) for internal Docker traffic
-      no_proxy: "mcp-gateway,kali-mcp,metasploit-mcp,wire-mcp,hexstrike,ollama-mcp,ollama,agent-ingestion,agent-processing,agent-synthesis,localhost,127.0.0.1"
-      NO_PROXY: "mcp-gateway,kali-mcp,metasploit-mcp,wire-mcp,hexstrike,ollama-mcp,ollama,agent-ingestion,agent-processing,agent-synthesis,localhost,127.0.0.1"
+      no_proxy: "mcp-gateway,kali-mcp,metasploit-mcp,wire-mcp,screenshot-mcp,hexstrike,ollama-mcp,ollama,agent-ingestion,agent-processing,agent-synthesis,localhost,127.0.0.1"
+      NO_PROXY: "mcp-gateway,kali-mcp,metasploit-mcp,wire-mcp,screenshot-mcp,hexstrike,ollama-mcp,ollama,agent-ingestion,agent-processing,agent-synthesis,localhost,127.0.0.1"
     depends_on:
       kali-mcp:
         condition: service_healthy
       metasploit-mcp:
         condition: service_healthy
       wire-mcp:
+        condition: service_healthy
+      screenshot-mcp:
         condition: service_healthy
       hexstrike:
         condition: service_healthy

@@ -2,8 +2,9 @@
 
 The blhackbox MCP server exposes orchestrated workflows (recon, run_tool,
 query_graph, get_findings, list_tools, generate_report, list_templates,
-get_template). It does NOT reference the deleted orchestrator or LLM client
-modules.
+get_template) plus screenshot tools (take_screenshot, take_element_screenshot,
+list_screenshots, annotate_screenshot). It does NOT reference the deleted
+orchestrator or LLM client modules.
 """
 
 from __future__ import annotations
@@ -28,9 +29,12 @@ class TestMCPToolDefinitions:
 
     def test_expected_tools_present(self) -> None:
         names = {t.name for t in _TOOLS}
-        expected = {"recon", "run_tool", "query_graph", "get_findings",
-                    "list_tools", "generate_report", "list_templates",
-                    "get_template"}
+        expected = {
+            "recon", "run_tool", "query_graph", "get_findings",
+            "list_tools", "generate_report", "list_templates",
+            "get_template", "take_screenshot", "take_element_screenshot",
+            "list_screenshots", "annotate_screenshot",
+        }
         assert expected == names
 
     def test_recon_requires_target(self) -> None:
@@ -59,9 +63,11 @@ class TestMCPToolDefinitions:
 class TestMCPListTools:
     async def test_list_tools_returns_all(self) -> None:
         tools = await handle_list_tools()
-        assert len(tools) == 8
+        assert len(tools) == 12
         names = {t.name for t in tools}
         assert "recon" in names
         assert "run_tool" in names
         assert "list_templates" in names
         assert "get_template" in names
+        assert "take_screenshot" in names
+        assert "annotate_screenshot" in names

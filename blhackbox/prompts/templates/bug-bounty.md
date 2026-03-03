@@ -108,7 +108,21 @@ Focus on high-impact, high-bounty vulnerability classes:
 3. Check for CORS misconfiguration
 4. Check for subdomain takeover opportunities on dangling CNAME records
 
-### Step 5: Traffic Analysis
+### Step 5: Evidence Capture & Traffic Analysis
+
+**A. Screenshot Evidence (PoC Documentation)**
+
+For each confirmed vulnerability, capture visual proof using the Screenshot MCP server:
+
+1. **Vulnerability screenshots** — Capture full-page screenshots of affected endpoints
+2. **Element screenshots** — Target specific DOM elements showing XSS payloads, error messages,
+   or exposed data using CSS selectors (e.g., `#error-msg`, `.admin-panel`)
+3. **Before/after capture** — Screenshot pages before and after exploitation to demonstrate impact
+4. **Annotated evidence** — Add text labels and highlight boxes to screenshots marking
+   vulnerability locations for clear PoC documentation
+5. **Screenshot inventory** — List all captured screenshots to verify complete evidence coverage
+
+**B. Traffic Analysis**
 
 1. **Packet capture** — Capture HTTP traffic during bug bounty testing
 2. **Credential extraction** — Find leaked API keys, tokens, or cleartext credentials in traffic
@@ -141,7 +155,7 @@ For EACH vulnerability, provide:
 3. **Summary** — one-paragraph description of the vulnerability
 4. **Steps to Reproduce** — numbered, exact steps to reproduce
 5. **Impact** — what an attacker can achieve (data access, account takeover, RCE, etc.)
-6. **Proof of Concept** — tool output, request/response pairs, traffic captures, screenshots description
+6. **Proof of Concept** — tool output, request/response pairs, traffic captures, annotated screenshots
 7. **Affected Endpoint** — exact URL, parameter, and method
 8. **Remediation** — how to fix the vulnerability
 9. **References** — CVEs, CWEs, OWASP categories
@@ -155,5 +169,6 @@ Sort findings by severity (critical first) and potential bounty value.
 - Respect program scope — never test out-of-scope assets
 - Respect rate limits — use reasonable scanning speeds
 - Prioritize high-impact vulnerabilities with clear proof of concept
+- Capture screenshots of each vulnerability for visual proof of concept
 - Write reports in bug bounty format (not pentest format)
 - Each finding should be independently reportable

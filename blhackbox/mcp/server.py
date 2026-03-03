@@ -208,6 +208,124 @@ _TOOLS: list[Tool] = [
             "required": ["name"],
         },
     ),
+    Tool(
+        name="take_screenshot",
+        description=(
+            "Capture a web page screenshot via headless Chromium for PoC "
+            "evidence. Supports full-page capture, custom viewport, and "
+            "CSS selector wait conditions. Returns path, dimensions, and "
+            "base64 PNG data."
+        ),
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "url": {
+                    "type": "string",
+                    "description": "Web page URL (http:// or https://)",
+                },
+                "width": {
+                    "type": "integer",
+                    "description": "Viewport width in pixels (1-3840, default 1280)",
+                    "default": 1280,
+                },
+                "height": {
+                    "type": "integer",
+                    "description": "Viewport height in pixels (1-2160, default 720)",
+                    "default": 720,
+                },
+                "full_page": {
+                    "type": "boolean",
+                    "description": "Capture the full scrollable page (default false)",
+                    "default": False,
+                },
+                "wait_for_selector": {
+                    "type": "string",
+                    "description": "CSS selector to wait for before capture",
+                },
+                "wait_timeout": {
+                    "type": "integer",
+                    "description": "Extra milliseconds to wait after page load (0-30000)",
+                    "default": 0,
+                },
+            },
+            "required": ["url"],
+        },
+    ),
+    Tool(
+        name="take_element_screenshot",
+        description=(
+            "Screenshot a specific page element by CSS selector. Useful for "
+            "capturing vulnerability evidence like XSS payloads, error messages, "
+            "or exposed admin panels in bug bounty PoC documentation."
+        ),
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "url": {
+                    "type": "string",
+                    "description": "Web page URL (http:// or https://)",
+                },
+                "selector": {
+                    "type": "string",
+                    "description": "CSS selector for the target element",
+                },
+                "width": {
+                    "type": "integer",
+                    "description": "Viewport width in pixels (1-3840, default 1280)",
+                    "default": 1280,
+                },
+                "height": {
+                    "type": "integer",
+                    "description": "Viewport height in pixels (1-2160, default 720)",
+                    "default": 720,
+                },
+            },
+            "required": ["url", "selector"],
+        },
+    ),
+    Tool(
+        name="list_screenshots",
+        description=(
+            "List captured screenshots with metadata (path, size, timestamp). "
+            "Use to review evidence collected during a pentesting session."
+        ),
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "limit": {
+                    "type": "integer",
+                    "description": "Maximum screenshots to return (1-200, default 50)",
+                    "default": 50,
+                },
+            },
+        },
+    ),
+    Tool(
+        name="annotate_screenshot",
+        description=(
+            "Add text labels and highlight boxes to a screenshot for PoC "
+            "documentation. Annotate vulnerability evidence with arrows, "
+            "labels, and colored bounding boxes."
+        ),
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "screenshot_path": {
+                    "type": "string",
+                    "description": "Path to the source screenshot PNG file",
+                },
+                "annotations": {
+                    "type": "string",
+                    "description": (
+                        "JSON array of annotations. Each: "
+                        '{"type":"text","x":10,"y":10,"text":"XSS!","color":"red","size":20} or '
+                        '{"type":"box","x":100,"y":200,"width":300,"height":50,"color":"red"}'
+                    ),
+                },
+            },
+            "required": ["screenshot_path", "annotations"],
+        },
+    ),
 ]
 
 
@@ -248,6 +366,14 @@ async def _dispatch(name: str, args: dict[str, Any]) -> str:
         return await _do_list_templates()
     elif name == "get_template":
         return await _do_get_template(args)
+    elif name == "take_screenshot":
+        return await _do_take_screenshot(args)
+    elif name == "take_element_screenshot":
+        return await _do_take_element_screenshot(args)
+    elif name == "list_screenshots":
+        return await _do_list_screenshots(args)
+    elif name == "annotate_screenshot":
+        return await _do_annotate_screenshot(args)
     else:
         return f"Unknown tool: {name}"
 
@@ -394,6 +520,54 @@ async def _do_get_template(args: dict[str, Any]) -> str:
         return content
     except (ValueError, FileNotFoundError) as exc:
         return json.dumps({"error": str(exc)})
+
+
+# ---------------------------------------------------------------------------
+# Screenshot helpers — proxy to screenshot-mcp via HTTP
+# ---------------------------------------------------------------------------
+
+
+async def _screenshot_request(endpoint: str, payload: dict[str, Any]) -> str:
+    """Send a request to the screenshot-mcp SSE server's tool endpoint."""
+    import httpx
+
+    from blhackbox.config import settings
+
+    base_url = settings.screenshot_mcp_url
+    url = f"{base_url}/mcp/v1/tools/{endpoint}"
+
+    try:
+        async with httpx.AsyncClient(timeout=60) as client:
+            resp = await client.post(url, json=payload)
+            resp.raise_for_status()
+            return resp.text
+    except Exception:
+        # Fallback: call the tool directly if the HTTP proxy fails.
+        # This happens when running the MCP server standalone (not in Docker).
+        logger.debug("Screenshot MCP HTTP proxy unavailable, trying direct call")
+        return json.dumps({
+            "error": (
+                "Screenshot MCP server not reachable. "
+                "Use the screenshot MCP server directly via SSE at "
+                f"{base_url}/sse or ensure the screenshot-mcp container is running."
+            ),
+        })
+
+
+async def _do_take_screenshot(args: dict[str, Any]) -> str:
+    return await _screenshot_request("take_screenshot", args)
+
+
+async def _do_take_element_screenshot(args: dict[str, Any]) -> str:
+    return await _screenshot_request("take_element_screenshot", args)
+
+
+async def _do_list_screenshots(args: dict[str, Any]) -> str:
+    return await _screenshot_request("list_screenshots", args)
+
+
+async def _do_annotate_screenshot(args: dict[str, Any]) -> str:
+    return await _screenshot_request("annotate_screenshot", args)
 
 
 # ---------------------------------------------------------------------------

@@ -19,13 +19,14 @@ All custom images are published to a single Docker Hub repository, differentiate
 
 ## Images and Tags
 
-Nine custom images are published to `crhacky/blhackbox` on Docker Hub:
+Ten custom images are published to `crhacky/blhackbox` on Docker Hub:
 
 | Service | Tag | Dockerfile | Base |
 |---|---|---|---|
 | **Kali MCP** | `crhacky/blhackbox:kali-mcp` | `docker/kali-mcp.Dockerfile` | `kalilinux/kali-rolling` |
 | **Metasploit MCP** | `crhacky/blhackbox:metasploit-mcp` | `docker/metasploit-mcp.Dockerfile` | `kalilinux/kali-rolling` |
 | **WireMCP** | `crhacky/blhackbox:wire-mcp` | `docker/wire-mcp.Dockerfile` | `debian:bookworm-slim` |
+| **Screenshot MCP** | `crhacky/blhackbox:screenshot-mcp` | `docker/screenshot-mcp.Dockerfile` | `python:3.13-slim` |
 | **HexStrike** | `crhacky/blhackbox:hexstrike` | `docker/hexstrike.Dockerfile` | `python:3.13-slim-bookworm` |
 | **Ollama MCP** | `crhacky/blhackbox:ollama-mcp` | `docker/ollama-mcp.Dockerfile` | `python:3.13-slim` |
 | **Agent: Ingestion** | `crhacky/blhackbox:agent-ingestion` | `docker/agent-ingestion.Dockerfile` | `python:3.13-slim` |
@@ -58,6 +59,7 @@ In v2, **Claude (or OpenAI) IS the orchestrator** natively via MCP.
 Claude Code ──┬──> Kali MCP (SSE, port 9001)
 (container)   ├──> Metasploit MCP (SSE, port 9002)
               ├──> WireMCP (SSE, port 9003)
+              ├──> Screenshot MCP (SSE, port 9004)
               ├──> HexStrike API (REST, port 8888)
               └──> Ollama MCP (SSE, port 9000)
                         │
@@ -86,7 +88,7 @@ Note: HexStrike is a REST API, not routed through the MCP Gateway.
 
 ## Usage
 
-### Core Stack (10 containers)
+### Core Stack (11 containers)
 
 ```bash
 git clone https://github.com/valITino/blhackbox.git

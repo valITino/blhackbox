@@ -15,7 +15,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf 
 WORKDIR /root
 
 # Pre-configure MCP to connect directly to each FastMCP server via SSE.
-# kali-mcp, metasploit-mcp, wire-mcp, and ollama-mcp are MCP servers (FastMCP SSE).
+# kali-mcp, metasploit-mcp, wire-mcp, screenshot-mcp, and ollama-mcp are MCP servers (FastMCP SSE).
 # HexStrike is a Flask REST API (port 8888), NOT an MCP server — it is
 # accessible via HTTP at http://hexstrike:8888/api/... but does not speak
 # MCP protocol. See: https://github.com/0x4m4/hexstrike-ai
@@ -32,6 +32,10 @@ RUN echo '{ \
     "wireshark": { \
       "type": "sse", \
       "url": "http://wire-mcp:9003/sse" \
+    }, \
+    "screenshot": { \
+      "type": "sse", \
+      "url": "http://screenshot-mcp:9004/sse" \
     }, \
     "ollama-pipeline": { \
       "type": "sse", \

@@ -43,6 +43,12 @@ class Settings(BaseSettings):
     # --- MCP Gateway ---
     mcp_gateway_port: int = Field(default=8080, description="MCP Gateway port")
 
+    # --- Screenshot MCP ---
+    screenshot_mcp_url: str = Field(
+        default="http://screenshot-mcp:9004",
+        description="Screenshot MCP server base URL",
+    )
+
     # --- General ---
     max_iterations: int = Field(
         default=10, description="Maximum tool iterations per recon session"
