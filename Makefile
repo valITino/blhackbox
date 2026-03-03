@@ -28,10 +28,10 @@ logs: ## Tail logs from all services
 	$(COMPOSE) logs -f
 
 # ── Stack variations ─────────────────────────────────────────────
-up-full: ## Start full stack: core + Neo4j (11 containers)
+up-full: ## Start full stack: core + Neo4j (12 containers)
 	$(COMPOSE) --profile neo4j up -d
 
-up-gateway: ## Start core + MCP Gateway for Claude Desktop / ChatGPT (11 containers)
+up-gateway: ## Start core + MCP Gateway for Claude Desktop / ChatGPT (12 containers)
 	$(COMPOSE) --profile gateway up -d
 
 # ── Testing & Code Quality ─────────────────────────────────────

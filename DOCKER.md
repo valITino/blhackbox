@@ -133,6 +133,7 @@ make health                # MCP server health check
 | `kali-mcp` | `crhacky/blhackbox:kali-mcp` | `9001` | default | Kali Linux security tools (50+) |
 | `metasploit-mcp` | `crhacky/blhackbox:metasploit-mcp` | `9002` | default | Metasploit Framework (13+ tools) |
 | `wire-mcp` | `crhacky/blhackbox:wire-mcp` | `9003` | default | Wireshark/tshark (7 tools) |
+| `screenshot-mcp` | `crhacky/blhackbox:screenshot-mcp` | `9004` | default | Screenshot MCP (headless Chromium, 4 tools) |
 | `hexstrike` | `crhacky/blhackbox:hexstrike` | `8888` | default | HexStrike AI (150+ tools) |
 | `ollama-mcp` | `crhacky/blhackbox:ollama-mcp` | `9000` | default | Thin MCP orchestrator |
 | `agent-ingestion` | `crhacky/blhackbox:agent-ingestion` | `8001` | default | Agent 1: parse raw output |
@@ -158,6 +159,7 @@ The Claude Code container's `.mcp.json` connects directly to each server:
     "kali":            { "type": "sse", "url": "http://kali-mcp:9001/sse" },
     "metasploit":      { "type": "sse", "url": "http://metasploit-mcp:9002/sse" },
     "wireshark":       { "type": "sse", "url": "http://wire-mcp:9003/sse" },
+    "screenshot":      { "type": "sse", "url": "http://screenshot-mcp:9004/sse" },
     "ollama-pipeline": { "type": "sse", "url": "http://ollama-mcp:9000/sse" }
   }
 }
@@ -194,6 +196,7 @@ Requires `--profile gateway` (`make up-gateway`).
 | `NEO4J_PASSWORD` | - | Neo4j password, min 8 chars (optional) |
 | `MSFRPC_USER` | `msf` | Metasploit RPC username |
 | `MSFRPC_PASS` | `msf` | Metasploit RPC password |
+| `SCREENSHOT_MCP_PORT` | `9004` | Screenshot MCP server port |
 | `OPENAI_API_KEY` | - | For OpenAI MCP clients (optional) |
 
 ---
@@ -226,6 +229,13 @@ Requires `--profile gateway` (`make up-gateway`).
 - **Transport**: SSE on port 9003
 - **Privileged**: Yes (required for packet capture)
 - **Inspired by**: [0xKoda/WireMCP](https://github.com/0xKoda/WireMCP), [khuynh22/mcp-wireshark](https://github.com/khuynh22/mcp-wireshark)
+
+### Screenshot MCP (`crhacky/blhackbox:screenshot-mcp`)
+
+- **Base**: `python:3.13-slim`
+- **Tools (4)**: take_screenshot (full-page web capture), take_element_screenshot (CSS selector targeting), annotate_screenshot (labels and highlight boxes), list_screenshots (evidence inventory)
+- **Entrypoint**: Screenshot MCP server (FastMCP + Playwright headless Chromium)
+- **Transport**: SSE on port 9004
 
 ### HexStrike (`crhacky/blhackbox:hexstrike`)
 
@@ -291,16 +301,16 @@ Named volumes for persistent data:
 
 ## CI/CD Pipeline
 
-Nine custom images are built and pushed to Docker Hub via GitHub Actions:
+Ten custom images are built and pushed to Docker Hub via GitHub Actions:
 
 ```
 PR opened  ───>  CI (lint + test + pip-audit)
                       │
-PR merged  ───>  CI  ───>  Build & Push (9 images)  ───>  Docker Hub
+PR merged  ───>  CI  ───>  Build & Push (10 images)  ───>  Docker Hub
                            (on CI success)
-Tag v*     ──────────────>  Build & Push (9 images)  ───>  Docker Hub
+Tag v*     ──────────────>  Build & Push (10 images)  ───>  Docker Hub
 
-Manual     ──────────────>  Build & Push (9 images)  ───>  Docker Hub
+Manual     ──────────────>  Build & Push (10 images)  ───>  Docker Hub
 ```
 
 Docker Scout vulnerability scanning runs on the ollama-mcp image.
@@ -313,13 +323,13 @@ Docker Scout vulnerability scanning runs on the ollama-mcp image.
 # Pull all pre-built images from Docker Hub
 docker compose pull
 
-# Start core stack (10 containers)
+# Start core stack (11 containers)
 docker compose up -d
 
-# Start with MCP Gateway for Claude Desktop (9 containers)
+# Start with MCP Gateway for Claude Desktop (12 containers)
 make up-gateway
 
-# Start with Neo4j (9 containers)
+# Start with Neo4j (12 containers)
 docker compose --profile neo4j up -d
 
 # Launch Claude Code in Docker
