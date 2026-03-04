@@ -13,7 +13,6 @@ import asyncio
 import json
 import logging
 import os
-import shutil
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
