@@ -49,7 +49,7 @@ logger = logging.getLogger("blhackbox.ollama_mcp")
 # Configuration from environment
 # ---------------------------------------------------------------------------
 
-OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "llama3.3")
+OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "llama3.1:8b")
 
 # Agent container URLs — each agent runs as a separate FastAPI container
 AGENT_INGESTION_URL = os.environ.get(

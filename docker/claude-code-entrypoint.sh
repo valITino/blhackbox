@@ -22,7 +22,7 @@ MAX_RETRIES=20
 RETRY_INTERVAL=3
 
 # Ensure internal Docker hostnames bypass any egress proxy.
-export no_proxy="${no_proxy:+${no_proxy},}mcp-gateway,kali-mcp,metasploit-mcp,wire-mcp,screenshot-mcp,hexstrike,ollama-mcp,ollama,agent-ingestion,agent-processing,agent-synthesis,localhost,127.0.0.1"
+export no_proxy="${no_proxy:+${no_proxy},}mcp-gateway,kali-mcp,metasploit-mcp,wire-mcp,screenshot-mcp,hexstrike,hexstrike-mcp,ollama-mcp,ollama,agent-ingestion,agent-processing,agent-synthesis,localhost,127.0.0.1"
 export NO_PROXY="$no_proxy"
 
 # ── Functions ───────────────────────────────────────────────────────
@@ -97,7 +97,8 @@ else
     MCP_FAIL=$((MCP_FAIL + 1))
 fi
 
-if wait_for_service "WireMCP" "http://wire-mcp:9003/sse"; then
+# WireMCP shares kali-mcp's network namespace, so use kali-mcp hostname
+if wait_for_service "WireMCP" "http://kali-mcp:9003/sse"; then
     MCP_OK=$((MCP_OK + 1))
 else
     MCP_FAIL=$((MCP_FAIL + 1))
@@ -109,20 +110,16 @@ else
     MCP_FAIL=$((MCP_FAIL + 1))
 fi
 
-if wait_for_service "Ollama Pipeline" "http://ollama-mcp:9000/sse"; then
+if wait_for_service "HexStrike MCP" "http://hexstrike-mcp:9005/sse"; then
     MCP_OK=$((MCP_OK + 1))
 else
     MCP_FAIL=$((MCP_FAIL + 1))
 fi
 
-echo ""
-
-# -- REST API Services (accessible via HTTP, not MCP) --
-echo -e "  ${BOLD}REST API Services${NC}"
-if wait_for_service "HexStrike API" "http://hexstrike:8888/health"; then
-    REST_OK=$((REST_OK + 1))
+if wait_for_service "Ollama Pipeline" "http://ollama-mcp:9000/sse"; then
+    MCP_OK=$((MCP_OK + 1))
 else
-    REST_FAIL=$((REST_FAIL + 1))
+    MCP_FAIL=$((MCP_FAIL + 1))
 fi
 
 # Summary
@@ -143,15 +140,12 @@ fi
 echo ""
 echo -e "${DIM}──────────────────────────────────────────────────${NC}"
 echo -e "  ${BOLD}MCP servers (connected via SSE):${NC}"
-echo -e "    kali            ${DIM}Kali Linux security tools (50+ tools)${NC}"
+echo -e "    kali            ${DIM}Kali Linux security tools (60+ tools)${NC}"
 echo -e "    metasploit      ${DIM}Metasploit Framework (13+ exploit tools)${NC}"
 echo -e "    wireshark       ${DIM}WireMCP — tshark packet capture & analysis${NC}"
 echo -e "    screenshot      ${DIM}Screenshot MCP — headless Chromium evidence capture${NC}"
+echo -e "    hexstrike       ${DIM}HexStrike AI (150+ tools, 12+ agents via MCP)${NC}"
 echo -e "    ollama-pipeline ${DIM}Ollama preprocessing (3-agent pipeline)${NC}"
-echo ""
-echo -e "  ${BOLD}REST API (accessible via HTTP):${NC}"
-echo -e "    hexstrike       ${DIM}HexStrike AI (150+ tools, 12+ agents)${NC}"
-echo -e "                    ${DIM}http://hexstrike:8888/api/...${NC}"
 echo ""
 echo -e "  ${BOLD}Prompt templates (autonomous pentesting):${NC}"
 echo -e "    ${CYAN}full-pentest${NC}       ${DIM}Complete end-to-end penetration test${NC}"

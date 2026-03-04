@@ -55,7 +55,7 @@ class BaseAgent:
     def __init__(
         self,
         ollama_host: str = "http://localhost:11434",
-        model: str = "llama3.3",
+        model: str = "llama3.1:8b",
     ) -> None:
         self.ollama_host = ollama_host.rstrip("/")
         self.model = model

@@ -20,6 +20,7 @@ Metasploit Framework and starts msfrpcd automatically on startup.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
@@ -53,6 +54,10 @@ mcp = FastMCP("metasploit-mcp", host="0.0.0.0", port=MCP_PORT)
 class MSFRPCClient:
     """Minimal Metasploit RPC client using msgpack-free JSON-RPC."""
 
+    # Number of login retries — msfrpcd may need up to 90 s to start.
+    LOGIN_RETRIES = int(os.environ.get("MSFRPC_LOGIN_RETRIES", "10"))
+    LOGIN_RETRY_DELAY = int(os.environ.get("MSFRPC_LOGIN_RETRY_DELAY", "6"))
+
     def __init__(self) -> None:
         scheme = "https" if MSFRPC_SSL else "http"
         self.url = f"{scheme}://{MSFRPC_HOST}:{MSFRPC_PORT}/api/"
@@ -60,32 +65,75 @@ class MSFRPCClient:
         self._client = httpx.AsyncClient(verify=False, timeout=EXEC_TIMEOUT)
 
     async def login(self) -> bool:
-        """Authenticate to msfrpcd and obtain a session token."""
-        try:
-            resp = await self._client.post(
-                self.url,
-                json=["auth.login", MSFRPC_USER, MSFRPC_PASS],
-            )
-            data = resp.json()
-            if data.get("result") == "success":
-                self.token = data["token"]
-                logger.info("Authenticated to msfrpcd at %s", self.url)
-                return True
-            logger.error("MSFRPC auth failed: %s", data)
-            return False
-        except Exception as exc:
-            logger.error("MSFRPC connection failed: %s", exc)
-            return False
+        """Authenticate to msfrpcd with retry logic for slow startup.
+
+        msfrpcd can take 30-90 seconds to fully start. This method retries
+        the login attempt with a delay between attempts to avoid immediate
+        'Not authenticated' failures on first tool call.
+        """
+        for attempt in range(1, self.LOGIN_RETRIES + 1):
+            try:
+                resp = await self._client.post(
+                    self.url,
+                    json=["auth.login", MSFRPC_USER, MSFRPC_PASS],
+                )
+                data = resp.json()
+                if data.get("result") == "success":
+                    self.token = data["token"]
+                    logger.info(
+                        "Authenticated to msfrpcd at %s (attempt %d/%d)",
+                        self.url, attempt, self.LOGIN_RETRIES,
+                    )
+                    return True
+                logger.warning(
+                    "MSFRPC auth failed (attempt %d/%d): %s",
+                    attempt, self.LOGIN_RETRIES, data,
+                )
+            except Exception as exc:
+                logger.warning(
+                    "MSFRPC connection failed (attempt %d/%d): %s",
+                    attempt, self.LOGIN_RETRIES, exc,
+                )
+
+            if attempt < self.LOGIN_RETRIES:
+                logger.info(
+                    "Retrying msfrpcd login in %ds...", self.LOGIN_RETRY_DELAY,
+                )
+                await asyncio.sleep(self.LOGIN_RETRY_DELAY)
+
+        logger.error(
+            "All %d msfrpcd login attempts failed at %s",
+            self.LOGIN_RETRIES, self.url,
+        )
+        return False
 
     async def call(self, method: str, *args: Any) -> dict[str, Any]:
-        """Call an MSFRPC method."""
+        """Call an MSFRPC method.  Re-authenticates once on auth failure."""
         if not self.token:
             if not await self.login():
-                return {"error": "Not authenticated to msfrpcd"}
+                return {
+                    "error": (
+                        "Not authenticated to msfrpcd. "
+                        "Check that msfrpcd is running and credentials are correct "
+                        "(MSFRPC_USER/MSFRPC_PASS)."
+                    ),
+                }
         try:
             payload = [method, self.token, *args]
             resp = await self._client.post(self.url, json=payload)
-            return resp.json()
+            data = resp.json()
+            # Handle expired token — re-authenticate once and retry
+            if data.get("error") is True and "Invalid Authentication" in str(
+                data.get("error_message", ""),
+            ):
+                logger.warning("MSFRPC token expired, re-authenticating...")
+                self.token = None
+                if await self.login():
+                    payload = [method, self.token, *args]
+                    resp = await self._client.post(self.url, json=payload)
+                    return resp.json()
+                return {"error": "Re-authentication to msfrpcd failed"}
+            return data
         except Exception as exc:
             logger.error("MSFRPC call %s failed: %s", method, exc)
             return {"error": str(exc)}

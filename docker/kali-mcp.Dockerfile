@@ -25,6 +25,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     dnsutils \
     whois \
     theharvester \
+    host \
     # --- Web Application ---
     nikto \
     gobuster \
@@ -73,7 +74,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
     python3-pip \
     python3-venv \
+    # --- Wordlists (required by dirb, gobuster, wpscan, etc.) ---
+    wordlists \
+    seclists \
     && rm -rf /var/lib/apt/lists/*
+
+# Ensure wordlists are decompressed and accessible at standard paths
+RUN [ -f /usr/share/wordlists/rockyou.txt.gz ] && \
+    gunzip /usr/share/wordlists/rockyou.txt.gz || true
+
+# Symlink theHarvester -> theharvester for backward compatibility (Issue #16)
+RUN ln -sf "$(which theHarvester 2>/dev/null || echo /usr/bin/theHarvester)" \
+    /usr/local/bin/theharvester 2>/dev/null || true
 
 # dalfox is not in Kali apt repos — install from GitHub release binary
 RUN DALFOX_VERSION="2.9.3" && \

@@ -25,7 +25,7 @@ from pydantic import BaseModel
 logger = logging.getLogger("blhackbox.agent_server")
 
 OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://ollama:11434")
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.3")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.1:8b")
 
 # Timeout (seconds) for Ollama requests — generous to cover cold-start model
 # loading, which can take minutes on first invocation.
