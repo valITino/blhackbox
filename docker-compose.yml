@@ -71,7 +71,7 @@ services:
       - --transport=streaming
       - --port=8080
       - --catalog=/catalog.yaml
-      - --servers=kali-mcp,metasploit-mcp,wire-mcp,screenshot-mcp,ollama-mcp
+      - --servers=kali-mcp,metasploit-mcp,wire-mcp,screenshot-mcp,hexstrike-mcp,ollama-mcp
       - --log-calls
     networks:
       - blhackbox_net
@@ -100,6 +100,11 @@ services:
     restart: unless-stopped
     privileged: true
     init: true
+    environment:
+      # WPScan API token for vulnerability database lookups (Issue #15)
+      WPSCAN_API_TOKEN: "${WPSCAN_API_TOKEN:-}"
+      # Max timeout for long-running scans (Issue #8)
+      KALI_MAX_TIMEOUT: "${KALI_MAX_TIMEOUT:-600}"
     ports:
       - "${KALI_MCP_PORT:-9001}:9001"
     healthcheck:
@@ -109,7 +114,11 @@ services:
       retries: 5
       start_period: 10s
     networks:
-      - blhackbox_net
+      blhackbox_net:
+        # wire-mcp shares this container's network namespace, so add an alias
+        # so other containers can also resolve "wire-mcp" to this IP.
+        aliases:
+          - wire-mcp
 
   # -- METASPLOIT MCP SERVER -------------------------------------------------
   # Wraps the Metasploit Framework via msfrpcd (MSF RPC).
@@ -144,6 +153,12 @@ services:
   # Provides 7 MCP tools: capture_packets, read_pcap, get_conversations,
   # get_statistics, extract_credentials, follow_stream, list_interfaces.
   # Inspired by 0xKoda/WireMCP and khuynh22/mcp-wireshark.
+  #
+  # NOTE: Uses network_mode: "service:kali-mcp" to share the Kali container's
+  # network namespace. This allows tshark to capture traffic from Kali tool
+  # execution. Without this, tshark sees 0 packets due to Docker network
+  # isolation between containers.  Port 9003 is accessible via the kali-mcp
+  # container's IP (or kali-mcp:9003 from other containers on blhackbox_net).
   wire-mcp:
     image: crhacky/blhackbox:wire-mcp
     build:
@@ -153,14 +168,16 @@ services:
     restart: unless-stopped
     privileged: true
     init: true
+    network_mode: "service:kali-mcp"
+    depends_on:
+      kali-mcp:
+        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:9003/sse')\""]
       interval: 15s
       timeout: 10s
       retries: 5
       start_period: 10s
-    networks:
-      - blhackbox_net
 
   # -- SCREENSHOT MCP SERVER -------------------------------------------------
   # Headless Chromium screenshot server for bug bounty PoC evidence capture.
@@ -218,6 +235,35 @@ services:
     networks:
       - blhackbox_net
 
+  # -- HEXSTRIKE MCP ADAPTER -------------------------------------------------
+  # Bridges the HexStrike Flask REST API to MCP protocol.
+  # Allows Claude Code to discover and invoke HexStrike tools natively.
+  # Transport: FastMCP SSE on port 9005.
+  hexstrike-mcp:
+    image: crhacky/blhackbox:hexstrike-mcp
+    build:
+      context: .
+      dockerfile: docker/hexstrike-mcp.Dockerfile
+    container_name: blhackbox-hexstrike-mcp
+    restart: unless-stopped
+    init: true
+    environment:
+      HEXSTRIKE_URL: "http://hexstrike:8888"
+      MCP_PORT: "9005"
+    ports:
+      - "9005:9005"
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:9005/sse')\""]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
+    depends_on:
+      hexstrike:
+        condition: service_healthy
+    networks:
+      - blhackbox_net
+
   # -- OLLAMA MCP SERVER (CUSTOM) --------------------------------------------
   # blhackbox custom component. NOT an official Ollama product.
   # Thin MCP orchestrator -- calls the 3 agent containers in sequence
@@ -239,7 +285,7 @@ services:
       start_period: 10s
     environment:
       OLLAMA_HOST: "http://ollama:11434"
-      OLLAMA_MODEL: "${OLLAMA_MODEL:-llama3.3}"
+      OLLAMA_MODEL: "${OLLAMA_MODEL:-llama3.1:8b}"
       AGENT_INGESTION_URL: "http://agent-ingestion:8001"
       AGENT_PROCESSING_URL: "http://agent-processing:8002"
       AGENT_SYNTHESIS_URL: "http://agent-synthesis:8003"
@@ -270,7 +316,7 @@ services:
     restart: unless-stopped
     environment:
       OLLAMA_HOST: "http://ollama:11434"
-      OLLAMA_MODEL: "${OLLAMA_MODEL:-llama3.3}"
+      OLLAMA_MODEL: "${OLLAMA_MODEL:-llama3.1:8b}"
       OLLAMA_TIMEOUT: "${OLLAMA_TIMEOUT:-300}"
       OLLAMA_NUM_CTX: "${OLLAMA_NUM_CTX:-8192}"
       OLLAMA_KEEP_ALIVE: "${OLLAMA_KEEP_ALIVE:-10m}"
@@ -298,7 +344,7 @@ services:
     restart: unless-stopped
     environment:
       OLLAMA_HOST: "http://ollama:11434"
-      OLLAMA_MODEL: "${OLLAMA_MODEL:-llama3.3}"
+      OLLAMA_MODEL: "${OLLAMA_MODEL:-llama3.1:8b}"
       OLLAMA_TIMEOUT: "${OLLAMA_TIMEOUT:-300}"
       OLLAMA_NUM_CTX: "${OLLAMA_NUM_CTX:-8192}"
       OLLAMA_KEEP_ALIVE: "${OLLAMA_KEEP_ALIVE:-10m}"
@@ -326,7 +372,7 @@ services:
     restart: unless-stopped
     environment:
       OLLAMA_HOST: "http://ollama:11434"
-      OLLAMA_MODEL: "${OLLAMA_MODEL:-llama3.3}"
+      OLLAMA_MODEL: "${OLLAMA_MODEL:-llama3.1:8b}"
       OLLAMA_TIMEOUT: "${OLLAMA_TIMEOUT:-300}"
       OLLAMA_NUM_CTX: "${OLLAMA_NUM_CTX:-8192}"
       OLLAMA_KEEP_ALIVE: "${OLLAMA_KEEP_ALIVE:-10m}"
@@ -418,8 +464,13 @@ services:
     environment:
       ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY}"
       # Bypass egress proxies (e.g. GitHub Codespaces) for internal Docker traffic
-      no_proxy: "mcp-gateway,kali-mcp,metasploit-mcp,wire-mcp,screenshot-mcp,hexstrike,ollama-mcp,ollama,agent-ingestion,agent-processing,agent-synthesis,localhost,127.0.0.1"
-      NO_PROXY: "mcp-gateway,kali-mcp,metasploit-mcp,wire-mcp,screenshot-mcp,hexstrike,ollama-mcp,ollama,agent-ingestion,agent-processing,agent-synthesis,localhost,127.0.0.1"
+      no_proxy: "mcp-gateway,kali-mcp,metasploit-mcp,wire-mcp,screenshot-mcp,hexstrike,hexstrike-mcp,ollama-mcp,ollama,agent-ingestion,agent-processing,agent-synthesis,localhost,127.0.0.1"
+      NO_PROXY: "mcp-gateway,kali-mcp,metasploit-mcp,wire-mcp,screenshot-mcp,hexstrike,hexstrike-mcp,ollama-mcp,ollama,agent-ingestion,agent-processing,agent-synthesis,localhost,127.0.0.1"
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    volumes:
+      - results:/tmp/screenshots:ro
     depends_on:
       kali-mcp:
         condition: service_healthy
@@ -430,6 +481,8 @@ services:
       screenshot-mcp:
         condition: service_healthy
       hexstrike:
+        condition: service_healthy
+      hexstrike-mcp:
         condition: service_healthy
       ollama-mcp:
         condition: service_healthy

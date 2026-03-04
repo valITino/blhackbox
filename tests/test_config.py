@@ -47,7 +47,7 @@ class TestSettings:
     def test_ollama_defaults(self) -> None:
         s = Settings()
         assert "ollama" in s.ollama_url or "localhost" in s.ollama_url
-        assert s.ollama_model == "llama3.3"
+        assert s.ollama_model == "llama3.1:8b"
 
     def test_ollama_url_override(self) -> None:
         s = Settings(ollama_url="http://custom-ollama:9999")
