@@ -29,7 +29,7 @@ class TestBaseAgent:
     def test_default_params(self) -> None:
         agent = BaseAgent()
         assert agent.ollama_host == "http://localhost:11434"
-        assert agent.model == "llama3.3"
+        assert agent.model == "llama3.1:8b"
 
     def test_custom_params(self) -> None:
         agent = BaseAgent(ollama_host="http://custom:9999", model="mistral")
@@ -217,7 +217,7 @@ class TestAgentInstantiation:
         for cls in (IngestionAgent, ProcessingAgent, SynthesisAgent):
             agent = cls()
             assert agent.ollama_host == "http://localhost:11434"
-            assert agent.model == "llama3.3"
+            assert agent.model == "llama3.1:8b"
 
 
 # ---------------------------------------------------------------------------
