@@ -48,7 +48,7 @@ ALLOWED_TOOLS = set(
         "theharvester,theHarvester,host,"
         # --- Web Application ---
         "nikto,gobuster,dirb,dirsearch,ffuf,feroxbuster,whatweb,wafw00f,"
-        "wpscan,httpx,katana,arjun,paramspider,dalfox,"
+        "wpscan,httpx,httpx-toolkit,katana,arjun,paramspider,dalfox,"
         # --- Exploitation / Brute-force ---
         "sqlmap,hydra,medusa,john,hashcat,crackmapexec,evil-winrm,"
         "smbclient,enum4linux-ng,responder,netexec,"

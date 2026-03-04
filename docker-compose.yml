@@ -100,6 +100,11 @@ services:
     restart: unless-stopped
     privileged: true
     init: true
+    environment:
+      # WPScan API token for vulnerability database lookups (Issue #15)
+      WPSCAN_API_TOKEN: "${WPSCAN_API_TOKEN:-}"
+      # Max timeout for long-running scans (Issue #8)
+      KALI_MAX_TIMEOUT: "${KALI_MAX_TIMEOUT:-600}"
     ports:
       - "${KALI_MCP_PORT:-9001}:9001"
     healthcheck:
@@ -109,7 +114,11 @@ services:
       retries: 5
       start_period: 10s
     networks:
-      - blhackbox_net
+      blhackbox_net:
+        # wire-mcp shares this container's network namespace, so add an alias
+        # so other containers can also resolve "wire-mcp" to this IP.
+        aliases:
+          - wire-mcp
 
   # -- METASPLOIT MCP SERVER -------------------------------------------------
   # Wraps the Metasploit Framework via msfrpcd (MSF RPC).

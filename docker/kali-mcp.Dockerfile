@@ -87,6 +87,11 @@ RUN [ -f /usr/share/wordlists/rockyou.txt.gz ] && \
 RUN ln -sf "$(which theHarvester 2>/dev/null || echo /usr/bin/theHarvester)" \
     /usr/local/bin/theharvester 2>/dev/null || true
 
+# Kali installs ProjectDiscovery httpx as "httpx-toolkit" to avoid conflict
+# with the Python httpx CLI. Create a symlink so "httpx" also works. (Issue #14)
+RUN ln -sf "$(which httpx-toolkit 2>/dev/null || echo /usr/bin/httpx-toolkit)" \
+    /usr/local/bin/httpx 2>/dev/null || true
+
 # dalfox is not in Kali apt repos — install from GitHub release binary
 RUN DALFOX_VERSION="2.9.3" && \
     curl -sL "https://github.com/hahwul/dalfox/releases/download/v${DALFOX_VERSION}/dalfox_${DALFOX_VERSION}_linux_amd64.tar.gz" \

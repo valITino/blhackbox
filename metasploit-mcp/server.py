@@ -11,7 +11,12 @@ Exposes 13 core tools for exploit lifecycle management:
   - list_listeners, start_listener, stop_job
   - msf_console_execute (raw msfconsole command execution)
 
-Connection: Connects to msfrpcd via HTTP (MSFRPC_HOST:MSFRPC_PORT).
+Connection: Connects to msfrpcd via HTTPS using **MessagePack** binary
+protocol (Content-Type: binary/message-pack).  msfrpcd does NOT speak
+JSON — it uses msgpack exclusively for request/response encoding.
+
+Reference implementation: pymetasploit3 (Coalfire-Research/pymetasploit3)
+
 Transport: FastMCP SSE on port 9002.
 
 NOTE: Requires a running msfrpcd instance. The Docker container bundles
@@ -28,6 +33,7 @@ import time
 from typing import Any
 
 import httpx
+import msgpack
 from mcp.server.fastmcp import FastMCP
 
 logging.basicConfig(level=logging.INFO)
@@ -46,38 +52,54 @@ EXEC_TIMEOUT = int(os.environ.get("EXEC_TIMEOUT", "300"))
 
 mcp = FastMCP("metasploit-mcp", host="0.0.0.0", port=MCP_PORT)
 
+# msfrpcd msgpack headers — msfrpcd ONLY understands binary/message-pack,
+# NOT application/json.  Sending JSON causes silent auth failures.
+_MSGPACK_HEADERS = {"Content-type": "binary/message-pack"}
+
 
 # ---------------------------------------------------------------------------
-# MSFRPC Client — lightweight HTTP JSON-RPC wrapper
+# MSFRPC Client — msgpack binary protocol wrapper
 # ---------------------------------------------------------------------------
 
 class MSFRPCClient:
-    """Minimal Metasploit RPC client using msgpack-free JSON-RPC."""
+    """Metasploit RPC client using msgpack binary protocol.
 
-    # Number of login retries — msfrpcd may need up to 90 s to start.
-    LOGIN_RETRIES = int(os.environ.get("MSFRPC_LOGIN_RETRIES", "10"))
+    msfrpcd uses MessagePack encoding (Content-Type: binary/message-pack),
+    NOT JSON.  All requests are msgpack-encoded arrays:
+      - auth.login: ["auth.login", username, password]
+      - authenticated: ["method.name", token, *args]
+
+    Reference: pymetasploit3 (Coalfire-Research/pymetasploit3)
+    """
+
+    # Number of login retries — msfrpcd may need 30-90s to start.
+    LOGIN_RETRIES = int(os.environ.get("MSFRPC_LOGIN_RETRIES", "15"))
     LOGIN_RETRY_DELAY = int(os.environ.get("MSFRPC_LOGIN_RETRY_DELAY", "6"))
 
     def __init__(self) -> None:
         scheme = "https" if MSFRPC_SSL else "http"
         self.url = f"{scheme}://{MSFRPC_HOST}:{MSFRPC_PORT}/api/"
         self.token: str | None = None
-        self._client = httpx.AsyncClient(verify=False, timeout=EXEC_TIMEOUT)
+        self._client = httpx.AsyncClient(
+            verify=False,  # msfrpcd uses self-signed certs
+            timeout=EXEC_TIMEOUT,
+        )
 
     async def login(self) -> bool:
-        """Authenticate to msfrpcd with retry logic for slow startup.
+        """Authenticate to msfrpcd using msgpack binary protocol.
 
         msfrpcd can take 30-90 seconds to fully start. This method retries
-        the login attempt with a delay between attempts to avoid immediate
-        'Not authenticated' failures on first tool call.
+        the login attempt with a delay between attempts.
         """
         for attempt in range(1, self.LOGIN_RETRIES + 1):
             try:
+                payload = msgpack.packb(["auth.login", MSFRPC_USER, MSFRPC_PASS])
                 resp = await self._client.post(
                     self.url,
-                    json=["auth.login", MSFRPC_USER, MSFRPC_PASS],
+                    content=payload,
+                    headers=_MSGPACK_HEADERS,
                 )
-                data = resp.json()
+                data = msgpack.unpackb(resp.content, raw=False)
                 if data.get("result") == "success":
                     self.token = data["token"]
                     logger.info(
@@ -86,8 +108,13 @@ class MSFRPCClient:
                     )
                     return True
                 logger.warning(
-                    "MSFRPC auth failed (attempt %d/%d): %s",
+                    "MSFRPC auth rejected (attempt %d/%d): %s",
                     attempt, self.LOGIN_RETRIES, data,
+                )
+            except (httpx.ConnectError, httpx.ConnectTimeout) as exc:
+                logger.info(
+                    "msfrpcd not ready (attempt %d/%d): %s",
+                    attempt, self.LOGIN_RETRIES, type(exc).__name__,
                 )
             except Exception as exc:
                 logger.warning(
@@ -102,36 +129,52 @@ class MSFRPCClient:
                 await asyncio.sleep(self.LOGIN_RETRY_DELAY)
 
         logger.error(
-            "All %d msfrpcd login attempts failed at %s",
+            "All %d msfrpcd login attempts failed at %s. "
+            "Verify msfrpcd is running and credentials are correct.",
             self.LOGIN_RETRIES, self.url,
         )
         return False
 
     async def call(self, method: str, *args: Any) -> dict[str, Any]:
-        """Call an MSFRPC method.  Re-authenticates once on auth failure."""
+        """Call an MSFRPC method using msgpack encoding.
+
+        Re-authenticates once on token expiry (default 300s timeout).
+        """
         if not self.token:
             if not await self.login():
                 return {
                     "error": (
                         "Not authenticated to msfrpcd. "
-                        "Check that msfrpcd is running and credentials are correct "
-                        "(MSFRPC_USER/MSFRPC_PASS)."
+                        "Ensure msfrpcd is running and credentials are correct "
+                        f"(user={MSFRPC_USER}, ssl={MSFRPC_SSL}, "
+                        f"host={MSFRPC_HOST}:{MSFRPC_PORT})."
                     ),
                 }
         try:
-            payload = [method, self.token, *args]
-            resp = await self._client.post(self.url, json=payload)
-            data = resp.json()
-            # Handle expired token — re-authenticate once and retry
-            if data.get("error") is True and "Invalid Authentication" in str(
-                data.get("error_message", ""),
+            payload = msgpack.packb([method, self.token, *args])
+            resp = await self._client.post(
+                self.url,
+                content=payload,
+                headers=_MSGPACK_HEADERS,
+            )
+            data = msgpack.unpackb(resp.content, raw=False)
+
+            # Handle expired/invalid token — re-authenticate once and retry
+            error_msg = str(data.get("error_message", ""))
+            if data.get("error") is True and (
+                "Invalid Authentication" in error_msg
+                or "Token" in error_msg
             ):
                 logger.warning("MSFRPC token expired, re-authenticating...")
                 self.token = None
                 if await self.login():
-                    payload = [method, self.token, *args]
-                    resp = await self._client.post(self.url, json=payload)
-                    return resp.json()
+                    payload = msgpack.packb([method, self.token, *args])
+                    resp = await self._client.post(
+                        self.url,
+                        content=payload,
+                        headers=_MSGPACK_HEADERS,
+                    )
+                    return msgpack.unpackb(resp.content, raw=False)
                 return {"error": "Re-authentication to msfrpcd failed"}
             return data
         except Exception as exc:
@@ -334,7 +377,7 @@ async def send_session_command(
         return _json(write_result)
 
     # Wait and read output
-    time.sleep(min(timeout, 5))
+    await asyncio.sleep(min(timeout, 5))
     read_result = await _rpc.call("session.shell_read", str(session_id))
     return _json({
         "session_id": session_id,
@@ -441,7 +484,7 @@ async def msf_console_execute(command: str, timeout: int = 30) -> str:
         busy = read.get("busy", False)
         if not busy and output_parts:
             break
-        await _async_sleep(1)
+        await asyncio.sleep(1)
 
     # Destroy console
     await _rpc.call("console.destroy", console_id)
@@ -452,12 +495,6 @@ async def msf_console_execute(command: str, timeout: int = 30) -> str:
     })
 
 
-async def _async_sleep(seconds: float) -> None:
-    """Async-compatible sleep."""
-    import asyncio
-    await asyncio.sleep(seconds)
-
-
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
@@ -465,7 +502,7 @@ async def _async_sleep(seconds: float) -> None:
 if __name__ == "__main__":
     transport = os.environ.get("MCP_TRANSPORT", "sse")
     logger.info(
-        "Starting Metasploit MCP Server (%s on port %d, msfrpcd at %s:%d)",
-        transport, MCP_PORT, MSFRPC_HOST, MSFRPC_PORT,
+        "Starting Metasploit MCP Server (%s on port %d, msfrpcd at %s:%d, ssl=%s)",
+        transport, MCP_PORT, MSFRPC_HOST, MSFRPC_PORT, MSFRPC_SSL,
     )
     mcp.run(transport=transport)
