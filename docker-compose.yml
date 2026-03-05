@@ -246,6 +246,7 @@ services:
     build:
       context: .
       dockerfile: docker/hexstrike-mcp.Dockerfile
+      network: host
     container_name: blhackbox-hexstrike-mcp
     restart: unless-stopped
     init: true
