@@ -14,7 +14,10 @@
 FROM python:3.13-slim
 WORKDIR /app
 
-RUN apt-get update \
+# Add retries for transient network failures in build environments
+RUN echo 'Acquire::Retries "5";' > /etc/apt/apt.conf.d/80-retries \
+    && echo 'Acquire::http::Timeout "30";' >> /etc/apt/apt.conf.d/80-retries \
+    && apt-get update \
     && apt-get install -y --no-install-recommends git g++ \
     && rm -rf /var/lib/apt/lists/*
 

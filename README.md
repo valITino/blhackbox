@@ -48,7 +48,7 @@ internal LangGraph orchestrator or LLM planner. Here is what happens when you
 type a prompt:
 
 1. **You type a prompt** in your AI client (Claude Code, Claude Desktop, or ChatGPT).
-2. **The AI decides which tools to call** from five MCP servers and one REST API: Kali Linux MCP (50+ security tools), Metasploit MCP (13+ exploit lifecycle tools), WireMCP (7 packet analysis tools), Screenshot MCP (4 evidence capture tools), HexStrike REST API (150+ security tools, 12+ AI agents), and the Ollama preprocessing pipeline.
+2. **The AI decides which tools to call** from six MCP servers and one REST API: Kali Linux MCP (50+ security tools), Metasploit MCP (13+ exploit lifecycle tools), WireMCP (7 packet analysis tools), Screenshot MCP (4 evidence capture tools), HexStrike MCP (bridges the HexStrike REST API to MCP), and the Ollama preprocessing pipeline.
 3. **Each MCP server executes the tool call** in its Docker container and returns raw output to the AI.
 4. **The AI collects all raw outputs** and sends them to the Ollama MCP server via `process_scan_results()`.
 5. **Ollama preprocesses the data** through 3 agent containers in sequence (Ingestion -> Processing -> Synthesis), each calling the local Ollama LLM independently.
@@ -90,7 +90,12 @@ CLAUDE CODE (Docker container on blhackbox_net)
   |                                            4 tools: web page screenshots,
   |                                            element capture, annotations
   |
-  |--- hexstrike (REST API, port 8888) ────>  HEXSTRIKE REST API
+  |--- hexstrike-mcp (SSE, port 9005) ────>  HEXSTRIKE MCP ADAPTER
+  |                                            Bridges HexStrike REST API
+  |                                            to MCP protocol
+  |                                               |
+  |                                               v
+  |                                         HEXSTRIKE REST API (port 8888)
   |                                            150+ tools, 12+ AI agents
   |
   |--- ollama-pipeline (SSE, port 9000) ───>  OLLAMA MCP SERVER
@@ -133,11 +138,12 @@ aggregates all servers behind `localhost:8080/mcp`. See
 | **WireMCP** | Wireshark/tshark — 7 packet capture and analysis tools | 9003 | default |
 | **Screenshot MCP** | Headless Chromium — 4 screenshot and annotation tools | 9004 | default |
 | **HexStrike API** | 150+ security tools, 12+ AI agents (REST API) | 8888 | default |
+| **HexStrike MCP** | MCP adapter bridging HexStrike REST API to MCP protocol | 9005 | default |
 | **Ollama MCP** | Thin orchestrator — calls 3 agent containers in sequence | 9000 | default |
 | **Agent: Ingestion** | Parses raw tool output into structured typed data | 8001 | default |
 | **Agent: Processing** | Deduplicates, compresses, annotates errors | 8002 | default |
 | **Agent: Synthesis** | Merges into final `AggregatedPayload` | 8003 | default |
-| **Ollama** | Local LLM inference backend (llama3.3 by default) | 11434 | default |
+| **Ollama** | Local LLM inference backend (llama3.1:8b by default) | 11434 | default |
 | **Portainer** | Web UI for managing all containers | 9443 | default |
 | **Claude Code** | Anthropic CLI MCP client in Docker | — | `claude-code` |
 | **MCP Gateway** | Single entry point for host-based MCP clients | 8080 | `gateway` |
@@ -148,9 +154,9 @@ aggregates all servers behind `localhost:8080/mcp`. See
 ## Prerequisites
 
 - **Docker** and **Docker Compose** (Docker Engine on Linux, or Docker Desktop)
-- **NVIDIA Container Toolkit** for GPU acceleration (see [GPU Support](#gpu-support-for-ollama) to disable if no NVIDIA GPU)
-- At least **16 GB RAM** recommended (Ollama + all containers)
-- An **Anthropic API key** from [console.anthropic.com](https://console.anthropic.com) (for Claude Code)
+- At least **16 GB RAM** recommended (Ollama + all containers). The default model (`llama3.1:8b`) requires ~8 GB; larger models need more.
+- An **Anthropic API key** from [console.anthropic.com](https://console.anthropic.com) (**required** for Claude Code)
+- **NVIDIA Container Toolkit** (optional — for GPU-accelerated Ollama inference. See [GPU Support](#gpu-support-for-ollama))
 
 ---
 
@@ -163,16 +169,21 @@ cd blhackbox
 
 # 2. Create your .env file
 cp .env.example .env
-# Edit .env — add your ANTHROPIC_API_KEY
+# REQUIRED: Uncomment and set your Anthropic API key in .env:
+#   ANTHROPIC_API_KEY=sk-ant-...
+# Without this, the Claude Code container cannot start.
 
 # 3. Pull all pre-built Docker images
 docker compose pull
+# NOTE: Two images (ollama, hexstrike-mcp) are built locally — this is normal.
+# Docker Compose will build them automatically in the next step.
 
-# 4. Start the core stack (11 containers)
+# 4. Start the core stack (12 containers)
 docker compose up -d
 
 # 5. Download the Ollama model (required — runs inside the container)
 make ollama-pull
+# This pulls llama3.1:8b (~4.7 GB download). First run may take several minutes.
 ```
 
 **Verify everything is running:**
@@ -182,12 +193,13 @@ make status     # Container status
 make health     # Quick health check of all MCP servers
 ```
 
-You should see 11 containers, all "Up" or "healthy":
+You should see 12 containers, all "Up" or "healthy":
 - `blhackbox-kali-mcp`
 - `blhackbox-metasploit-mcp`
 - `blhackbox-wire-mcp`
 - `blhackbox-screenshot-mcp`
 - `blhackbox-hexstrike`
+- `blhackbox-hexstrike-mcp`
 - `blhackbox-ollama-mcp`
 - `blhackbox-agent-ingestion`
 - `blhackbox-agent-processing`
@@ -209,7 +221,7 @@ no MCP Gateway, no host install, no Node.js.
 ### Step 1: Start the stack
 
 Follow [Installation](#installation) above. Make sure `ANTHROPIC_API_KEY` is
-set in your `.env` file. All 11 containers must be healthy (`make health`).
+set in your `.env` file. All 12 containers must be healthy (`make health`).
 
 ### Step 2: Launch Claude Code
 
@@ -238,10 +250,8 @@ Checking service connectivity...
   Metasploit MCP         [ OK ]
   WireMCP                [ OK ]
   Screenshot MCP         [ OK ]
+  HexStrike MCP          [ OK ]
   Ollama Pipeline        [ OK ]
-
-  REST API Services
-  HexStrike API          [ OK ]
 
 ──────────────────────────────────────────────────
   All 6 services connected.
@@ -251,11 +261,8 @@ Checking service connectivity...
     metasploit      Metasploit Framework (13+ exploit tools)
     wireshark       WireMCP — tshark packet capture & analysis
     screenshot      Screenshot MCP — headless Chromium evidence capture
+    hexstrike       HexStrike AI (150+ tools via MCP adapter)
     ollama-pipeline Ollama preprocessing (3-agent pipeline)
-
-  REST API (accessible via HTTP):
-    hexstrike       HexStrike AI (150+ tools, 12+ agents)
-                    http://hexstrike:8888/api/...
 
   Quick start:
     /mcp              Check MCP server status
@@ -272,8 +279,7 @@ You are now inside an interactive Claude Code session.
 ```
 
 You should see the MCP servers listed: `kali`, `metasploit`, `wireshark`,
-`screenshot`, and `ollama-pipeline`, each with their available tools.
-HexStrike is a REST API accessible at `http://hexstrike:8888/api/...`.
+`screenshot`, `hexstrike`, and `ollama-pipeline`, each with their available tools.
 
 ### Step 4: Run your first pentest
 
@@ -541,6 +547,18 @@ docker compose restart kali-mcp        # restart one service
 make restart-agents                    # restart all 3 agents
 ```
 
+### Metasploit MCP shows "unhealthy"
+
+The entrypoint starts PostgreSQL, initializes the MSF database, then waits for
+`msfrpcd` to accept connections before starting the MCP server. The container
+typically becomes healthy within 60–90 seconds.
+
+If it stays unhealthy, check its logs for PostgreSQL or msfrpcd startup errors:
+
+```bash
+make logs-metasploit
+```
+
 ### Portainer shows "Timeout" on first visit
 
 You have 5 minutes after Portainer starts to create an admin account. If you
@@ -556,7 +574,17 @@ The agents need a model loaded in Ollama. Without it, the preprocessing pipeline
 returns empty results:
 
 ```bash
-make ollama-pull     # pulls the model specified in .env (default: llama3.3)
+make ollama-pull     # pulls the model specified in .env (default: llama3.1:8b)
+```
+
+If the model fails to load with an "out of memory" error, your system doesn't
+have enough RAM for the configured model. Try a smaller model:
+
+```bash
+# Edit .env and change OLLAMA_MODEL to a smaller model:
+OLLAMA_MODEL=llama3.2:3b
+# Then re-pull:
+make ollama-pull
 ```
 
 ### MCP Gateway doesn't start
@@ -570,8 +598,10 @@ need it for Claude Desktop / ChatGPT:
 
 ### NVIDIA GPU errors on startup
 
-If you don't have an NVIDIA GPU, comment out the `deploy` block in
-`docker-compose.yml` under the `ollama` service. See [GPU Support](#gpu-support-for-ollama).
+GPU acceleration is disabled by default. If you enabled it by uncommenting the
+`deploy` block and see errors, ensure the
+[NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html)
+is installed. See [GPU Support](#gpu-support-for-ollama).
 
 ### Container keeps restarting
 
@@ -622,9 +652,9 @@ blhackbox mcp
 ```bash
 make help                  # Show all available targets
 make pull                  # Pull all pre-built images from Docker Hub
-make up                    # Start core stack (11 containers)
-make up-full               # Start with Neo4j (12 containers)
-make up-gateway            # Start with MCP Gateway for Claude Desktop (12 containers)
+make up                    # Start core stack (12 containers)
+make up-full               # Start with Neo4j (13 containers)
+make up-gateway            # Start with MCP Gateway for Claude Desktop (13 containers)
 make down                  # Stop all services
 make claude-code           # Build and launch Claude Code in Docker
 make status                # Container status table
@@ -672,14 +702,17 @@ All custom images are published to `crhacky/blhackbox`:
 | `crhacky/blhackbox:wire-mcp` | WireMCP Server (tshark, 7 tools) |
 | `crhacky/blhackbox:screenshot-mcp` | Screenshot MCP Server (headless Chromium, 4 tools) |
 | `crhacky/blhackbox:hexstrike` | HexStrike AI REST API Server |
+| `crhacky/blhackbox:hexstrike-mcp` | HexStrike MCP Adapter (bridges REST to MCP) |
 | `crhacky/blhackbox:ollama-mcp` | Ollama MCP Server (thin orchestrator) |
 | `crhacky/blhackbox:agent-ingestion` | Agent 1: Ingestion |
 | `crhacky/blhackbox:agent-processing` | Agent 2: Processing |
 | `crhacky/blhackbox:agent-synthesis` | Agent 3: Synthesis |
 | `crhacky/blhackbox:claude-code` | Claude Code CLI client (direct SSE to MCP servers) |
 
+Custom-built locally (no pre-built image on Docker Hub):
+- `crhacky/blhackbox:ollama` (wraps `ollama/ollama:latest` with auto-pull entrypoint)
+
 Official images pulled directly:
-- `ollama/ollama:latest`
 - `portainer/portainer-ce:latest`
 - `neo4j:5` (optional)
 - `docker/mcp-gateway:latest` (optional)
@@ -701,26 +734,26 @@ Useful for recurring engagements against the same targets.
 
 ## GPU Support for Ollama
 
-NVIDIA GPU acceleration is **enabled by default** in `docker-compose.yml` under
-the `ollama` service. This requires the
-[NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html)
-to be installed on the host.
+GPU acceleration is **disabled by default** in `docker-compose.yml` for broad
+compatibility. Ollama runs on CPU out of the box.
 
-**If you do NOT have an NVIDIA GPU**, comment out the `deploy` block in
-`docker-compose.yml` under the `ollama` service:
+**If you have an NVIDIA GPU**, uncomment the `deploy` block under the `ollama`
+service in `docker-compose.yml` to enable GPU acceleration:
 
 ```yaml
-    # deploy:
-    #   resources:
-    #     reservations:
-    #       devices:
-    #         - driver: nvidia
-    #           count: all
-    #           capabilities: [gpu]
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
 ```
 
-Ollama will fall back to CPU-only inference automatically when the GPU block is
-removed.
+This requires the
+[NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html)
+to be installed on the host. GPU acceleration significantly speeds up Ollama
+inference for the preprocessing pipeline.
 
 ---
 
@@ -753,6 +786,8 @@ blhackbox/
 │   ├── wire-mcp.Dockerfile
 │   ├── screenshot-mcp.Dockerfile
 │   ├── hexstrike.Dockerfile
+│   ├── hexstrike-mcp.Dockerfile
+│   ├── ollama.Dockerfile
 │   ├── ollama-mcp.Dockerfile
 │   ├── agent-ingestion.Dockerfile
 │   ├── agent-processing.Dockerfile

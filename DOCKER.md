@@ -19,7 +19,7 @@ All custom images are published to a single Docker Hub repository, differentiate
 
 ## Images and Tags
 
-Ten custom images are published to `crhacky/blhackbox` on Docker Hub:
+Eleven custom images are published to `crhacky/blhackbox` on Docker Hub:
 
 | Service | Tag | Dockerfile | Base |
 |---|---|---|---|
@@ -28,14 +28,17 @@ Ten custom images are published to `crhacky/blhackbox` on Docker Hub:
 | **WireMCP** | `crhacky/blhackbox:wire-mcp` | `docker/wire-mcp.Dockerfile` | `debian:bookworm-slim` |
 | **Screenshot MCP** | `crhacky/blhackbox:screenshot-mcp` | `docker/screenshot-mcp.Dockerfile` | `python:3.13-slim` |
 | **HexStrike** | `crhacky/blhackbox:hexstrike` | `docker/hexstrike.Dockerfile` | `python:3.13-slim-bookworm` |
+| **HexStrike MCP** | `crhacky/blhackbox:hexstrike-mcp` | `docker/hexstrike-mcp.Dockerfile` | `python:3.13-slim` |
 | **Ollama MCP** | `crhacky/blhackbox:ollama-mcp` | `docker/ollama-mcp.Dockerfile` | `python:3.13-slim` |
 | **Agent: Ingestion** | `crhacky/blhackbox:agent-ingestion` | `docker/agent-ingestion.Dockerfile` | `python:3.13-slim` |
 | **Agent: Processing** | `crhacky/blhackbox:agent-processing` | `docker/agent-processing.Dockerfile` | `python:3.13-slim` |
 | **Agent: Synthesis** | `crhacky/blhackbox:agent-synthesis` | `docker/agent-synthesis.Dockerfile` | `python:3.13-slim` |
 | **Claude Code** | `crhacky/blhackbox:claude-code` | `docker/claude-code.Dockerfile` | `node:22-slim` |
 
+Custom-built locally (no pre-built image on Docker Hub):
+- `crhacky/blhackbox:ollama` — wraps `ollama/ollama:latest` with auto-pull entrypoint (`docker/ollama.Dockerfile`)
+
 Official images pulled directly (no custom build):
-- `ollama/ollama:latest` — Ollama LLM inference
 - `portainer/portainer-ce:latest` — Docker management UI
 - `docker/mcp-gateway:latest` — MCP Gateway (optional, `--profile gateway`)
 - `neo4j:5` — Knowledge graph (optional, `--profile neo4j`)
@@ -60,7 +63,7 @@ Claude Code ──┬──> Kali MCP (SSE, port 9001)
 (container)   ├──> Metasploit MCP (SSE, port 9002)
               ├──> WireMCP (SSE, port 9003)
               ├──> Screenshot MCP (SSE, port 9004)
-              ├──> HexStrike API (REST, port 8888)
+              ├──> HexStrike MCP (SSE, port 9005) ──> HexStrike API (REST, port 8888)
               └──> Ollama MCP (SSE, port 9000)
                         │
                         ├──► agent-ingestion:8001
@@ -88,15 +91,16 @@ Note: HexStrike is a REST API, not routed through the MCP Gateway.
 
 ## Usage
 
-### Core Stack (11 containers)
+### Core Stack (12 containers)
 
 ```bash
 git clone https://github.com/valITino/blhackbox.git
 cd blhackbox
-cp .env.example .env       # configure ANTHROPIC_API_KEY
-docker compose pull        # pull ALL images in one command
+cp .env.example .env
+# REQUIRED: Uncomment and set ANTHROPIC_API_KEY=sk-ant-... in .env
+docker compose pull        # pull pre-built images (ollama + hexstrike-mcp build locally)
 docker compose up -d       # start core stack
-make ollama-pull           # pull the Ollama model (REQUIRED)
+make ollama-pull           # pull the Ollama model (REQUIRED — default: llama3.1:8b)
 ```
 
 ### With Claude Code (Recommended)
@@ -134,12 +138,13 @@ make health                # MCP server health check
 | `metasploit-mcp` | `crhacky/blhackbox:metasploit-mcp` | `9002` | default | Metasploit Framework (13+ tools) |
 | `wire-mcp` | `crhacky/blhackbox:wire-mcp` | `9003` | default | Wireshark/tshark (7 tools) |
 | `screenshot-mcp` | `crhacky/blhackbox:screenshot-mcp` | `9004` | default | Screenshot MCP (headless Chromium, 4 tools) |
-| `hexstrike` | `crhacky/blhackbox:hexstrike` | `8888` | default | HexStrike AI (150+ tools) |
+| `hexstrike` | `crhacky/blhackbox:hexstrike` | `8888` | default | HexStrike AI REST API (150+ tools) |
+| `hexstrike-mcp` | `crhacky/blhackbox:hexstrike-mcp` | `9005` | default | HexStrike MCP adapter |
 | `ollama-mcp` | `crhacky/blhackbox:ollama-mcp` | `9000` | default | Thin MCP orchestrator |
 | `agent-ingestion` | `crhacky/blhackbox:agent-ingestion` | `8001` | default | Agent 1: parse raw output |
 | `agent-processing` | `crhacky/blhackbox:agent-processing` | `8002` | default | Agent 2: deduplicate, compress |
 | `agent-synthesis` | `crhacky/blhackbox:agent-synthesis` | `8003` | default | Agent 3: assemble payload |
-| `ollama` | `ollama/ollama:latest` | `11434` | default | LLM inference backend |
+| `ollama` | `crhacky/blhackbox:ollama` (built locally) | `11434` | default | LLM inference backend (llama3.1:8b) |
 | `portainer` | `portainer/portainer-ce:latest` | `9443` | default | Docker management UI (HTTPS) |
 | `mcp-gateway` | `docker/mcp-gateway:latest` | `8080` | `gateway` | Single MCP entry point (host clients) |
 | `neo4j` | `neo4j:5` | `7474` `7687` | `neo4j` | Cross-session knowledge graph |
@@ -160,6 +165,7 @@ The Claude Code container's `.mcp.json` connects directly to each server:
     "metasploit":      { "type": "sse", "url": "http://metasploit-mcp:9002/sse" },
     "wireshark":       { "type": "sse", "url": "http://wire-mcp:9003/sse" },
     "screenshot":      { "type": "sse", "url": "http://screenshot-mcp:9004/sse" },
+    "hexstrike":       { "type": "sse", "url": "http://hexstrike-mcp:9005/sse" },
     "ollama-pipeline": { "type": "sse", "url": "http://ollama-mcp:9000/sse" }
   }
 }
@@ -189,7 +195,7 @@ Requires `--profile gateway` (`make up-gateway`).
 | Variable | Default | Description |
 |---|---|---|
 | `ANTHROPIC_API_KEY` | - | Required for Claude Code in Docker |
-| `OLLAMA_MODEL` | `llama3.3` | Ollama model for preprocessing agents |
+| `OLLAMA_MODEL` | `llama3.1:8b` | Ollama model for preprocessing agents |
 | `MCP_GATEWAY_PORT` | `8080` | MCP Gateway host port (optional) |
 | `NEO4J_URI` | `bolt://neo4j:7687` | Neo4j connection URI (optional) |
 | `NEO4J_USER` | `neo4j` | Neo4j username (optional) |
@@ -243,6 +249,14 @@ Requires `--profile gateway` (`make up-gateway`).
 - **Entrypoint**: HexStrike Flask REST API server
 - **Transport**: HTTP REST API on port 8888
 - **Source**: [github.com/0x4m4/hexstrike-ai](https://github.com/0x4m4/hexstrike-ai)
+
+### HexStrike MCP (`crhacky/blhackbox:hexstrike-mcp`)
+
+- **Base**: `python:3.13-slim`
+- **Role**: MCP adapter that bridges the HexStrike Flask REST API to MCP protocol
+- **Transport**: SSE on port 9005
+- **Depends on**: HexStrike container (calls `http://hexstrike:8888` internally)
+- **Note**: Built locally — no pre-built Docker Hub image available yet
 
 ### Ollama MCP (`crhacky/blhackbox:ollama-mcp`)
 
@@ -301,16 +315,16 @@ Named volumes for persistent data:
 
 ## CI/CD Pipeline
 
-Ten custom images are built and pushed to Docker Hub via GitHub Actions:
+Eleven custom images are built and pushed to Docker Hub via GitHub Actions:
 
 ```
 PR opened  ───>  CI (lint + test + pip-audit)
                       │
-PR merged  ───>  CI  ───>  Build & Push (10 images)  ───>  Docker Hub
+PR merged  ───>  CI  ───>  Build & Push (11 images)  ───>  Docker Hub
                            (on CI success)
-Tag v*     ──────────────>  Build & Push (10 images)  ───>  Docker Hub
+Tag v*     ──────────────>  Build & Push (11 images)  ───>  Docker Hub
 
-Manual     ──────────────>  Build & Push (10 images)  ───>  Docker Hub
+Manual     ──────────────>  Build & Push (11 images)  ───>  Docker Hub
 ```
 
 Docker Scout vulnerability scanning runs on the ollama-mcp image.
@@ -323,13 +337,13 @@ Docker Scout vulnerability scanning runs on the ollama-mcp image.
 # Pull all pre-built images from Docker Hub
 docker compose pull
 
-# Start core stack (11 containers)
+# Start core stack (12 containers)
 docker compose up -d
 
-# Start with MCP Gateway for Claude Desktop (12 containers)
+# Start with MCP Gateway for Claude Desktop (13 containers)
 make up-gateway
 
-# Start with Neo4j (12 containers)
+# Start with Neo4j (13 containers)
 docker compose --profile neo4j up -d
 
 # Launch Claude Code in Docker
@@ -364,13 +378,13 @@ make clean                 # also removes volumes
 
 ## GPU Support
 
-NVIDIA GPU acceleration is **enabled by default** for the Ollama service. This
-requires the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html)
-on the host.
+GPU acceleration is **disabled by default** for broad compatibility. Ollama runs
+on CPU out of the box.
 
-If you do **not** have an NVIDIA GPU, comment out the `deploy` block under the
-`ollama` service in `docker-compose.yml`. Ollama will fall back to CPU-only
-inference automatically.
+If you have an NVIDIA GPU, uncomment the `deploy` block under the `ollama`
+service in `docker-compose.yml` and install the
+[NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html)
+on the host. GPU acceleration significantly speeds up Ollama inference.
 
 ---
 

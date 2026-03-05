@@ -141,12 +141,13 @@ services:
       MSFRPC_SSL: "true"
     healthcheck:
       # Check both: MCP SSE endpoint (port 9002) AND msfrpcd (port 55553).
-      # The MCP server starts quickly but is useless without msfrpcd.
+      # The entrypoint waits for both PostgreSQL and msfrpcd to be ready
+      # before starting server.py, so both should be up together.
       test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:9002/sse')\" && curl -sk https://127.0.0.1:55553/ > /dev/null 2>&1"]
       interval: 15s
       timeout: 10s
       retries: 12
-      start_period: 60s
+      start_period: 90s
     networks:
       - blhackbox_net
 
@@ -246,6 +247,7 @@ services:
     build:
       context: .
       dockerfile: docker/hexstrike-mcp.Dockerfile
+      network: host
     container_name: blhackbox-hexstrike-mcp
     restart: unless-stopped
     init: true
