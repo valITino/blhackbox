@@ -1,11 +1,11 @@
 #!/bin/bash
 # metasploit-mcp entrypoint — starts PostgreSQL, msfrpcd, and MCP server.
 #
-# Design: The MCP server starts immediately in the foreground so the Docker
-# healthcheck (port 9002) passes quickly. PostgreSQL and msfrpcd are
-# initialized in a background subshell. The MCP server's built-in retry
-# logic (MSFRPCClient: 15 attempts × 6s) handles msfrpcd not being ready
-# yet when the first tool call arrives.
+# Design: PostgreSQL and msfrpcd are initialized in a background subshell
+# while the MCP server starts in the foreground. The Docker healthcheck
+# verifies BOTH the MCP SSE endpoint (port 9002) AND msfrpcd (port 55553)
+# are reachable — the container only reports healthy when both are up.
+# start_period=90s gives msfrpcd time to initialize before health failures count.
 #
 # No `set -e` — errors are handled explicitly to prevent crash loops.
 

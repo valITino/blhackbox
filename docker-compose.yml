@@ -140,14 +140,13 @@ services:
       MSFRPC_HOST: "127.0.0.1"
       MSFRPC_SSL: "true"
     healthcheck:
-      # Check only the MCP SSE endpoint (port 9002).  The MCP server starts
-      # immediately; msfrpcd is initialized in the background and the server's
-      # built-in retry logic (MSFRPCClient) handles the connection on demand.
-      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:9002/sse')\""]
+      # Check both: MCP SSE endpoint (port 9002) AND msfrpcd (port 55553).
+      # Container is only healthy when BOTH services are fully operational.
+      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:9002/sse')\" && curl -sk https://127.0.0.1:55553/ > /dev/null 2>&1"]
       interval: 15s
       timeout: 10s
-      retries: 8
-      start_period: 15s
+      retries: 12
+      start_period: 90s
     networks:
       - blhackbox_net
 
