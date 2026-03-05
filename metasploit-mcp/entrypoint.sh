@@ -1,56 +1,57 @@
 #!/bin/bash
-set -e
+# metasploit-mcp entrypoint — starts PostgreSQL, msfrpcd, and MCP server.
+#
+# Design: PostgreSQL and msfrpcd are initialized in a background subshell
+# while the MCP server starts in the foreground. The Docker healthcheck
+# verifies BOTH the MCP SSE endpoint (port 9002) AND msfrpcd (port 55553)
+# are reachable — the container only reports healthy when both are up.
+# start_period=90s gives msfrpcd time to initialize before health failures count.
+#
+# No `set -e` — errors are handled explicitly to prevent crash loops.
 
-# ── 1. Start PostgreSQL ──────────────────────────────────────────────
-# msfrpcd requires an initialized PostgreSQL database for module lookups
-# and session management.  Start PostgreSQL first, verify it's accepting
-# connections with pg_isready, THEN initialize the MSF database.
-echo "[*] Starting PostgreSQL..."
-service postgresql start
+# ── Background: PostgreSQL + msfrpcd setup ────────────────────────────
+(
+    echo "[*] Initializing Metasploit database (background)..."
 
-# Wait for PostgreSQL to accept connections (pg_isready exits 0 when ready).
-echo "[*] Waiting for PostgreSQL to accept connections..."
-for i in $(seq 1 30); do
+    # msfdb init handles everything: creates cluster, starts PostgreSQL,
+    # creates the msf user/database, and writes database.yml.
+    if msfdb init 2>&1; then
+        echo "[+] msfdb init succeeded."
+    else
+        echo "[!] msfdb init failed — attempting manual PostgreSQL setup..."
+        # Fallback: start PostgreSQL manually and retry
+        service postgresql start 2>&1 || true
+        for _i in $(seq 1 15); do
+            pg_isready -q 2>/dev/null && break
+            sleep 1
+        done
+        msfdb init 2>&1 || echo "[!] msfdb init retry failed — msfrpcd will run without DB."
+    fi
+
+    # Verify PostgreSQL is running (informational only)
     if pg_isready -q 2>/dev/null; then
-        echo "[+] PostgreSQL is ready."
-        break
+        echo "[+] PostgreSQL is accepting connections."
+    else
+        echo "[!] PostgreSQL is not running — msfrpcd may have limited functionality."
     fi
-    if [ "$i" -eq 30 ]; then
-        echo "[!] PostgreSQL did not become ready in 30s — continuing anyway."
-    fi
-    sleep 1
-done
 
-# ── 2. Initialize MSF database ───────────────────────────────────────
-echo "[*] Initializing Metasploit database..."
-msfdb init 2>&1 || echo "[!] msfdb init failed — msfrpcd may have limited functionality."
+    # Start msfrpcd.
+    # NOTE: msfrpcd enables SSL by default. The -S flag *disables* SSL.
+    # We omit -S so msfrpcd listens on HTTPS, matching MSFRPC_SSL=true
+    # in docker-compose.yml and server.py's connection scheme.
+    echo "[*] Starting msfrpcd on port ${MSFRPC_PORT:-55553} (SSL enabled)..."
+    msfrpcd -U "${MSFRPC_USER:-msf}" -P "${MSFRPC_PASS:-msf}" \
+        -p "${MSFRPC_PORT:-55553}" -a 127.0.0.1
 
-# ── 3. Start msfrpcd ─────────────────────────────────────────────────
-# NOTE: msfrpcd enables SSL by default. The -S flag *disables* SSL.
-# We omit -S so msfrpcd listens on HTTPS, matching MSFRPC_SSL=true
-# in docker-compose.yml and server.py's connection scheme.
-echo "[*] Starting msfrpcd on port ${MSFRPC_PORT:-55553} (SSL enabled)..."
-msfrpcd -U "${MSFRPC_USER:-msf}" -P "${MSFRPC_PASS:-msf}" \
-    -p "${MSFRPC_PORT:-55553}" -a 127.0.0.1 &
-MSFRPCD_PID=$!
+    # If msfrpcd exits, log it. The MCP server will return errors on
+    # tool calls, but the container stays up so it can be debugged.
+    echo "[!] msfrpcd exited (code $?)."
+) &
+BACKEND_PID=$!
 
-# Wait for msfrpcd to accept connections before starting the MCP server.
-echo "[*] Waiting for msfrpcd to accept connections..."
-for i in $(seq 1 60); do
-    if ! kill -0 "$MSFRPCD_PID" 2>/dev/null; then
-        echo "[!] msfrpcd process died. Check logs above for errors."
-        exit 1
-    fi
-    if curl -sk "https://127.0.0.1:${MSFRPC_PORT:-55553}/" > /dev/null 2>&1; then
-        echo "[+] msfrpcd is ready (took ~${i}s)."
-        break
-    fi
-    if [ "$i" -eq 60 ]; then
-        echo "[!] msfrpcd not responding after 60s — starting MCP server anyway."
-    fi
-    sleep 1
-done
-
-# ── 4. Start the MCP server ──────────────────────────────────────────
+# ── Foreground: Start MCP server immediately ──────────────────────────
+# The FastMCP SSE endpoint on port 9002 starts in <2 seconds, allowing
+# the Docker healthcheck to pass. Tool calls that require msfrpcd will
+# retry automatically via MSFRPCClient.login() (15 × 6s = 90s window).
 echo "[*] Starting Metasploit MCP Server on port ${MCP_PORT:-9002}..."
 exec /app/venv/bin/python3 /app/server.py
