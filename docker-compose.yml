@@ -140,13 +140,16 @@ services:
       MSFRPC_HOST: "127.0.0.1"
       MSFRPC_SSL: "true"
     healthcheck:
-      # Check both: MCP SSE endpoint (port 9002) AND msfrpcd (port 55553).
-      # Container is only healthy when BOTH services are fully operational.
-      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:9002/sse')\" && curl -sk https://127.0.0.1:55553/ > /dev/null 2>&1"]
-      interval: 15s
-      timeout: 10s
-      retries: 12
-      start_period: 90s
+      # Check the MCP SSE endpoint (port 9002) — the externally-facing service.
+      # msfrpcd (port 55553) is an internal dependency managed by the MCP server
+      # itself via retry logic in MSFRPCClient.login() (15 retries × 6s = 90s).
+      # Gating the healthcheck on msfrpcd blocks the entire stack unnecessarily
+      # since no other container connects to port 55553 directly.
+      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:9002/sse')\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     networks:
       - blhackbox_net
 
