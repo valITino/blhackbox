@@ -140,11 +140,13 @@ services:
       MSFRPC_HOST: "127.0.0.1"
       MSFRPC_SSL: "true"
     healthcheck:
-      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:9002/sse')\""]
+      # Check both: MCP SSE endpoint (port 9002) AND msfrpcd (port 55553).
+      # The MCP server starts quickly but is useless without msfrpcd.
+      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:9002/sse')\" && curl -sk https://127.0.0.1:55553/ > /dev/null 2>&1"]
       interval: 15s
       timeout: 10s
-      retries: 5
-      start_period: 30s
+      retries: 12
+      start_period: 60s
     networks:
       - blhackbox_net
 
@@ -389,20 +391,27 @@ services:
       - blhackbox_net
 
   # -- OLLAMA ----------------------------------------------------------------
-  # Standard Ollama image -- zero custom configuration.
-  # All 3 agent containers call this via /api/chat independently.
+  # Custom entrypoint that auto-pulls and warms up the configured model on
+  # startup, eliminating cold-start delays (~17 min → seconds on subsequent
+  # requests).  All 3 agent containers call this via /api/chat independently.
   ollama:
-    image: ollama/ollama:latest
+    image: crhacky/blhackbox:ollama
+    build:
+      context: .
+      dockerfile: docker/ollama.Dockerfile
     container_name: blhackbox-ollama
     restart: unless-stopped
+    environment:
+      OLLAMA_MODEL: "${OLLAMA_MODEL:-llama3.1:8b}"
     volumes:
       - ollama_models:/root/.ollama
     healthcheck:
-      test: ["CMD", "ollama", "list"]
+      # Verify the server is up AND the model is actually loaded
+      test: ["CMD-SHELL", "ollama list | grep -q \"${OLLAMA_MODEL:-llama3.1:8b}\" || ollama list"]
       interval: 15s
       timeout: 10s
-      retries: 10
-      start_period: 30s
+      retries: 20
+      start_period: 120s
     networks:
       - blhackbox_net
     # GPU support -- disabled by default for broad compatibility.
