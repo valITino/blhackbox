@@ -79,7 +79,7 @@ services:
       kali-mcp:
         condition: service_healthy
       metasploit-mcp:
-        condition: service_started    # msfrpcd takes 60-120s to boot; don't block the gateway
+        condition: service_healthy
       wire-mcp:
         condition: service_healthy
       screenshot-mcp:
@@ -141,14 +141,13 @@ services:
       MSFRPC_SSL: "true"
     healthcheck:
       # Check both: MCP SSE endpoint (port 9002) AND msfrpcd (port 55553).
-      # The MCP server starts quickly but msfrpcd needs 60-120s to initialize
-      # (DB init + daemon startup). The generous start_period prevents premature
-      # unhealthy status while msfrpcd bootstraps.
+      # The entrypoint waits for both PostgreSQL and msfrpcd to be ready
+      # before starting server.py, so both should be up together.
       test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:9002/sse')\" && curl -sk https://127.0.0.1:55553/ > /dev/null 2>&1"]
       interval: 15s
       timeout: 10s
-      retries: 20
-      start_period: 120s
+      retries: 12
+      start_period: 90s
     networks:
       - blhackbox_net
 
@@ -487,7 +486,7 @@ services:
       kali-mcp:
         condition: service_healthy
       metasploit-mcp:
-        condition: service_started    # msfrpcd takes 60-120s to boot; don't block Claude Code
+        condition: service_healthy
       wire-mcp:
         condition: service_healthy
       screenshot-mcp:

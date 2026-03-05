@@ -549,12 +549,11 @@ make restart-agents                    # restart all 3 agents
 
 ### Metasploit MCP shows "unhealthy"
 
-Metasploit's `msfrpcd` daemon takes 60–120 seconds to fully initialize (database
-setup + daemon startup). This is normal. The container will become healthy once
-msfrpcd responds. Claude Code does **not** wait for Metasploit to become healthy
-before starting — Metasploit tools will be available once the daemon is ready.
+The entrypoint starts PostgreSQL, initializes the MSF database, then waits for
+`msfrpcd` to accept connections before starting the MCP server. The container
+typically becomes healthy within 60–90 seconds.
 
-If it stays unhealthy after 3+ minutes, check its logs:
+If it stays unhealthy, check its logs for PostgreSQL or msfrpcd startup errors:
 
 ```bash
 make logs-metasploit
