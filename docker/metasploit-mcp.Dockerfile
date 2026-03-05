@@ -9,6 +9,7 @@ FROM kalilinux/kali-rolling
 # Install Metasploit Framework and dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     metasploit-framework \
+    postgresql \
     curl \
     python3 \
     python3-pip \
