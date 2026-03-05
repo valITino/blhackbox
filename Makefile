@@ -14,11 +14,15 @@ help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
 		awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-26s\033[0m %s\n", $$1, $$2}'
 
+# ── Submodules ─────────────────────────────────────────────────
+submodules: ## Initialize git submodules (hexstrike, etc.)
+	@git submodule update --init
+
 # ── Core ───────────────────────────────────────────────────────
-pull: ## Pull all pre-built images from Docker Hub
+pull: submodules ## Pull all pre-built images from Docker Hub
 	$(COMPOSE) pull
 
-up: ## Start core stack (11 containers — no gateway)
+up: submodules ## Start core stack (11 containers — no gateway)
 	$(COMPOSE) up -d
 
 down: ## Stop all services (all profiles)
@@ -28,10 +32,10 @@ logs: ## Tail logs from all services
 	$(COMPOSE) logs -f
 
 # ── Stack variations ─────────────────────────────────────────────
-up-full: ## Start full stack: core + Neo4j (12 containers)
+up-full: submodules ## Start full stack: core + Neo4j (12 containers)
 	$(COMPOSE) --profile neo4j up -d
 
-up-gateway: ## Start core + MCP Gateway for Claude Desktop / ChatGPT (12 containers)
+up-gateway: submodules ## Start core + MCP Gateway for Claude Desktop / ChatGPT (12 containers)
 	$(COMPOSE) --profile gateway up -d
 
 # ── Testing & Code Quality ─────────────────────────────────────
@@ -75,7 +79,7 @@ nuke: ## Full cleanup: containers + volumes + ALL images (frees max disk space)
 	@echo "\033[32m  Done. Run 'docker system df' to verify disk usage.\033[0m"
 
 # ── Claude Code (Docker) ────────────────────────────────────────
-claude-code: ## Build and launch Claude Code in a Docker container
+claude-code: submodules ## Build and launch Claude Code in a Docker container
 	$(COMPOSE) --profile claude-code pull claude-code || $(COMPOSE) --profile claude-code build claude-code
 	@echo ""
 	@echo "\033[1m  Pre-flight Container Status\033[0m"
@@ -229,7 +233,7 @@ report: ## Generate report for a session (requires SESSION env var)
 	blhackbox report --session $(SESSION) --format pdf
 
 # ── Build and push (Docker Hub: crhacky/blhackbox) ──────────────
-push-all: ## Build and push all custom images to Docker Hub
+push-all: submodules ## Build and push all custom images to Docker Hub
 	docker build -f docker/kali-mcp.Dockerfile -t crhacky/blhackbox:kali-mcp .
 	docker build -f docker/metasploit-mcp.Dockerfile -t crhacky/blhackbox:metasploit-mcp .
 	docker build -f docker/wire-mcp.Dockerfile -t crhacky/blhackbox:wire-mcp .
