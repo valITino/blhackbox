@@ -3,9 +3,9 @@
 #
 # Design: PostgreSQL and msfrpcd are initialized in a background subshell
 # while the MCP server starts in the foreground. The Docker healthcheck
-# verifies BOTH the MCP SSE endpoint (port 9002) AND msfrpcd (port 55553)
-# are reachable — the container only reports healthy when both are up.
-# start_period=90s gives msfrpcd time to initialize before health failures count.
+# verifies the MCP SSE endpoint (port 9002) is reachable — the container
+# reports healthy as soon as the MCP server is up. msfrpcd availability is
+# managed internally by MSFRPCClient.login() retry logic (15 × 6s = 90s).
 #
 # No `set -e` — errors are handled explicitly to prevent crash loops.
 
