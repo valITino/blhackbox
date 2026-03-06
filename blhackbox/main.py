@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-from typing import Any
 
 import click
 from rich.table import Table
@@ -12,9 +11,7 @@ from rich.table import Table
 import blhackbox
 from blhackbox.config import settings
 from blhackbox.utils.catalog import (
-    get_full_pentest_order,
     load_tools_catalog,
-    resolve_tool_names,
 )
 from blhackbox.utils.logger import (
     console as rich_console,
