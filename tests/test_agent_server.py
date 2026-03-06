@@ -114,8 +114,8 @@ class TestProcessEndpoint:
                 "session_id": "s1",
                 "target": "t1",
             })
-            assert response.status_code == 200
-            assert response.json() == {}
+            assert response.status_code == 502
+            assert "empty response" in response.json()["detail"]
 
     def test_process_none_content(self) -> None:
         server = BaseAgentServer("ingestionagent")
@@ -137,8 +137,8 @@ class TestProcessEndpoint:
                 "session_id": "s1",
                 "target": "t1",
             })
-            assert response.status_code == 200
-            assert response.json() == {}
+            assert response.status_code == 502
+            assert "empty response" in response.json()["detail"]
 
 
 # ---------------------------------------------------------------------------
