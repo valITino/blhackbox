@@ -1,4 +1,4 @@
-"""Base class for custom modules that use HexStrike as execution engine."""
+"""Base class for custom modules that extend Blhackbox capabilities."""
 
 from __future__ import annotations
 
@@ -6,17 +6,16 @@ import logging
 from abc import ABC, abstractmethod
 from typing import Any
 
-from blhackbox.clients.hexstrike_client import HexStrikeClient
 from blhackbox.models.base import Finding, Severity
 
 logger = logging.getLogger("blhackbox.modules.base")
 
 
-class HexStrikeModule(ABC):
+class BlhackboxModule(ABC):
     """Abstract base class for custom Blhackbox modules.
 
-    Modules wrap HexStrike API calls with custom pre/post-processing.
-    They do NOT replace HexStrike tools — they add intelligence on top.
+    Modules wrap tool execution with custom pre/post-processing.
+    They add intelligence on top of raw tool output.
 
     Subclass this and implement:
       - name: unique module identifier
@@ -29,7 +28,7 @@ class HexStrikeModule(ABC):
     category: str = "custom"
     version: str = "1.0.0"
 
-    def __init__(self, client: HexStrikeClient) -> None:
+    def __init__(self, client: Any) -> None:
         self._client = client
         self._findings: list[Finding] = []
 

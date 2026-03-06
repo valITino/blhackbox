@@ -12,7 +12,6 @@ from blhackbox.models.base import Finding, ScanSession, Severity, Target
 def test_settings() -> Settings:
     """Settings with test-friendly defaults."""
     return Settings(
-        hexstrike_url="http://localhost:8888",
         neo4j_uri="bolt://localhost:7687",
         neo4j_user="neo4j",
         neo4j_password="testpass",

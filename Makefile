@@ -1,10 +1,10 @@
 .PHONY: help up up-full up-gateway down logs test test-local lint format clean nuke \
        pull status health portainer gateway-logs ollama-pull ollama-shell \
        claude-code \
-       neo4j-browser logs-ollama-mcp logs-kali logs-hexstrike \
+       neo4j-browser logs-ollama-mcp logs-kali \
        logs-metasploit logs-wireshark logs-screenshot \
        logs-agent-ingestion logs-agent-processing logs-agent-synthesis \
-       restart-ollama-mcp restart-kali restart-hexstrike restart-agents \
+       restart-ollama-mcp restart-kali restart-agents \
        restart-metasploit restart-wireshark restart-screenshot \
        push-all wordlists recon report
 
@@ -110,9 +110,6 @@ health: ## Quick health check of all MCP servers
 	@printf "  %-22s " "Screenshot MCP (9004)"; \
 		docker exec blhackbox-screenshot-mcp python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:9004/health')" > /dev/null 2>&1 \
 		&& echo "\033[32m[OK]\033[0m" || echo "\033[31m[FAIL]\033[0m"
-	@printf "  %-22s " "HexStrike (8888)"; \
-		curl -sf --max-time 3 http://localhost:8888/health > /dev/null 2>&1 \
-		&& echo "\033[32m[OK]\033[0m" || echo "\033[31m[FAIL]\033[0m"
 	@printf "  %-22s " "Ollama MCP (9000)"; \
 		docker exec blhackbox-ollama-mcp python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:9000/sse')" > /dev/null 2>&1 \
 		&& echo "\033[32m[OK]\033[0m" || echo "\033[31m[FAIL]\033[0m"
@@ -173,9 +170,6 @@ logs-wireshark: ## Tail WireMCP server logs
 logs-screenshot: ## Tail Screenshot MCP server logs
 	$(COMPOSE) logs -f screenshot-mcp
 
-logs-hexstrike: ## Tail HexStrike logs
-	$(COMPOSE) logs -f hexstrike
-
 logs-agent-ingestion: ## Tail Ingestion Agent logs
 	$(COMPOSE) logs -f agent-ingestion
 
@@ -204,9 +198,6 @@ restart-wireshark: ## Restart WireMCP server
 restart-screenshot: ## Restart Screenshot MCP server
 	$(COMPOSE) restart screenshot-mcp
 
-restart-hexstrike: ## Restart HexStrike MCP server
-	$(COMPOSE) restart hexstrike
-
 restart-agents: ## Restart all 3 agent containers
 	$(COMPOSE) restart agent-ingestion agent-processing agent-synthesis
 
@@ -234,7 +225,6 @@ push-all: ## Build and push all custom images to Docker Hub
 	docker build -f docker/metasploit-mcp.Dockerfile -t crhacky/blhackbox:metasploit-mcp .
 	docker build -f docker/wire-mcp.Dockerfile -t crhacky/blhackbox:wire-mcp .
 	docker build -f docker/screenshot-mcp.Dockerfile -t crhacky/blhackbox:screenshot-mcp .
-	docker build -f docker/hexstrike.Dockerfile -t crhacky/blhackbox:hexstrike .
 	docker build -f docker/ollama-mcp.Dockerfile -t crhacky/blhackbox:ollama-mcp .
 	docker build -f docker/agent-ingestion.Dockerfile -t crhacky/blhackbox:agent-ingestion .
 	docker build -f docker/agent-processing.Dockerfile -t crhacky/blhackbox:agent-processing .
@@ -244,7 +234,6 @@ push-all: ## Build and push all custom images to Docker Hub
 	docker push crhacky/blhackbox:metasploit-mcp
 	docker push crhacky/blhackbox:wire-mcp
 	docker push crhacky/blhackbox:screenshot-mcp
-	docker push crhacky/blhackbox:hexstrike
 	docker push crhacky/blhackbox:ollama-mcp
 	docker push crhacky/blhackbox:agent-ingestion
 	docker push crhacky/blhackbox:agent-processing

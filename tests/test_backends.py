@@ -79,11 +79,3 @@ class TestLocalBackend:
         result = await backend.run_tool("network", "nmap", {"target": "127.0.0.1"})
         assert result.success is False
         assert "not found on PATH" in result.errors[0]
-
-
-class TestHexStrikeBackend:
-    async def test_import(self) -> None:
-        from blhackbox.backends.hexstrike import HexStrikeBackend
-
-        b = HexStrikeBackend()
-        assert b.name == "hexstrike"

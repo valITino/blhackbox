@@ -48,7 +48,7 @@ internal LangGraph orchestrator or LLM planner. Here is what happens when you
 type a prompt:
 
 1. **You type a prompt** in your AI client (Claude Code, Claude Desktop, or ChatGPT).
-2. **The AI decides which tools to call** from six MCP servers and one REST API: Kali Linux MCP (50+ security tools), Metasploit MCP (13+ exploit lifecycle tools), WireMCP (7 packet analysis tools), Screenshot MCP (4 evidence capture tools), HexStrike MCP (bridges the HexStrike REST API to MCP), and the Ollama preprocessing pipeline.
+2. **The AI decides which tools to call** from five MCP servers: Kali Linux MCP (50+ security tools), Metasploit MCP (13+ exploit lifecycle tools), WireMCP (7 packet analysis tools), Screenshot MCP (4 evidence capture tools), and the Ollama preprocessing pipeline.
 3. **Each MCP server executes the tool call** in its Docker container and returns raw output to the AI.
 4. **The AI collects all raw outputs** and sends them to the Ollama MCP server via `process_scan_results()`.
 5. **Ollama preprocesses the data** through 3 agent containers in sequence (Ingestion -> Processing -> Synthesis), each calling the local Ollama LLM independently.
@@ -90,14 +90,6 @@ CLAUDE CODE (Docker container on blhackbox_net)
   |                                            4 tools: web page screenshots,
   |                                            element capture, annotations
   |
-  |--- hexstrike-mcp (SSE, port 9005) ────>  HEXSTRIKE MCP ADAPTER
-  |                                            Bridges HexStrike REST API
-  |                                            to MCP protocol
-  |                                               |
-  |                                               v
-  |                                         HEXSTRIKE REST API (port 8888)
-  |                                            150+ tools, 12+ AI agents
-  |
   |--- ollama-pipeline (SSE, port 9000) ───>  OLLAMA MCP SERVER
                                                |
                                                |  Calls 3 agents in sequence:
@@ -137,8 +129,6 @@ aggregates all servers behind `localhost:8080/mcp`. See
 | **Metasploit MCP** | Metasploit Framework — 13+ exploit tools via MSF RPC | 9002 | default |
 | **WireMCP** | Wireshark/tshark — 7 packet capture and analysis tools | 9003 | default |
 | **Screenshot MCP** | Headless Chromium — 4 screenshot and annotation tools | 9004 | default |
-| **HexStrike API** | 150+ security tools, 12+ AI agents (REST API) | 8888 | default |
-| **HexStrike MCP** | MCP adapter bridging HexStrike REST API to MCP protocol | 9005 | default |
 | **Ollama MCP** | Thin orchestrator — calls 3 agent containers in sequence | 9000 | default |
 | **Agent: Ingestion** | Parses raw tool output into structured typed data | 8001 | default |
 | **Agent: Processing** | Deduplicates, compresses, annotates errors | 8002 | default |
@@ -175,10 +165,10 @@ cp .env.example .env
 
 # 3. Pull all pre-built Docker images
 docker compose pull
-# NOTE: Two images (ollama, hexstrike-mcp) are built locally — this is normal.
-# Docker Compose will build them automatically in the next step.
+# NOTE: The ollama image is built locally — this is normal.
+# Docker Compose will build it automatically in the next step.
 
-# 4. Start the core stack (12 containers)
+# 4. Start the core stack (10 containers)
 docker compose up -d
 
 # 5. Download the Ollama model (required — runs inside the container)
@@ -193,13 +183,11 @@ make status     # Container status
 make health     # Quick health check of all MCP servers
 ```
 
-You should see 12 containers, all "Up" or "healthy":
+You should see 10 containers, all "Up" or "healthy":
 - `blhackbox-kali-mcp`
 - `blhackbox-metasploit-mcp`
 - `blhackbox-wire-mcp`
 - `blhackbox-screenshot-mcp`
-- `blhackbox-hexstrike`
-- `blhackbox-hexstrike-mcp`
 - `blhackbox-ollama-mcp`
 - `blhackbox-agent-ingestion`
 - `blhackbox-agent-processing`
@@ -221,7 +209,7 @@ no MCP Gateway, no host install, no Node.js.
 ### Step 1: Start the stack
 
 Follow [Installation](#installation) above. Make sure `ANTHROPIC_API_KEY` is
-set in your `.env` file. All 12 containers must be healthy (`make health`).
+set in your `.env` file. All 10 containers must be healthy (`make health`).
 
 ### Step 2: Launch Claude Code
 
@@ -250,18 +238,16 @@ Checking service connectivity...
   Metasploit MCP         [ OK ]
   WireMCP                [ OK ]
   Screenshot MCP         [ OK ]
-  HexStrike MCP          [ OK ]
   Ollama Pipeline        [ OK ]
 
 ──────────────────────────────────────────────────
-  All 6 services connected.
+  All 5 services connected.
 
   MCP servers (connected via SSE):
     kali            Kali Linux security tools (50+ tools)
     metasploit      Metasploit Framework (13+ exploit tools)
     wireshark       WireMCP — tshark packet capture & analysis
     screenshot      Screenshot MCP — headless Chromium evidence capture
-    hexstrike       HexStrike AI (150+ tools via MCP adapter)
     ollama-pipeline Ollama preprocessing (3-agent pipeline)
 
   Quick start:
@@ -279,7 +265,7 @@ You are now inside an interactive Claude Code session.
 ```
 
 You should see the MCP servers listed: `kali`, `metasploit`, `wireshark`,
-`screenshot`, `hexstrike`, and `ollama-pipeline`, each with their available tools.
+`screenshot`, and `ollama-pipeline`, each with their available tools.
 
 ### Step 4: Run your first pentest
 
@@ -288,7 +274,7 @@ Scan example.com for open ports and web vulnerabilities
 ```
 
 Claude Code will autonomously:
-1. Call Kali tools (nmap, subfinder, nikto, etc.) and HexStrike agents
+1. Call Kali tools (nmap, subfinder, nikto, etc.)
 2. Collect raw outputs from all tools
 3. Send them to the Ollama preprocessing pipeline
 4. Write a structured pentest report
@@ -300,7 +286,6 @@ make logs-kali             # Kali MCP server activity
 make logs-metasploit       # Metasploit MCP activity
 make logs-wireshark        # WireMCP activity
 make logs-screenshot       # Screenshot MCP activity
-make logs-hexstrike        # HexStrike activity
 make logs-ollama-mcp       # Ollama MCP server activity
 make logs-agent-ingestion  # Ingestion Agent processing
 make logs-agent-synthesis  # Synthesis Agent building payload
@@ -410,13 +395,12 @@ STEP 1: YOU TYPE A PROMPT
         |
         v
 STEP 2: AI DECIDES WHICH TOOLS TO USE
-  Claude picks tools from Kali MCP, Metasploit MCP, WireMCP, Screenshot MCP, and HexStrike API:
+  Claude picks tools from Kali MCP, Metasploit MCP, WireMCP, and Screenshot MCP:
     - subfinder (Kali)           -> find subdomains
     - nmap -sV -sC (Kali)       -> port scan + service detection
     - nikto (Kali)               -> web server scanning
     - list_exploits (Metasploit) -> find matching exploits
     - capture_packets (WireMCP)  -> capture traffic during scanning
-    - HexStrike OSINT agent      -> OSINT gathering
         |
         v
 STEP 3: TOOLS EXECUTE IN DOCKER CONTAINERS
@@ -608,7 +592,7 @@ is installed. See [GPU Support](#gpu-support-for-ollama).
 Check its logs for the specific error:
 
 ```bash
-docker compose logs <service-name>     # e.g., kali-mcp, hexstrike
+docker compose logs <service-name>     # e.g., kali-mcp, ollama-mcp
 ```
 
 Common causes:
@@ -631,9 +615,6 @@ blhackbox recon --target example.com --full
 
 # Run a single tool
 blhackbox run-tool -c network -t nmap -p '{"target":"example.com"}'
-# HexStrike AI agents
-blhackbox agents list
-blhackbox agents run -n BugBounty -t example.com
 # Knowledge graph (requires Neo4j)
 blhackbox graph query "MATCH (n) RETURN n LIMIT 10"
 blhackbox graph summary -t example.com
@@ -652,9 +633,9 @@ blhackbox mcp
 ```bash
 make help                  # Show all available targets
 make pull                  # Pull all pre-built images from Docker Hub
-make up                    # Start core stack (12 containers)
-make up-full               # Start with Neo4j (13 containers)
-make up-gateway            # Start with MCP Gateway for Claude Desktop (13 containers)
+make up                    # Start core stack (10 containers)
+make up-full               # Start with Neo4j (11 containers)
+make up-gateway            # Start with MCP Gateway for Claude Desktop (11 containers)
 make down                  # Stop all services
 make claude-code           # Build and launch Claude Code in Docker
 make status                # Container status table
@@ -669,7 +650,6 @@ make logs-kali             # Tail Kali MCP logs
 make logs-metasploit       # Tail Metasploit MCP logs
 make logs-wireshark        # Tail WireMCP logs
 make logs-screenshot       # Tail Screenshot MCP logs
-make logs-hexstrike        # Tail HexStrike logs
 make logs-ollama-mcp       # Tail Ollama MCP logs
 make logs-agent-ingestion  # Tail Ingestion Agent logs
 make logs-agent-processing # Tail Processing Agent logs
@@ -684,8 +664,8 @@ make push-all              # Build and push all images to Docker Hub
 Only needed if you want to modify Dockerfiles or agent code:
 
 ```bash
-git submodule update --init --recursive   # fetch kali-mcp + hexstrike source
-docker compose build                      # build all 10 custom images locally
+git submodule update --init --recursive   # fetch kali-mcp source
+docker compose build                      # build all 8 custom images locally
 docker compose up -d
 ```
 
@@ -701,8 +681,6 @@ All custom images are published to `crhacky/blhackbox`:
 | `crhacky/blhackbox:metasploit-mcp` | Metasploit MCP Server (13+ exploit tools) |
 | `crhacky/blhackbox:wire-mcp` | WireMCP Server (tshark, 7 tools) |
 | `crhacky/blhackbox:screenshot-mcp` | Screenshot MCP Server (headless Chromium, 4 tools) |
-| `crhacky/blhackbox:hexstrike` | HexStrike AI REST API Server |
-| `crhacky/blhackbox:hexstrike-mcp` | HexStrike MCP Adapter (bridges REST to MCP) |
 | `crhacky/blhackbox:ollama-mcp` | Ollama MCP Server (thin orchestrator) |
 | `crhacky/blhackbox:agent-ingestion` | Agent 1: Ingestion |
 | `crhacky/blhackbox:agent-processing` | Agent 2: Processing |
@@ -785,8 +763,6 @@ blhackbox/
 │   ├── metasploit-mcp.Dockerfile
 │   ├── wire-mcp.Dockerfile
 │   ├── screenshot-mcp.Dockerfile
-│   ├── hexstrike.Dockerfile
-│   ├── hexstrike-mcp.Dockerfile
 │   ├── ollama.Dockerfile
 │   ├── ollama-mcp.Dockerfile
 │   ├── agent-ingestion.Dockerfile
@@ -815,7 +791,6 @@ blhackbox/
 │   ├── models/
 │   │   ├── aggregated_payload.py    # AggregatedPayload Pydantic model
 │   │   ├── base.py
-│   │   ├── hexstrike.py
 │   │   └── graph.py
 │   ├── prompts/
 │   │   ├── claude_playbook.md       # pentest playbook for MCP host
@@ -828,7 +803,6 @@ blhackbox/
 │   │   ├── graph_exporter.py
 │   │   └── runner.py
 │   ├── clients/
-│   │   └── hexstrike_client.py
 │   ├── reporting/
 │   │   ├── html_generator.py
 │   │   └── pdf_generator.py
@@ -842,7 +816,6 @@ blhackbox/
 ├── docker-compose.yml
 ├── .env.example
 ├── Makefile
-├── hexstrike/                       # git submodule
 ├── tests/
 └── .github/workflows/
     ├── ci.yml

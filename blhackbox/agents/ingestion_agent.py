@@ -11,8 +11,7 @@ from blhackbox.agents.base_agent import BaseAgent
 class IngestionAgent(BaseAgent):
     """Parse all raw tool output into structured typed data objects.
 
-    Input: raw strings (nmap XML, nikto output, gobuster lists,
-           HexStrike JSON, etc.)
+    Input: raw strings (nmap XML, nikto output, gobuster lists, etc.)
     Output: structured dict — hosts, ports, services, endpoints,
             CVEs, subdomains, etc.
     """

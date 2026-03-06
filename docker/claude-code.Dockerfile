@@ -21,7 +21,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /root
 
 # Pre-configure MCP to connect directly to each FastMCP server via SSE.
-# All 6 MCP servers (including hexstrike-mcp adapter) are listed here.
 # Wire-MCP shares kali-mcp's network namespace, so it's accessed via
 # kali-mcp hostname on port 9003.
 RUN echo '{ \
@@ -41,10 +40,6 @@ RUN echo '{ \
     "screenshot": { \
       "type": "sse", \
       "url": "http://screenshot-mcp:9004/sse" \
-    }, \
-    "hexstrike": { \
-      "type": "sse", \
-      "url": "http://hexstrike-mcp:9005/sse" \
     }, \
     "ollama-pipeline": { \
       "type": "sse", \

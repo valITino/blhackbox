@@ -162,7 +162,7 @@ async def process_scan_results(
 
     Args:
         raw_outputs: Dict mapping tool names to their raw output strings.
-            E.g. {"nmap": "...", "nikto": "...", "hexstrike": "..."}
+            E.g. {"nmap": "...", "nikto": "...", "nuclei": "..."}
         target: The target domain, IP, or URL being assessed.
         session_id: Unique session identifier for this assessment.
 

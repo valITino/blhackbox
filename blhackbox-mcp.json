@@ -8,7 +8,7 @@
     "metasploit": {
       "command": "docker",
       "args": ["run", "-i", "--rm", "--network", "blhackbox-net", "blhackbox-metasploit-mcp"],
-      "description": "Metasploit Framework MCP Server — exploit lifecycle management (13+ tools via MSF RPC)"
+      "description": "Metasploit Framework MCP Server — exploit lifecycle management (14 tools via MSF RPC)"
     },
     "wireshark": {
       "command": "docker",
@@ -19,14 +19,6 @@
       "type": "sse",
       "url": "http://localhost:9004/sse",
       "description": "Screenshot MCP Server — headless Chromium screenshots for bug bounty PoC evidence capture (4 tools)"
-    },
-    "hexstrike": {
-      "command": "python3",
-      "args": ["hexstrike/hexstrike_mcp.py"],
-      "env": {
-        "HEXSTRIKE_URL": "http://localhost:8888"
-      },
-      "description": "HexStrike AI MCP Server — github.com/0x4m4/hexstrike-ai (150+ tools, 12+ security execution agents)"
     },
     "blhackbox-aggregator": {
       "command": "python3",

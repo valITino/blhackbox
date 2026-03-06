@@ -68,14 +68,13 @@ class TestScreenshotToolCount:
 
     async def test_list_tools_includes_screenshot_tools(self) -> None:
         tools = await handle_list_tools()
-        # 8 original tools + 4 screenshot tools = 12
-        assert len(tools) == 12
+        # 7 core tools + 4 screenshot tools = 11
+        assert len(tools) == 11
 
     async def test_list_tools_has_all_expected_names(self) -> None:
         tools = await handle_list_tools()
         names = {t.name for t in tools}
         expected = {
-            "recon",
             "run_tool",
             "query_graph",
             "get_findings",

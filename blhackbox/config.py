@@ -21,13 +21,6 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # --- HexStrike ---
-    hexstrike_url: str = Field(
-        default="http://hexstrike:8888", description="HexStrike API base URL"
-    )
-    hexstrike_timeout: int = Field(default=300, description="HTTP timeout in seconds")
-    hexstrike_max_retries: int = Field(default=3, description="Max retries for failed requests")
-
     # --- Neo4j (optional — enabled with --profile neo4j) ---
     neo4j_uri: str = Field(default="bolt://neo4j:7687", description="Neo4j Bolt URI")
     neo4j_user: str = Field(default="neo4j", description="Neo4j username")

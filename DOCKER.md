@@ -19,7 +19,7 @@ All custom images are published to a single Docker Hub repository, differentiate
 
 ## Images and Tags
 
-Eleven custom images are published to `crhacky/blhackbox` on Docker Hub:
+Nine custom images are published to `crhacky/blhackbox` on Docker Hub:
 
 | Service | Tag | Dockerfile | Base |
 |---|---|---|---|
@@ -27,8 +27,6 @@ Eleven custom images are published to `crhacky/blhackbox` on Docker Hub:
 | **Metasploit MCP** | `crhacky/blhackbox:metasploit-mcp` | `docker/metasploit-mcp.Dockerfile` | `kalilinux/kali-rolling` |
 | **WireMCP** | `crhacky/blhackbox:wire-mcp` | `docker/wire-mcp.Dockerfile` | `debian:bookworm-slim` |
 | **Screenshot MCP** | `crhacky/blhackbox:screenshot-mcp` | `docker/screenshot-mcp.Dockerfile` | `python:3.13-slim` |
-| **HexStrike** | `crhacky/blhackbox:hexstrike` | `docker/hexstrike.Dockerfile` | `python:3.13-slim-bookworm` |
-| **HexStrike MCP** | `crhacky/blhackbox:hexstrike-mcp` | `docker/hexstrike-mcp.Dockerfile` | `python:3.13-slim` |
 | **Ollama MCP** | `crhacky/blhackbox:ollama-mcp` | `docker/ollama-mcp.Dockerfile` | `python:3.13-slim` |
 | **Agent: Ingestion** | `crhacky/blhackbox:agent-ingestion` | `docker/agent-ingestion.Dockerfile` | `python:3.13-slim` |
 | **Agent: Processing** | `crhacky/blhackbox:agent-processing` | `docker/agent-processing.Dockerfile` | `python:3.13-slim` |
@@ -63,7 +61,6 @@ Claude Code ──┬──> Kali MCP (SSE, port 9001)
 (container)   ├──> Metasploit MCP (SSE, port 9002)
               ├──> WireMCP (SSE, port 9003)
               ├──> Screenshot MCP (SSE, port 9004)
-              ├──> HexStrike MCP (SSE, port 9005) ──> HexStrike API (REST, port 8888)
               └──> Ollama MCP (SSE, port 9000)
                         │
                         ├──► agent-ingestion:8001
@@ -81,7 +78,6 @@ Portainer (Docker UI)    Neo4j (optional)
 ```
 Claude Desktop ──> MCP Gateway (localhost:8080/mcp) ──┬──> Kali MCP
 (host app)                                            └──> Ollama MCP
-Note: HexStrike is a REST API, not routed through the MCP Gateway.
 ```
 
 > **Ollama is required.** All 3 agent containers call Ollama via the official
@@ -91,14 +87,14 @@ Note: HexStrike is a REST API, not routed through the MCP Gateway.
 
 ## Usage
 
-### Core Stack (12 containers)
+### Core Stack (10 containers)
 
 ```bash
 git clone https://github.com/valITino/blhackbox.git
 cd blhackbox
 cp .env.example .env
 # REQUIRED: Uncomment and set ANTHROPIC_API_KEY=sk-ant-... in .env
-docker compose pull        # pull pre-built images (ollama + hexstrike-mcp build locally)
+docker compose pull        # pull pre-built images (ollama builds locally)
 docker compose up -d       # start core stack
 make ollama-pull           # pull the Ollama model (REQUIRED — default: llama3.1:8b)
 ```
@@ -138,8 +134,6 @@ make health                # MCP server health check
 | `metasploit-mcp` | `crhacky/blhackbox:metasploit-mcp` | `9002` | default | Metasploit Framework (13+ tools) |
 | `wire-mcp` | `crhacky/blhackbox:wire-mcp` | `9003` | default | Wireshark/tshark (7 tools) |
 | `screenshot-mcp` | `crhacky/blhackbox:screenshot-mcp` | `9004` | default | Screenshot MCP (headless Chromium, 4 tools) |
-| `hexstrike` | `crhacky/blhackbox:hexstrike` | `8888` | default | HexStrike AI REST API (150+ tools) |
-| `hexstrike-mcp` | `crhacky/blhackbox:hexstrike-mcp` | `9005` | default | HexStrike MCP adapter |
 | `ollama-mcp` | `crhacky/blhackbox:ollama-mcp` | `9000` | default | Thin MCP orchestrator |
 | `agent-ingestion` | `crhacky/blhackbox:agent-ingestion` | `8001` | default | Agent 1: parse raw output |
 | `agent-processing` | `crhacky/blhackbox:agent-processing` | `8002` | default | Agent 2: deduplicate, compress |
@@ -165,7 +159,6 @@ The Claude Code container's `.mcp.json` connects directly to each server:
     "metasploit":      { "type": "sse", "url": "http://metasploit-mcp:9002/sse" },
     "wireshark":       { "type": "sse", "url": "http://wire-mcp:9003/sse" },
     "screenshot":      { "type": "sse", "url": "http://screenshot-mcp:9004/sse" },
-    "hexstrike":       { "type": "sse", "url": "http://hexstrike-mcp:9005/sse" },
     "ollama-pipeline": { "type": "sse", "url": "http://ollama-mcp:9000/sse" }
   }
 }
@@ -243,21 +236,6 @@ Requires `--profile gateway` (`make up-gateway`).
 - **Entrypoint**: Screenshot MCP server (FastMCP + Playwright headless Chromium)
 - **Transport**: SSE on port 9004
 
-### HexStrike (`crhacky/blhackbox:hexstrike`)
-
-- **Base**: `python:3.13-slim-bookworm`
-- **Entrypoint**: HexStrike Flask REST API server
-- **Transport**: HTTP REST API on port 8888
-- **Source**: [github.com/0x4m4/hexstrike-ai](https://github.com/0x4m4/hexstrike-ai)
-
-### HexStrike MCP (`crhacky/blhackbox:hexstrike-mcp`)
-
-- **Base**: `python:3.13-slim`
-- **Role**: MCP adapter that bridges the HexStrike Flask REST API to MCP protocol
-- **Transport**: SSE on port 9005
-- **Depends on**: HexStrike container (calls `http://hexstrike:8888` internally)
-- **Note**: Built locally — no pre-built Docker Hub image available yet
-
 ### Ollama MCP (`crhacky/blhackbox:ollama-mcp`)
 
 - **Base**: `python:3.13-slim`
@@ -315,16 +293,16 @@ Named volumes for persistent data:
 
 ## CI/CD Pipeline
 
-Eleven custom images are built and pushed to Docker Hub via GitHub Actions:
+Nine custom images are built and pushed to Docker Hub via GitHub Actions:
 
 ```
 PR opened  ───>  CI (lint + test + pip-audit)
                       │
-PR merged  ───>  CI  ───>  Build & Push (11 images)  ───>  Docker Hub
+PR merged  ───>  CI  ───>  Build & Push (9 images)  ───>  Docker Hub
                            (on CI success)
-Tag v*     ──────────────>  Build & Push (11 images)  ───>  Docker Hub
+Tag v*     ──────────────>  Build & Push (9 images)  ───>  Docker Hub
 
-Manual     ──────────────>  Build & Push (11 images)  ───>  Docker Hub
+Manual     ──────────────>  Build & Push (9 images)  ───>  Docker Hub
 ```
 
 Docker Scout vulnerability scanning runs on the ollama-mcp image.
@@ -337,13 +315,13 @@ Docker Scout vulnerability scanning runs on the ollama-mcp image.
 # Pull all pre-built images from Docker Hub
 docker compose pull
 
-# Start core stack (12 containers)
+# Start core stack (10 containers)
 docker compose up -d
 
-# Start with MCP Gateway for Claude Desktop (13 containers)
+# Start with MCP Gateway for Claude Desktop (11 containers)
 make up-gateway
 
-# Start with Neo4j (13 containers)
+# Start with Neo4j (11 containers)
 docker compose --profile neo4j up -d
 
 # Launch Claude Code in Docker
@@ -360,7 +338,6 @@ make status
 
 # View service logs
 make logs-kali
-make logs-hexstrike
 make logs-agent-ingestion
 make logs-agent-processing
 make logs-agent-synthesis

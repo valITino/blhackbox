@@ -8,10 +8,10 @@ from unittest.mock import AsyncMock
 import pytest
 
 from blhackbox.models.base import Finding, Severity
-from blhackbox.modules.base import HexStrikeModule
+from blhackbox.modules.base import BlhackboxModule
 
 
-class DummyModule(HexStrikeModule):
+class DummyModule(BlhackboxModule):
     name = "dummy"
     description = "Test module"
     category = "test"
@@ -26,7 +26,7 @@ class DummyModule(HexStrikeModule):
         return self.findings
 
 
-class TestHexStrikeModule:
+class TestBlhackboxModule:
     def test_module_repr(self) -> None:
         client = AsyncMock()
         mod = DummyModule(client)

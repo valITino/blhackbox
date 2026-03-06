@@ -21,7 +21,7 @@ include any combination of:
 - subfinder/amass/fierce/dnsenum subdomain enumeration output
 - hydra/medusa brute force results
 - nuclei template scan results
-- HexStrike AI agent JSON responses
+- Metasploit MCP JSON responses
 - WHOIS records
 - DNS records (dig, host, nslookup output)
 - Certificate transparency logs

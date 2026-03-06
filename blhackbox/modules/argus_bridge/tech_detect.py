@@ -1,4 +1,4 @@
-"""Technology detection module using HexStrike's httpx/whatweb."""
+"""Technology detection module using httpx/whatweb."""
 
 from __future__ import annotations
 
@@ -7,13 +7,13 @@ import logging
 from typing import Any
 
 from blhackbox.models.base import Finding, Severity
-from blhackbox.modules.base import HexStrikeModule
+from blhackbox.modules.base import BlhackboxModule
 
 logger = logging.getLogger("blhackbox.modules.argus_bridge.tech_detect")
 
 
-class TechDetectModule(HexStrikeModule):
-    """Detect technologies on a target using HexStrike web tools."""
+class TechDetectModule(BlhackboxModule):
+    """Detect technologies on a target using web tools."""
 
     name = "tech_detect"
     description = "Technology stack detection via httpx and whatweb"

@@ -4,7 +4,7 @@
 # letting them silently fail during tool calls.
 #
 # Usage: .claude/mcp-health-check.sh [--fix]
-#   --fix: Attempt to automatically fix issues (start services, init submodules)
+#   --fix: Attempt to automatically fix issues (start services, install deps)
 
 set -uo pipefail
 
@@ -21,37 +21,7 @@ warn() { echo "[!] $*"; ISSUES=$((ISSUES + 1)); }
 info() { echo "[*] $*"; }
 fix()  { echo "[~] FIX: $*"; FIXED=$((FIXED + 1)); }
 
-# ── 1. HexStrike MCP: check submodule and entrypoint ───────────
-info "Checking HexStrike MCP server..."
-
-if [ ! -f "hexstrike/hexstrike_mcp.py" ]; then
-    warn "hexstrike/hexstrike_mcp.py not found (git submodule not initialized)"
-    if [ "$FIX_MODE" = "--fix" ]; then
-        info "Initializing hexstrike git submodule..."
-        if git submodule init && git submodule update --depth 1 2>/dev/null; then
-            fix "hexstrike submodule initialized"
-        else
-            warn "Failed to initialize hexstrike submodule (network issue?)"
-        fi
-    fi
-else
-    ok "hexstrike/hexstrike_mcp.py exists"
-fi
-
-# Check Python import
-if [ -f ".venv/bin/python3" ]; then
-    if .venv/bin/python3 -c "import hexstrike.hexstrike_mcp" 2>/dev/null; then
-        ok "hexstrike_mcp is importable"
-    else
-        warn "hexstrike_mcp cannot be imported (missing dependencies?)"
-        if [ "$FIX_MODE" = "--fix" ]; then
-            info "Installing hexstrike dependencies..."
-            .venv/bin/pip install -q requests 2>/dev/null && fix "Installed requests"
-        fi
-    fi
-fi
-
-# ── 2. Metasploit MCP: check msfrpcd availability ──────────────
+# ── 1. Metasploit MCP: check msfrpcd availability ──────────────
 info "Checking Metasploit MCP server..."
 
 if command -v msfrpcd >/dev/null 2>&1; then
@@ -98,7 +68,7 @@ if [ -f ".venv/bin/python3" ]; then
     fi
 fi
 
-# ── 3. blhackbox core MCP: check entry point ───────────────────
+# ── 2. blhackbox core MCP: check entry point ───────────────────
 info "Checking blhackbox core MCP server..."
 
 if [ -f ".venv/bin/blhackbox" ]; then
@@ -111,7 +81,7 @@ else
     fi
 fi
 
-# ── 4. Container diagnostics tools ─────────────────────────────
+# ── 3. Container diagnostics tools ─────────────────────────────
 info "Checking diagnostic tools..."
 
 MISSING_TOOLS=()

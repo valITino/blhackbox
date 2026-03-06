@@ -4,9 +4,7 @@ Exposes high-level pentesting capabilities (not individual tools) so that
 any MCP-compatible LLM can drive autonomous reconnaissance, query the
 knowledge graph, and generate reports.
 
-Unlike HexStrike's MCP (which exposes ~98 individual tool endpoints),
 Blhackbox MCP provides *orchestrated workflows*:
-  - recon           → autonomous multi-tool reconnaissance
   - run_tool        → execute a single tool via best available backend
   - query_graph     → Cypher queries against the knowledge graph
   - get_findings    → retrieve structured findings for a target
@@ -49,33 +47,10 @@ async def _get_backend() -> ToolBackend:
 
 _TOOLS: list[Tool] = [
     Tool(
-        name="recon",
-        description=(
-            "Run multi-tool reconnaissance against a target. "
-            "Executes tools via HexStrike, stores results in the knowledge "
-            "graph, and returns structured findings."
-        ),
-        inputSchema={
-            "type": "object",
-            "properties": {
-                "target": {
-                    "type": "string",
-                    "description": "Target domain, IP address, or URL",
-                },
-                "max_iterations": {
-                    "type": "integer",
-                    "description": "Maximum planning iterations (default 10)",
-                    "default": 10,
-                },
-            },
-            "required": ["target"],
-        },
-    ),
-    Tool(
         name="run_tool",
         description=(
-            "Execute a single security tool (e.g. nmap, subfinder, nuclei). "
-            "Automatically selects the best backend (HexStrike API or local CLI)."
+            "Execute a single security tool (e.g. nmap, subfinder, nuclei) "
+            "via the local CLI backend."
         ),
         inputSchema={
             "type": "object",
@@ -187,7 +162,7 @@ _TOOLS: list[Tool] = [
             "Retrieve a prompt template by name. Returns the full template "
             "content with [TARGET] placeholders replaced if a target is provided. "
             "Each template instructs the AI to use all available MCP servers "
-            "(Kali MCP, Ollama pipeline) and the HexStrike REST API."
+            "(Kali MCP, Metasploit MCP, WireMCP, Screenshot MCP, Ollama pipeline)."
         ),
         inputSchema={
             "type": "object",
@@ -350,9 +325,7 @@ async def handle_call_tool(name: str, arguments: dict[str, Any]) -> list[TextCon
 
 
 async def _dispatch(name: str, args: dict[str, Any]) -> str:
-    if name == "recon":
-        return await _do_recon(args)
-    elif name == "run_tool":
+    if name == "run_tool":
         return await _do_run_tool(args)
     elif name == "query_graph":
         return await _do_query_graph(args)
@@ -376,35 +349,6 @@ async def _dispatch(name: str, args: dict[str, Any]) -> str:
         return await _do_annotate_screenshot(args)
     else:
         return f"Unknown tool: {name}"
-
-
-async def _do_recon(args: dict[str, Any]) -> str:
-    from blhackbox.clients.hexstrike_client import HexStrikeClient
-    from blhackbox.core.runner import ReconRunner
-
-    target = args["target"]
-    async with HexStrikeClient() as client:
-        runner = ReconRunner(client)
-        session = await runner.run_recon(target)
-
-    summary = {
-        "session_id": session.id,
-        "target": session.target.value,
-        "tools_executed": session.tools_executed,
-        "findings_count": len(session.findings),
-        "severity_counts": session.severity_counts,
-        "duration_seconds": session.duration_seconds,
-        "findings": [
-            {
-                "title": f.title,
-                "severity": f.severity.value if hasattr(f.severity, "value") else f.severity,
-                "tool": f.tool,
-                "description": f.description[:500] if f.description else "",
-            }
-            for f in session.findings[:20]
-        ],
-    }
-    return json.dumps(summary, indent=2, default=str)
 
 
 async def _do_run_tool(args: dict[str, Any]) -> str:

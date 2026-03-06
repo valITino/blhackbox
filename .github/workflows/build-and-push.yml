@@ -52,10 +52,6 @@ jobs:
             dockerfile: docker/screenshot-mcp.Dockerfile
             tag_prefix: "screenshot-mcp-"
             scout: false
-          - service: hexstrike
-            dockerfile: docker/hexstrike.Dockerfile
-            tag_prefix: "hexstrike-"
-            scout: false
           - service: ollama-mcp
             dockerfile: docker/ollama-mcp.Dockerfile
             tag_prefix: "ollama-mcp-"
@@ -81,7 +77,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
-          submodules: recursive
+          submodules: false
           ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || '' }}
 
       - name: Set up Docker Buildx

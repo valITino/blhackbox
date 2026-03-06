@@ -1,10 +1,9 @@
 """Tests for the MCP server tool definitions and dispatch (v2 architecture).
 
-The blhackbox MCP server exposes orchestrated workflows (recon, run_tool,
+The blhackbox MCP server exposes orchestrated workflows (run_tool,
 query_graph, get_findings, list_tools, generate_report, list_templates,
 get_template) plus screenshot tools (take_screenshot, take_element_screenshot,
-list_screenshots, annotate_screenshot). It does NOT reference the deleted
-orchestrator or LLM client modules.
+list_screenshots, annotate_screenshot).
 """
 
 from __future__ import annotations
@@ -30,22 +29,12 @@ class TestMCPToolDefinitions:
     def test_expected_tools_present(self) -> None:
         names = {t.name for t in _TOOLS}
         expected = {
-            "recon", "run_tool", "query_graph", "get_findings",
+            "run_tool", "query_graph", "get_findings",
             "list_tools", "generate_report", "list_templates",
             "get_template", "take_screenshot", "take_element_screenshot",
             "list_screenshots", "annotate_screenshot",
         }
         assert expected == names
-
-    def test_recon_requires_target(self) -> None:
-        recon = next(t for t in _TOOLS if t.name == "recon")
-        assert "target" in recon.inputSchema["required"]
-
-    def test_recon_does_not_mention_orchestrator(self) -> None:
-        """The recon tool description should not reference the deleted orchestrator."""
-        recon = next(t for t in _TOOLS if t.name == "recon")
-        desc_lower = recon.description.lower()
-        assert "orchestrator" not in desc_lower
 
     def test_run_tool_requires_category_tool_params(self) -> None:
         rt = next(t for t in _TOOLS if t.name == "run_tool")
@@ -63,9 +52,8 @@ class TestMCPToolDefinitions:
 class TestMCPListTools:
     async def test_list_tools_returns_all(self) -> None:
         tools = await handle_list_tools()
-        assert len(tools) == 12
+        assert len(tools) == 11
         names = {t.name for t in tools}
-        assert "recon" in names
         assert "run_tool" in names
         assert "list_templates" in names
         assert "get_template" in names

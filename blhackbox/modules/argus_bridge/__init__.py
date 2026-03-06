@@ -1,4 +1,4 @@
-"""Argus-inspired modules that run through HexStrike."""
+"""Argus-inspired modules for automated scanning workflows."""
 
 from blhackbox.modules.argus_bridge.port_scan import PortScanModule
 from blhackbox.modules.argus_bridge.subdomain_enum import SubdomainEnumModule
