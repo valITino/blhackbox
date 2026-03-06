@@ -14,35 +14,139 @@ MSFRPC_PASS="${MSFRPC_PASS:-msf}"
 MSFRPC_PORT="${MSFRPC_PORT:-55553}"
 MCP_PORT="${MCP_PORT:-9002}"
 
-# ── Background: PostgreSQL + msfrpcd setup ────────────────────────────
+# ── Helper: find the installed PostgreSQL version ─────────────────
+# Kali-rolling ships versioned PostgreSQL (e.g. 16, 17). The version
+# number is needed for pg_ctlcluster and pg_createcluster calls.
+find_pg_version() {
+    # Prefer /etc/postgresql/<ver> (cluster already exists)
+    local ver
+    ver=$(ls /etc/postgresql/ 2>/dev/null | sort -rn | head -1)
+    if [ -n "$ver" ]; then
+        echo "$ver"
+        return
+    fi
+    # Fallback: check what's installed via pg_config or filesystem
+    ver=$(ls /usr/lib/postgresql/ 2>/dev/null | sort -rn | head -1)
+    echo "${ver:-16}"
+}
+
+# ── Helper: start PostgreSQL using pg_ctlcluster (Debian/Kali way) ─
+# Docker containers don't have systemd, so `service postgresql start`
+# and `msfdb init` both fail when they try to invoke systemctl.
+# We use pg_ctlcluster directly — this is what Kali's postgresql-common
+# wrapper actually calls under the hood.
+start_postgres_direct() {
+    local pgver="$1"
+    local cluster="main"
+    local pgdata="/var/lib/postgresql/${pgver}/${cluster}"
+
+    # Ensure data directory exists and has correct ownership
+    if [ ! -d "$pgdata" ]; then
+        echo "[*] Creating PostgreSQL ${pgver} cluster '${cluster}'..."
+        # pg_createcluster handles initdb, config, and directory setup
+        pg_createcluster "$pgver" "$cluster" 2>&1 || {
+            echo "[!] pg_createcluster failed — trying manual initdb..."
+            local pgbin="/usr/lib/postgresql/${pgver}/bin"
+            mkdir -p "$pgdata"
+            chown postgres:postgres "$pgdata"
+            su - postgres -c "${pgbin}/initdb -D ${pgdata}" 2>&1 || true
+        }
+    fi
+
+    # Fix ownership (common issue after volume mounts or fresh containers)
+    chown -R postgres:postgres "/var/lib/postgresql/${pgver}" 2>/dev/null || true
+    # Also fix /run/postgresql for socket directory
+    mkdir -p /run/postgresql
+    chown postgres:postgres /run/postgresql
+    chmod 2775 /run/postgresql
+
+    # Start the cluster
+    echo "[*] Starting PostgreSQL ${pgver}/${cluster}..."
+    pg_ctlcluster "$pgver" "$cluster" start 2>&1 || {
+        echo "[!] pg_ctlcluster start failed — trying pg_ctl directly..."
+        local pgbin="/usr/lib/postgresql/${pgver}/bin"
+        su - postgres -c "${pgbin}/pg_ctl -D ${pgdata} -l /var/log/postgresql/startup.log start" 2>&1 || true
+    }
+}
+
+# ── Helper: ensure msf database and user exist ────────────────────
+setup_msf_database() {
+    # Create the msf user if it doesn't exist
+    su - postgres -c "psql -tAc \"SELECT 1 FROM pg_roles WHERE rolname='msf'\"" 2>/dev/null | grep -q 1 || {
+        echo "[*] Creating PostgreSQL user 'msf'..."
+        su - postgres -c "createuser -S -R -D msf" 2>&1 || true
+        su - postgres -c "psql -c \"ALTER USER msf WITH PASSWORD 'msf'\"" 2>&1 || true
+    }
+
+    # Create the msf database if it doesn't exist
+    su - postgres -c "psql -tAc \"SELECT 1 FROM pg_database WHERE datname='msf'\"" 2>/dev/null | grep -q 1 || {
+        echo "[*] Creating database 'msf'..."
+        su - postgres -c "createdb -O msf msf" 2>&1 || true
+    }
+
+    # Write database.yml for Metasploit
+    local dbconf="/usr/share/metasploit-framework/config/database.yml"
+    mkdir -p "$(dirname "$dbconf")"
+    cat > "$dbconf" <<YAML
+production:
+  adapter: postgresql
+  database: msf
+  username: msf
+  password: msf
+  host: 127.0.0.1
+  port: 5432
+  pool: 5
+  timeout: 5
+
+development:
+  adapter: postgresql
+  database: msf
+  username: msf
+  password: msf
+  host: 127.0.0.1
+  port: 5432
+  pool: 5
+  timeout: 5
+YAML
+    echo "[+] database.yml written."
+}
+
+# ── Background: PostgreSQL + msfrpcd setup ────────────────────────
 (
     echo "[*] Initializing Metasploit database (background)..."
 
-    # Step 1: Ensure PostgreSQL data directory has correct ownership.
-    # On fresh containers or after volume mounts, the data directory may
-    # be owned by root, causing pg_ctlcluster to fail.
-    PG_VERSION=$(ls /etc/postgresql/ 2>/dev/null | head -1)
-    if [ -n "$PG_VERSION" ] && [ -d "/var/lib/postgresql/${PG_VERSION}/main" ]; then
-        chown -R postgres:postgres "/var/lib/postgresql/${PG_VERSION}" 2>/dev/null || true
-    fi
+    PG_VERSION=$(find_pg_version)
+    echo "[*] Detected PostgreSQL version: ${PG_VERSION}"
 
-    # Step 2: Start PostgreSQL — try msfdb init first (handles cluster
-    # creation, user/DB setup, and database.yml), fall back to manual.
+    # Strategy: Try msfdb init first (it handles everything when it works).
+    # If it fails (common in Docker due to systemd dependency), fall back
+    # to manual PostgreSQL startup via pg_ctlcluster.
     if msfdb init 2>&1; then
         echo "[+] msfdb init succeeded."
     else
-        echo "[!] msfdb init failed — attempting manual PostgreSQL setup..."
-        # Fallback: start PostgreSQL manually and retry
-        service postgresql start 2>&1 || true
+        echo "[!] msfdb init failed (expected in Docker — no systemd)."
+        echo "[*] Falling back to manual PostgreSQL setup via pg_ctlcluster..."
+
+        start_postgres_direct "$PG_VERSION"
+
+        # Wait for PostgreSQL to accept connections (up to 30s)
+        PG_READY=false
         for _i in $(seq 1 30); do
-            pg_isready -q 2>/dev/null && break
+            if pg_isready -q 2>/dev/null; then
+                PG_READY=true
+                break
+            fi
             sleep 1
         done
-        if pg_isready -q 2>/dev/null; then
-            echo "[+] PostgreSQL started manually."
-            msfdb init 2>&1 || echo "[!] msfdb init retry failed — msfrpcd will run without DB."
+
+        if [ "$PG_READY" = "true" ]; then
+            echo "[+] PostgreSQL is accepting connections."
+            setup_msf_database
         else
             echo "[!] PostgreSQL failed to start — msfrpcd will run without DB."
+            echo "[!] Debug info:"
+            pg_lsclusters 2>&1 || true
+            ls -la /var/lib/postgresql/ 2>&1 || true
         fi
     fi
 
@@ -53,7 +157,7 @@ MCP_PORT="${MCP_PORT:-9002}"
         echo "[!] PostgreSQL is not running — msfrpcd may have limited functionality."
     fi
 
-    # Step 3: Start msfrpcd.
+    # Start msfrpcd.
     # NOTE: msfrpcd enables SSL by default. The -S flag *disables* SSL.
     # We omit -S so msfrpcd listens on HTTPS, matching MSFRPC_SSL=true
     # in docker-compose.yml and server.py's connection scheme.
@@ -69,12 +173,12 @@ MCP_PORT="${MCP_PORT:-9002}"
         -p "$MSFRPC_PORT" -a 127.0.0.1 -f &
     MSFRPCD_PID=$!
 
-    # Step 4: Verify msfrpcd is actually listening before declaring success.
+    # Verify msfrpcd is actually listening before declaring success.
     # This catches startup crashes, missing libraries, and config errors
     # that would otherwise go unnoticed until the first tool call.
     echo "[*] Waiting for msfrpcd to start listening on port ${MSFRPC_PORT}..."
     MSFRPCD_READY=false
-    for _i in $(seq 1 60); do
+    for _i in $(seq 1 90); do
         # Check if the process is still alive
         if ! kill -0 "$MSFRPCD_PID" 2>/dev/null; then
             echo "[!] msfrpcd process (PID ${MSFRPCD_PID}) exited prematurely."
@@ -82,8 +186,9 @@ MCP_PORT="${MCP_PORT:-9002}"
             echo "[!] msfrpcd exit code: $?"
             break
         fi
-        # Check if the port is open
-        if ss -tlnp 2>/dev/null | grep -q ":${MSFRPC_PORT}"; then
+        # Check if the port is open (try ss first, fall back to netstat)
+        if ss -tlnp 2>/dev/null | grep -q ":${MSFRPC_PORT}" || \
+           netstat -tlnp 2>/dev/null | grep -q ":${MSFRPC_PORT}"; then
             MSFRPCD_READY=true
             echo "[+] msfrpcd is listening on port ${MSFRPC_PORT} (took ~${_i}s)."
             break
@@ -92,7 +197,7 @@ MCP_PORT="${MCP_PORT:-9002}"
     done
 
     if [ "$MSFRPCD_READY" = "false" ]; then
-        echo "[!] ERROR: msfrpcd is NOT listening on port ${MSFRPC_PORT} after 60 seconds."
+        echo "[!] ERROR: msfrpcd is NOT listening on port ${MSFRPC_PORT} after 90 seconds."
         echo "[!] The MCP server will start but all Metasploit tools will fail."
         echo "[!] Debug: Check msfrpcd logs above for startup errors."
         echo "[!] Common fixes:"
@@ -108,7 +213,7 @@ MCP_PORT="${MCP_PORT:-9002}"
 ) &
 BACKEND_PID=$!
 
-# ── Foreground: Start MCP server immediately ──────────────────────────
+# ── Foreground: Start MCP server immediately ──────────────────────
 # The FastMCP SSE endpoint on port 9002 starts in <2 seconds, allowing
 # the Docker healthcheck to pass. Tool calls that require msfrpcd will
 # retry automatically via MSFRPCClient.login() (15 retries × 6s = 90s).

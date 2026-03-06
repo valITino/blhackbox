@@ -145,12 +145,12 @@ services:
       # msfrpcd. Checking both ensures the container only reports healthy
       # when Metasploit tools are actually usable.
       # msfrpcd typically needs 30-90s after container start (PostgreSQL init
-      # + msfdb init + msfrpcd startup), hence the 120s start_period.
+      # + msfdb init + msfrpcd startup), hence the generous start_period.
       test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:9002/sse')\" && ss -tlnp | grep -q ':55553'"]
       interval: 15s
       timeout: 10s
-      retries: 10
-      start_period: 120s
+      retries: 15
+      start_period: 180s
     networks:
       - blhackbox_net
 

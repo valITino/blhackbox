@@ -6,15 +6,28 @@
 
 FROM kalilinux/kali-rolling
 
-# Install Metasploit Framework and dependencies
+# Install Metasploit Framework and dependencies.
+# - locales: Required for PostgreSQL initdb/pg_createcluster (fails without
+#   a valid locale in minimal Docker images — "no usable system locales").
+# - iproute2: Provides the `ss` command used by the healthcheck to verify
+#   that msfrpcd is listening on port 55553.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     metasploit-framework \
     postgresql \
     curl \
+    iproute2 \
+    locales \
     python3 \
     python3-pip \
     python3-venv \
     && rm -rf /var/lib/apt/lists/*
+
+# Generate en_US.UTF-8 locale — PostgreSQL's initdb requires a valid locale.
+# Without this, pg_createcluster fails with "no usable system locales were found"
+# inside minimal Docker images like kali-rolling.
+RUN sed -i '/en_US.UTF-8/s/^# //' /etc/locale.gen && locale-gen
+ENV LANG=en_US.UTF-8
+ENV LC_ALL=en_US.UTF-8
 
 WORKDIR /app
 
