@@ -330,6 +330,28 @@ _startup_login_task: asyncio.Task | None = None
 async def _lifespan(server: FastMCP):
     """FastMCP lifespan — launch background msfrpcd authentication."""
     global _startup_login_task
+
+    # Pre-flight check: quick connectivity test before starting retry loop
+    import socket
+    try:
+        sock = socket.create_connection(
+            (MSFRPC_HOST, MSFRPC_PORT), timeout=2,
+        )
+        sock.close()
+        logger.info(
+            "Pre-flight: msfrpcd port %s:%d is reachable.",
+            MSFRPC_HOST, MSFRPC_PORT,
+        )
+    except (ConnectionRefusedError, OSError, socket.timeout):
+        logger.warning(
+            "Pre-flight: msfrpcd is NOT reachable at %s:%d. "
+            "All Metasploit tools will fail until msfrpcd is started. "
+            "Ensure msfrpcd is running: "
+            "msfrpcd -U %s -P <pass> -p %d -a %s",
+            MSFRPC_HOST, MSFRPC_PORT,
+            MSFRPC_USER, MSFRPC_PORT, MSFRPC_HOST,
+        )
+
     _startup_login_task = asyncio.create_task(_rpc.startup_login())
     try:
         yield {}
