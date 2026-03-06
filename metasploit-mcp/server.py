@@ -4,9 +4,9 @@ Provides MCP tool access to the Metasploit Framework via the MSF RPC API
 (msfrpcd).  Inspired by GH05TCREW/MetasploitMCP (Apache 2.0) and
 fishke22/MetasploitMCP.
 
-Exposes 14 core tools for exploit lifecycle management:
+Exposes 15 core tools for exploit lifecycle management:
   - msf_status (diagnostics)
-  - list_exploits, list_payloads, run_exploit, run_auxiliary_module
+  - list_exploits, list_payloads, module_info, run_exploit, run_auxiliary_module
   - run_post_module, generate_payload
   - list_sessions, send_session_command, terminate_session
   - list_listeners, start_listener, stop_job
@@ -30,6 +30,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 import shutil
 import socket
 import time
@@ -54,6 +55,14 @@ MCP_PORT = int(os.environ.get("MCP_PORT", "9002"))
 
 # Execution timeout for exploit/module runs
 EXEC_TIMEOUT = int(os.environ.get("EXEC_TIMEOUT", "300"))
+
+# Session polling after exploit execution (inspired by reference repos)
+SESSION_POLL_INTERVAL = int(os.environ.get("SESSION_POLL_INTERVAL", "2"))
+SESSION_POLL_TIMEOUT = int(os.environ.get("SESSION_POLL_TIMEOUT", "60"))
+
+# MSF console prompt regex — used alongside the `busy` flag for more reliable
+# completion detection.  Reference: pymetasploit3 console prompt pattern.
+_MSF_PROMPT_RE = re.compile(r"\x01\x02msf\d*\x01\x02.*?>\s*\x01\x02|\nmsf\d*\s*.*?>\s*$")
 
 # msfrpcd msgpack headers — msfrpcd ONLY understands binary/message-pack,
 # NOT application/json.  Sending JSON causes silent auth failures.
@@ -653,6 +662,73 @@ async def list_payloads(
 
 
 # ---------------------------------------------------------------------------
+# MCP Tools — Module Info / Option Validation
+# ---------------------------------------------------------------------------
+
+@mcp.tool()
+async def module_info(
+    module_type: str,
+    module_name: str,
+) -> str:
+    """Get detailed information and options for a Metasploit module.
+
+    Use this tool BEFORE running an exploit/auxiliary/post module to discover
+    required options, default values, and module metadata. This helps validate
+    parameters before execution.
+
+    Args:
+        module_type: Module type — one of 'exploit', 'auxiliary', 'post', 'payload', 'encoder', 'nop'.
+        module_name: Full module path (e.g. 'exploit/multi/http/apache_mod_cgi_bash_env_exec').
+    """
+    # Fetch module info (name, description, authors, references, etc.)
+    info = await _rpc.call("module.info", module_type, module_name, tool_name="module_info")
+    if isinstance(info, dict) and info.get("error"):
+        return _json(info)
+
+    # Fetch module options (RHOSTS, RPORT, PAYLOAD, etc.)
+    options = await _rpc.call("module.options", module_type, module_name, tool_name="module_info")
+    if isinstance(options, dict) and options.get("error"):
+        return _json(options)
+
+    # Extract required options for convenience
+    required_opts: dict[str, Any] = {}
+    optional_opts: dict[str, Any] = {}
+    if isinstance(options, dict):
+        for opt_name, opt_detail in options.items():
+            if opt_name == "result":
+                continue
+            if isinstance(opt_detail, dict) and opt_detail.get("required"):
+                required_opts[opt_name] = {
+                    "type": opt_detail.get("type", "string"),
+                    "default": opt_detail.get("default"),
+                    "description": opt_detail.get("desc", ""),
+                }
+            elif isinstance(opt_detail, dict):
+                optional_opts[opt_name] = {
+                    "type": opt_detail.get("type", "string"),
+                    "default": opt_detail.get("default"),
+                    "description": opt_detail.get("desc", ""),
+                }
+
+    return _json({
+        "tool": "module_info",
+        "module_type": module_type,
+        "module_name": module_name,
+        "info": {
+            "name": info.get("name", ""),
+            "description": info.get("description", ""),
+            "authors": info.get("authors", []),
+            "references": info.get("references", []),
+            "rank": info.get("rank", ""),
+            "platform": info.get("platform", []),
+            "arch": info.get("arch", []),
+        },
+        "required_options": required_opts,
+        "optional_options": optional_opts,
+    })
+
+
+# ---------------------------------------------------------------------------
 # MCP Tools — Exploit Execution
 # ---------------------------------------------------------------------------
 
@@ -688,8 +764,44 @@ async def run_exploit(
     if payload:
         options["PAYLOAD"] = payload
 
+    # Snapshot existing sessions before execution so we can detect new ones
+    pre_sessions = await _rpc.call("session.list", tool_name="run_exploit")
+    pre_session_ids = set()
+    if isinstance(pre_sessions, dict) and "error" not in pre_sessions:
+        pre_session_ids = {k for k in pre_sessions if k != "result"}
+
     result = await _rpc.call("module.execute", "exploit", module, options, tool_name="run_exploit")
-    return _json({"tool": "run_exploit", "module": module, "result": result})
+    if isinstance(result, dict) and result.get("error"):
+        return _json({"tool": "run_exploit", "module": module, "result": result})
+
+    # Poll for new sessions opened by the exploit (reference: fishke22/MetasploitMCP)
+    new_sessions: dict[str, Any] = {}
+    deadline = time.monotonic() + SESSION_POLL_TIMEOUT
+    while time.monotonic() < deadline:
+        await asyncio.sleep(SESSION_POLL_INTERVAL)
+        current = await _rpc.call("session.list", tool_name="run_exploit")
+        if isinstance(current, dict) and "error" not in current:
+            current_ids = {k for k in current if k != "result"}
+            new_ids = current_ids - pre_session_ids
+            if new_ids:
+                new_sessions = {sid: current[sid] for sid in new_ids}
+                break
+
+    response: dict[str, Any] = {
+        "tool": "run_exploit",
+        "module": module,
+        "result": result,
+    }
+    if new_sessions:
+        response["new_sessions"] = new_sessions
+        response["session_count"] = len(new_sessions)
+    else:
+        response["new_sessions"] = {}
+        response["note"] = (
+            f"No new sessions detected after {SESSION_POLL_TIMEOUT}s polling. "
+            "The exploit may have failed, or the target may not be vulnerable."
+        )
+    return _json(response)
 
 
 @mcp.tool()
@@ -777,22 +889,58 @@ async def send_session_command(
 ) -> str:
     """Execute a command in an active Metasploit session.
 
+    Automatically detects whether the session is a Meterpreter or shell session
+    and uses the appropriate RPC methods (meterpreter_write/meterpreter_read vs
+    shell_write/shell_read).
+
     Args:
         session_id: The session ID to interact with.
         command: Command to execute in the session.
         timeout: Seconds to wait for output (default 30).
     """
-    # Write command
-    write_result = await _rpc.call("session.shell_write", str(session_id), command + "\n", tool_name="send_session_command")
-    if "error" in write_result:
-        return _json(write_result)
+    sid = str(session_id)
 
-    # Wait and read output
-    await asyncio.sleep(min(timeout, 5))
-    read_result = await _rpc.call("session.shell_read", str(session_id), tool_name="send_session_command")
+    # Detect session type via session.list (reference: fishke22/MetasploitMCP)
+    sessions = await _rpc.call("session.list", tool_name="send_session_command")
+    session_type = "shell"  # default fallback
+    if isinstance(sessions, dict) and sid in sessions:
+        stype = str(sessions[sid].get("type", "")).lower()
+        if "meterpreter" in stype:
+            session_type = "meterpreter"
+
+    if session_type == "meterpreter":
+        # Meterpreter uses session.meterpreter_write / session.meterpreter_read
+        write_result = await _rpc.call(
+            "session.meterpreter_write", sid, command + "\n",
+            tool_name="send_session_command",
+        )
+        if isinstance(write_result, dict) and "error" in write_result:
+            return _json(write_result)
+
+        await asyncio.sleep(min(timeout, 5))
+        read_result = await _rpc.call(
+            "session.meterpreter_read", sid,
+            tool_name="send_session_command",
+        )
+    else:
+        # Shell session uses session.shell_write / session.shell_read
+        write_result = await _rpc.call(
+            "session.shell_write", sid, command + "\n",
+            tool_name="send_session_command",
+        )
+        if isinstance(write_result, dict) and "error" in write_result:
+            return _json(write_result)
+
+        await asyncio.sleep(min(timeout, 5))
+        read_result = await _rpc.call(
+            "session.shell_read", sid,
+            tool_name="send_session_command",
+        )
+
     return _json({
         "tool": "send_session_command",
         "session_id": session_id,
+        "session_type": session_type,
         "command": command,
         "output": read_result.get("data", ""),
     })
@@ -886,7 +1034,8 @@ async def msf_console_execute(command: str, timeout: int = 30) -> str:
     # Write command
     await _rpc.call("console.write", console_id, command + "\n", tool_name="msf_console_execute")
 
-    # Poll for output
+    # Poll for output — use both `busy` flag and MSF prompt regex for
+    # reliable completion detection (reference: pymetasploit3 console)
     output_parts: list[str] = []
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
@@ -895,7 +1044,13 @@ async def msf_console_execute(command: str, timeout: int = 30) -> str:
         if data:
             output_parts.append(data)
         busy = read.get("busy", False)
-        if not busy and output_parts:
+        # Check both: busy flag is False AND (we have output, or prompt detected)
+        combined = "".join(output_parts)
+        prompt_detected = bool(_MSF_PROMPT_RE.search(combined))
+        if not busy and (output_parts or prompt_detected):
+            break
+        if prompt_detected:
+            # Prompt appeared even while busy — command is done
             break
         await asyncio.sleep(1)
 
