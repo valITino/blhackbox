@@ -29,7 +29,7 @@ _PROMPTS_DIR = Path(__file__).resolve().parent.parent / "prompts" / "agents"
 # Configurable via environment — mirrors the server defaults.
 _OLLAMA_TIMEOUT = float(os.getenv("OLLAMA_TIMEOUT", "300"))
 _OLLAMA_NUM_CTX = int(os.getenv("OLLAMA_NUM_CTX", "8192"))
-_OLLAMA_KEEP_ALIVE = os.getenv("OLLAMA_KEEP_ALIVE", "10m")
+_OLLAMA_KEEP_ALIVE = os.getenv("OLLAMA_KEEP_ALIVE", "30m")
 _OLLAMA_RETRIES = int(os.getenv("OLLAMA_RETRIES", "2"))
 
 

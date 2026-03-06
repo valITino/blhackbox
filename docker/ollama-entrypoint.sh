@@ -43,7 +43,7 @@ curl -s http://localhost:11434/api/chat -d "{
   \"model\": \"${MODEL}\",
   \"messages\": [{\"role\": \"user\", \"content\": \"hi\"}],
   \"stream\": false,
-  \"keep_alive\": \"30m\"
+  \"keep_alive\": \"60m\"
 }" > /dev/null 2>&1 && echo "[+] Model '${MODEL}' is warm and loaded" \
     || echo "[!] Warmup request failed — model will load on first agent call"
 

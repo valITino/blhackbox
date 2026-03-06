@@ -189,8 +189,8 @@ class TestAggregatedPayload:
             metadata=AggregatedMetadata(
                 tools_run=["nmap", "nikto"],
                 total_raw_size_bytes=50000,
-                compressed_size_bytes=2500,
-                compression_ratio=0.05,
+                structured_size_bytes=2500,
+                expansion_ratio=0.05,
                 ollama_model="llama3.3",
                 duration_seconds=12.5,
             ),
@@ -215,7 +215,7 @@ class TestAggregatedPayload:
         assert payload.remediation[0].effort == "low"
         assert payload.findings.subdomains == ["api.example.com", "mail.example.com"]
         assert payload.error_log[0].security_relevance == "high"
-        assert payload.metadata.compression_ratio == 0.05
+        assert payload.metadata.expansion_ratio == 0.05
         assert payload.metadata.total_raw_size_bytes == 50000
 
     def test_to_dict(self) -> None:
@@ -385,8 +385,8 @@ class TestAggregatedMetadata:
         meta = AggregatedMetadata()
         assert meta.tools_run == []
         assert meta.total_raw_size_bytes == 0
-        assert meta.compressed_size_bytes == 0
-        assert meta.compression_ratio == 0.0
+        assert meta.structured_size_bytes == 0
+        assert meta.expansion_ratio == 0.0
         assert meta.ollama_model == ""
         assert meta.duration_seconds == 0.0
         assert meta.warning == ""
@@ -400,14 +400,14 @@ class TestAggregatedMetadata:
         meta = AggregatedMetadata(
             tools_run=["nmap", "nikto", "subfinder"],
             total_raw_size_bytes=100000,
-            compressed_size_bytes=5000,
-            compression_ratio=0.05,
+            structured_size_bytes=5000,
+            expansion_ratio=0.05,
             ollama_model="llama3.3",
             duration_seconds=25.3,
             warning="",
         )
         assert len(meta.tools_run) == 3
-        assert meta.compression_ratio == 0.05
+        assert meta.expansion_ratio == 0.05
 
 
 class TestSubModels:

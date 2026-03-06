@@ -140,16 +140,17 @@ services:
       MSFRPC_HOST: "127.0.0.1"
       MSFRPC_SSL: "true"
     healthcheck:
-      # Check the MCP SSE endpoint (port 9002) — the externally-facing service.
-      # msfrpcd (port 55553) is an internal dependency managed by the MCP server
-      # itself via retry logic in MSFRPCClient.login() (15 retries × 6s = 90s).
-      # Gating the healthcheck on msfrpcd blocks the entire stack unnecessarily
-      # since no other container connects to port 55553 directly.
-      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:9002/sse')\""]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
+      # Check both the MCP SSE endpoint (port 9002) AND msfrpcd (port 55553).
+      # The MCP server starts quickly, but tools are non-functional without
+      # msfrpcd. Checking both ensures the container only reports healthy
+      # when Metasploit tools are actually usable.
+      # msfrpcd typically needs 30-90s after container start (PostgreSQL init
+      # + msfdb init + msfrpcd startup), hence the 120s start_period.
+      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:9002/sse')\" && ss -tlnp | grep -q ':55553'"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 120s
     networks:
       - blhackbox_net
 
@@ -325,7 +326,7 @@ services:
       OLLAMA_MODEL: "${OLLAMA_MODEL:-llama3.1:8b}"
       OLLAMA_TIMEOUT: "${OLLAMA_TIMEOUT:-300}"
       OLLAMA_NUM_CTX: "${OLLAMA_NUM_CTX:-8192}"
-      OLLAMA_KEEP_ALIVE: "${OLLAMA_KEEP_ALIVE:-10m}"
+      OLLAMA_KEEP_ALIVE: "${OLLAMA_KEEP_ALIVE:-30m}"
       OLLAMA_RETRIES: "${OLLAMA_RETRIES:-2}"
     depends_on:
       ollama:
@@ -353,7 +354,7 @@ services:
       OLLAMA_MODEL: "${OLLAMA_MODEL:-llama3.1:8b}"
       OLLAMA_TIMEOUT: "${OLLAMA_TIMEOUT:-300}"
       OLLAMA_NUM_CTX: "${OLLAMA_NUM_CTX:-8192}"
-      OLLAMA_KEEP_ALIVE: "${OLLAMA_KEEP_ALIVE:-10m}"
+      OLLAMA_KEEP_ALIVE: "${OLLAMA_KEEP_ALIVE:-30m}"
       OLLAMA_RETRIES: "${OLLAMA_RETRIES:-2}"
     depends_on:
       ollama:
@@ -381,7 +382,7 @@ services:
       OLLAMA_MODEL: "${OLLAMA_MODEL:-llama3.1:8b}"
       OLLAMA_TIMEOUT: "${OLLAMA_TIMEOUT:-300}"
       OLLAMA_NUM_CTX: "${OLLAMA_NUM_CTX:-8192}"
-      OLLAMA_KEEP_ALIVE: "${OLLAMA_KEEP_ALIVE:-10m}"
+      OLLAMA_KEEP_ALIVE: "${OLLAMA_KEEP_ALIVE:-30m}"
       OLLAMA_RETRIES: "${OLLAMA_RETRIES:-2}"
     depends_on:
       ollama:
@@ -407,6 +408,16 @@ services:
     restart: unless-stopped
     environment:
       OLLAMA_MODEL: "${OLLAMA_MODEL:-llama3.1:8b}"
+      # Keep models loaded in memory between sequential agent calls.
+      # The 3-stage pipeline (ingestion → processing → synthesis) runs
+      # sequentially, and reloading the model between calls adds minutes
+      # of latency on CPU-only systems.  30m ensures the model stays
+      # resident for the entire pipeline.
+      OLLAMA_KEEP_ALIVE: "${OLLAMA_KEEP_ALIVE:-30m}"
+      # Allow parallel inference requests from multiple agent containers.
+      # While the current pipeline is sequential, this enables future
+      # parallelism and prevents request queueing during health checks.
+      OLLAMA_NUM_PARALLEL: "${OLLAMA_NUM_PARALLEL:-3}"
     volumes:
       - ollama_models:/root/.ollama
     healthcheck:
@@ -420,7 +431,8 @@ services:
       - blhackbox_net
     # GPU support -- disabled by default for broad compatibility.
     # If you have an NVIDIA GPU, uncomment the 'deploy' block below
-    # to enable GPU acceleration for Ollama.
+    # to enable GPU acceleration for Ollama. This can reduce pipeline
+    # processing time from ~17 minutes (CPU) to under 2 minutes (GPU).
     # deploy:
     #   resources:
     #     reservations:
