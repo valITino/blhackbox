@@ -4,6 +4,14 @@
       "command": "bash",
       "args": [".claude/mcp-start.sh"],
       "description": "blhackbox core MCP server — recon, tool execution, graph queries, report generation"
+    },
+    "hexstrike": {
+      "command": ".venv/bin/python3",
+      "args": ["hexstrike/hexstrike_mcp.py"],
+      "env": {
+        "HEXSTRIKE_URL": "http://localhost:8888"
+      },
+      "description": "HexStrike AI MCP Server — 150+ security tools via FastMCP stdio transport"
     }
   }
 }
