@@ -1,4 +1,4 @@
-"""Subdomain enumeration module using HexStrike's subfinder/amass."""
+"""Subdomain enumeration module using subfinder/amass."""
 
 from __future__ import annotations
 
@@ -8,22 +8,22 @@ import re
 from typing import Any
 
 from blhackbox.models.base import Finding, Severity
-from blhackbox.modules.base import HexStrikeModule
+from blhackbox.modules.base import BlhackboxModule
 
 logger = logging.getLogger("blhackbox.modules.argus_bridge.subdomain_enum")
 
 _SUBDOMAIN_RE = re.compile(r"(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}")
 
 
-class SubdomainEnumModule(HexStrikeModule):
-    """Enumerate subdomains using multiple HexStrike tools and deduplicate."""
+class SubdomainEnumModule(BlhackboxModule):
+    """Enumerate subdomains using multiple tools and deduplicate."""
 
     name = "subdomain_enum"
-    description = "Multi-source subdomain enumeration via HexStrike"
+    description = "Multi-source subdomain enumeration"
     category = "dns"
 
     async def run(self, target: str, **kwargs: Any) -> list[Finding]:
-        """Run subfinder and amass via HexStrike, merge and deduplicate results."""
+        """Run subfinder and amass, merge and deduplicate results."""
         self.clear_findings()
         all_subdomains: set[str] = set()
 

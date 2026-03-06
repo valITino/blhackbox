@@ -26,13 +26,6 @@ fi
 # Export venv bin to PATH for the session
 echo "export PATH=\"$CLAUDE_PROJECT_DIR/.venv/bin:\$PATH\"" >> "$CLAUDE_ENV_FILE"
 
-# Initialize git submodules (hexstrike depends on this)
-if [ -f ".gitmodules" ] && [ ! -f "hexstrike/hexstrike_mcp.py" ]; then
-  echo "[*] Initializing git submodules..."
-  git submodule init 2>/dev/null || true
-  git submodule update --depth 1 2>/dev/null || true
-fi
-
 # Install metasploit MCP Python dependencies if not present
 if ! .venv/bin/python3 -c "import msgpack, httpx" 2>/dev/null; then
   .venv/bin/pip install -q -r metasploit-mcp/requirements.txt 2>/dev/null || true

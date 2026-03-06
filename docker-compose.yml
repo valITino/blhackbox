@@ -10,15 +10,10 @@
 #
 # MCP servers:
 #   kali-mcp         (FastMCP SSE, port 9001) — Kali Linux security tools (50+)
-#   metasploit-mcp   (FastMCP SSE, port 9002) — Metasploit Framework (13+ tools)
+#   metasploit-mcp   (FastMCP SSE, port 9002) — Metasploit Framework (14 tools)
 #   wire-mcp         (FastMCP SSE, port 9003) — Wireshark/tshark (7 tools)
 #   screenshot-mcp   (FastMCP SSE, port 9004) — Headless Chromium screenshots (4 tools)
 #   ollama-mcp       (FastMCP SSE, port 9000) — Ollama preprocessing pipeline
-#   hexstrike        (Flask REST API, port 8888) — HexStrike AI tools (NOT MCP protocol)
-#
-# NOTE on HexStrike: It runs a Flask REST API, NOT an MCP SSE server.
-# Its 150+ tools are accessible via HTTP at http://hexstrike:8888/api/...
-# from any container on blhackbox_net. Native MCP support is a future goal.
 #
 # Claude Code (Docker) connects directly to MCP servers via SSE.
 # Claude Desktop / ChatGPT connect via the MCP Gateway (--profile gateway).
@@ -51,8 +46,7 @@ services:
   # localhost:8080/mcp to the correct MCP server container.
   # Docs: https://github.com/docker/mcp-gateway
   #
-  # NOTE: Only kali-mcp and ollama-mcp are MCP servers. HexStrike is a
-  # Flask REST API and is NOT included in the gateway.
+  # All services listed below are proper MCP servers.
   mcp-gateway:
     image: docker/mcp-gateway:latest
     container_name: blhackbox-mcp-gateway
@@ -71,7 +65,7 @@ services:
       - --transport=streaming
       - --port=8080
       - --catalog=/catalog.yaml
-      - --servers=kali-mcp,metasploit-mcp,wire-mcp,screenshot-mcp,hexstrike-mcp,ollama-mcp
+      - --servers=kali-mcp,metasploit-mcp,wire-mcp,screenshot-mcp,ollama-mcp
       - --log-calls
     networks:
       - blhackbox_net
@@ -219,58 +213,6 @@ services:
     networks:
       - blhackbox_net
 
-  # -- HEXSTRIKE AI (REST API) -----------------------------------------------
-  # Flask REST API on port 8888 — NOT an MCP server.
-  # Provides 150+ security tool wrappers and 12+ AI agents via HTTP.
-  # Source: https://github.com/0x4m4/hexstrike-ai (also a Kali Linux package)
-  hexstrike:
-    image: crhacky/blhackbox:hexstrike
-    build:
-      context: .
-      dockerfile: docker/hexstrike.Dockerfile
-    container_name: blhackbox-hexstrike
-    restart: unless-stopped
-    init: true
-    ports:
-      - "8888:8888"
-    healthcheck:
-      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:8888/health')\""]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    networks:
-      - blhackbox_net
-
-  # -- HEXSTRIKE MCP ADAPTER -------------------------------------------------
-  # Bridges the HexStrike Flask REST API to MCP protocol.
-  # Allows Claude Code to discover and invoke HexStrike tools natively.
-  # Transport: FastMCP SSE on port 9005.
-  hexstrike-mcp:
-    image: crhacky/blhackbox:hexstrike-mcp
-    build:
-      context: .
-      dockerfile: docker/hexstrike-mcp.Dockerfile
-      network: host
-    container_name: blhackbox-hexstrike-mcp
-    restart: unless-stopped
-    init: true
-    environment:
-      HEXSTRIKE_URL: "http://hexstrike:8888"
-      MCP_PORT: "9005"
-    ports:
-      - "9005:9005"
-    healthcheck:
-      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:9005/sse')\""]
-      interval: 15s
-      timeout: 10s
-      retries: 5
-      start_period: 10s
-    depends_on:
-      hexstrike:
-        condition: service_healthy
-    networks:
-      - blhackbox_net
-
   # -- OLLAMA MCP SERVER (CUSTOM) --------------------------------------------
   # blhackbox custom component. NOT an official Ollama product.
   # Thin MCP orchestrator -- calls the 3 agent containers in sequence
@@ -312,7 +254,7 @@ services:
       - blhackbox_net
 
   # -- AGENT 1: INGESTION ---------------------------------------------------
-  # Parses and structures raw Kali + HexStrike tool output.
+  # Parses and structures raw Kali tool output.
   # Calls Ollama /api/chat with ingestion system prompt.
   agent-ingestion:
     image: crhacky/blhackbox:agent-ingestion
@@ -489,8 +431,8 @@ services:
     environment:
       ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY}"
       # Bypass egress proxies (e.g. GitHub Codespaces) for internal Docker traffic
-      no_proxy: "mcp-gateway,kali-mcp,metasploit-mcp,wire-mcp,screenshot-mcp,hexstrike,hexstrike-mcp,ollama-mcp,ollama,agent-ingestion,agent-processing,agent-synthesis,localhost,127.0.0.1"
-      NO_PROXY: "mcp-gateway,kali-mcp,metasploit-mcp,wire-mcp,screenshot-mcp,hexstrike,hexstrike-mcp,ollama-mcp,ollama,agent-ingestion,agent-processing,agent-synthesis,localhost,127.0.0.1"
+      no_proxy: "mcp-gateway,kali-mcp,metasploit-mcp,wire-mcp,screenshot-mcp,ollama-mcp,ollama,agent-ingestion,agent-processing,agent-synthesis,localhost,127.0.0.1"
+      NO_PROXY: "mcp-gateway,kali-mcp,metasploit-mcp,wire-mcp,screenshot-mcp,ollama-mcp,ollama,agent-ingestion,agent-processing,agent-synthesis,localhost,127.0.0.1"
     dns:
       - 8.8.8.8
       - 1.1.1.1
@@ -504,10 +446,6 @@ services:
       wire-mcp:
         condition: service_healthy
       screenshot-mcp:
-        condition: service_healthy
-      hexstrike:
-        condition: service_healthy
-      hexstrike-mcp:
         condition: service_healthy
       ollama-mcp:
         condition: service_healthy

@@ -1,5 +1,5 @@
-"""Custom modules that extend HexStrike capabilities."""
+"""Custom modules that extend Blhackbox capabilities."""
 
-from blhackbox.modules.base import HexStrikeModule
+from blhackbox.modules.base import BlhackboxModule
 
-__all__ = ["HexStrikeModule"]
+__all__ = ["BlhackboxModule"]

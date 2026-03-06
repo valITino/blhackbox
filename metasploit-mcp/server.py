@@ -1,11 +1,12 @@
 """Metasploit MCP Server for blhackbox.
 
 Provides MCP tool access to the Metasploit Framework via the MSF RPC API
-(msfrpcd).  Inspired by GH05TCREW/MetasploitMCP (Apache 2.0, 379+ stars)
-and LYFTIUM-INC/msfconsole-mcp (48 tools, 95% MSF coverage).
+(msfrpcd).  Inspired by GH05TCREW/MetasploitMCP (Apache 2.0) and
+fishke22/MetasploitMCP.
 
-Exposes 13 core tools for exploit lifecycle management:
-  - list_exploits, list_payloads, run_exploit, run_auxiliary_module
+Exposes 15 core tools for exploit lifecycle management:
+  - msf_status (diagnostics)
+  - list_exploits, list_payloads, module_info, run_exploit, run_auxiliary_module
   - run_post_module, generate_payload
   - list_sessions, send_session_command, terminate_session
   - list_listeners, start_listener, stop_job
@@ -17,7 +18,7 @@ JSON — it uses msgpack exclusively for request/response encoding.
 
 Reference implementation: pymetasploit3 (Coalfire-Research/pymetasploit3)
 
-Transport: FastMCP SSE on port 9002.
+Transport: FastMCP SSE on port 9002 (default) or stdio.
 
 NOTE: Requires a running msfrpcd instance. The Docker container bundles
 Metasploit Framework and starts msfrpcd automatically on startup.
@@ -29,8 +30,12 @@ import asyncio
 import json
 import logging
 import os
+import re
+import shutil
+import socket
 import time
 from contextlib import asynccontextmanager
+from enum import Enum
 from typing import Any
 
 import httpx
@@ -40,7 +45,7 @@ from mcp.server.fastmcp import FastMCP
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("metasploit-mcp")
 
-# --- Configuration ---
+# --- Configuration (all overridable via environment variables) ---
 MSFRPC_HOST = os.environ.get("MSFRPC_HOST", "127.0.0.1")
 MSFRPC_PORT = int(os.environ.get("MSFRPC_PORT", "55553"))
 MSFRPC_USER = os.environ.get("MSFRPC_USER", "msf")
@@ -51,9 +56,65 @@ MCP_PORT = int(os.environ.get("MCP_PORT", "9002"))
 # Execution timeout for exploit/module runs
 EXEC_TIMEOUT = int(os.environ.get("EXEC_TIMEOUT", "300"))
 
+# Session polling after exploit execution (inspired by reference repos)
+SESSION_POLL_INTERVAL = int(os.environ.get("SESSION_POLL_INTERVAL", "2"))
+SESSION_POLL_TIMEOUT = int(os.environ.get("SESSION_POLL_TIMEOUT", "60"))
+
+# MSF console prompt regex — used alongside the `busy` flag for more reliable
+# completion detection.  Reference: pymetasploit3 console prompt pattern.
+_MSF_PROMPT_RE = re.compile(r"\x01\x02msf\d*\x01\x02.*?>\s*\x01\x02|\nmsf\d*\s*.*?>\s*$")
+
 # msfrpcd msgpack headers — msfrpcd ONLY understands binary/message-pack,
 # NOT application/json.  Sending JSON causes silent auth failures.
 _MSGPACK_HEADERS = {"Content-type": "binary/message-pack"}
+
+
+# ---------------------------------------------------------------------------
+# Failure reason enum — differentiates error causes (report issue #5)
+# ---------------------------------------------------------------------------
+
+class FailureReason(str, Enum):
+    """Categorised failure reasons for diagnostic clarity."""
+    MSFRPCD_NOT_INSTALLED = "msfrpcd_not_installed"
+    MSFRPCD_NOT_RUNNING = "msfrpcd_not_running"
+    CONNECTION_REFUSED = "connection_refused"
+    CONNECTION_TIMEOUT = "connection_timeout"
+    CREDENTIALS_REJECTED = "credentials_rejected"
+    SSL_ERROR = "ssl_error"
+    COOLDOWN_ACTIVE = "cooldown_active"
+    UNKNOWN = "unknown"
+
+
+# ---------------------------------------------------------------------------
+# Standardised error response (report issue #6)
+# ---------------------------------------------------------------------------
+
+def _error_response(
+    tool: str,
+    reason: FailureReason,
+    message: str,
+    *,
+    cooldown_remaining: float | None = None,
+) -> dict[str, Any]:
+    """Build a consistent error response dict used by all tools."""
+    resp: dict[str, Any] = {
+        "error": True,
+        "tool": tool,
+        "reason": reason.value,
+        "message": message,
+        "config": {
+            "msfrpcd_url": f"{'https' if MSFRPC_SSL else 'http'}://{MSFRPC_HOST}:{MSFRPC_PORT}/api/",
+            "user": MSFRPC_USER,
+            "ssl": MSFRPC_SSL,
+        },
+    }
+    if cooldown_remaining is not None and cooldown_remaining > 0:
+        resp["cooldown_remaining_seconds"] = round(cooldown_remaining, 1)
+        resp["hint"] = (
+            "Use msf_status(force_reconnect=True) to bypass cooldown "
+            "and force a fresh connection attempt."
+        )
+    return resp
 
 
 # ---------------------------------------------------------------------------
@@ -75,10 +136,10 @@ class MSFRPCClient:
     LOGIN_RETRIES = int(os.environ.get("MSFRPC_LOGIN_RETRIES", "15"))
     LOGIN_RETRY_DELAY = int(os.environ.get("MSFRPC_LOGIN_RETRY_DELAY", "6"))
 
-    # Cooldown (seconds) after all login retries are exhausted. Prevents
-    # every tool call from re-running the full 90s retry loop when msfrpcd
-    # is genuinely down.
-    LOGIN_COOLDOWN = int(os.environ.get("MSFRPC_LOGIN_COOLDOWN", "30"))
+    # Cooldown (seconds) after all login retries are exhausted.
+    # Reduced from 30s to 10s to avoid blocking parallel tool calls too long
+    # (report issue #3).
+    LOGIN_COOLDOWN = int(os.environ.get("MSFRPC_LOGIN_COOLDOWN", "10"))
 
     # Startup retries — more aggressive than tool-call retries since we
     # know msfrpcd needs 30-90s. Runs in background so MCP server stays
@@ -96,12 +157,18 @@ class MSFRPCClient:
         )
         # Timestamp of last failed login cycle — used for cooldown
         self._last_login_failure: float = 0.0
+        # Tracks the reason for the last failure (report issue #5)
+        self._last_failure_reason: FailureReason = FailureReason.UNKNOWN
+        # Startup login result tracking (report issue #9)
+        self.startup_login_result: str = "pending"
 
-    async def _try_single_login(self) -> bool | None:
+    async def _try_single_login(self) -> tuple[bool | None, FailureReason]:
         """Attempt a single login to msfrpcd.
 
-        Returns True on success, False on auth rejection, None on
-        connection failure (msfrpcd not ready yet).
+        Returns a tuple of (result, reason):
+          - (True, _) on success
+          - (False, reason) on auth rejection
+          - (None, reason) on connection failure
         """
         try:
             payload = msgpack.packb(["auth.login", MSFRPC_USER, MSFRPC_PASS])
@@ -114,19 +181,30 @@ class MSFRPCClient:
             if data.get("result") == "success":
                 self.token = data["token"]
                 self._last_login_failure = 0.0
-                return True
+                self._last_failure_reason = FailureReason.UNKNOWN
+                return True, FailureReason.UNKNOWN
             logger.warning("MSFRPC auth rejected: %s", data)
-            return False
-        except (httpx.ConnectError, httpx.ConnectTimeout) as exc:
-            logger.debug("msfrpcd not ready: %s", type(exc).__name__)
-            return None
+            return False, FailureReason.CREDENTIALS_REJECTED
+        except httpx.ConnectError:
+            logger.debug("msfrpcd connection refused at %s", self.url)
+            return None, FailureReason.CONNECTION_REFUSED
+        except httpx.ConnectTimeout:
+            logger.debug("msfrpcd connection timed out at %s", self.url)
+            return None, FailureReason.CONNECTION_TIMEOUT
         except Exception as exc:
+            exc_str = str(exc).lower()
+            if "ssl" in exc_str or "tls" in exc_str or "certificate" in exc_str:
+                logger.warning("MSFRPC SSL error: %s", exc)
+                return None, FailureReason.SSL_ERROR
             logger.warning("MSFRPC connection failed: %s", exc)
-            return None
+            return None, FailureReason.UNKNOWN
 
-    async def login(self, retries: int | None = None,
-                    delay: int | None = None,
-                    respect_cooldown: bool = True) -> bool:
+    async def login(
+        self,
+        retries: int | None = None,
+        delay: int | None = None,
+        respect_cooldown: bool = True,
+    ) -> bool:
         """Authenticate to msfrpcd using msgpack binary protocol.
 
         msfrpcd can take 30-90 seconds to fully start. This method retries
@@ -135,33 +213,26 @@ class MSFRPCClient:
         After all retries are exhausted, a cooldown period prevents
         subsequent tool calls from immediately re-running the full retry
         cycle (which would cause ~90s latency per failed call).
-
-        Args:
-            retries: Override number of retries (default: LOGIN_RETRIES).
-            delay: Override delay between retries (default: LOGIN_RETRY_DELAY).
-            respect_cooldown: If False, skip cooldown check (for diagnostics).
         """
         max_retries = retries if retries is not None else self.LOGIN_RETRIES
         retry_delay = delay if delay is not None else self.LOGIN_RETRY_DELAY
 
-        # Cooldown: if we recently exhausted all retries, don't retry again
-        # immediately. This prevents every tool call from blocking for 90s
-        # when msfrpcd is genuinely down.
-        if respect_cooldown:
+        # Cooldown check
+        if respect_cooldown and self._last_login_failure > 0:
             now = time.monotonic()
-            if self._last_login_failure > 0:
-                elapsed = now - self._last_login_failure
-                if elapsed < self.LOGIN_COOLDOWN:
-                    remaining = self.LOGIN_COOLDOWN - elapsed
-                    logger.info(
-                        "Login cooldown active (%.0fs remaining). "
-                        "Skipping retry cycle — last failure was %.0fs ago.",
-                        remaining, elapsed,
-                    )
-                    return False
+            elapsed = now - self._last_login_failure
+            if elapsed < self.LOGIN_COOLDOWN:
+                remaining = self.LOGIN_COOLDOWN - elapsed
+                logger.info(
+                    "Login cooldown active (%.0fs remaining). "
+                    "Skipping retry cycle.",
+                    remaining,
+                )
+                self._last_failure_reason = FailureReason.COOLDOWN_ACTIVE
+                return False
 
         for attempt in range(1, max_retries + 1):
-            result = await self._try_single_login()
+            result, reason = await self._try_single_login()
             if result is True:
                 logger.info(
                     "Authenticated to msfrpcd at %s (attempt %d/%d)",
@@ -176,20 +247,22 @@ class MSFRPCClient:
                     MSFRPC_USER,
                 )
                 self._last_login_failure = time.monotonic()
+                self._last_failure_reason = reason
                 return False
 
             # result is None → connection failed, msfrpcd not ready
+            self._last_failure_reason = reason
             if attempt < max_retries:
                 logger.info(
-                    "msfrpcd not ready (attempt %d/%d), retrying in %ds...",
-                    attempt, max_retries, retry_delay,
+                    "msfrpcd not ready (%s, attempt %d/%d), retrying in %ds...",
+                    reason.value, attempt, max_retries, retry_delay,
                 )
                 await asyncio.sleep(retry_delay)
 
         logger.error(
-            "All %d msfrpcd login attempts failed at %s. "
+            "All %d msfrpcd login attempts failed at %s (%s). "
             "Verify msfrpcd is running and credentials are correct.",
-            max_retries, self.url,
+            max_retries, self.url, self._last_failure_reason.value,
         )
         self._last_login_failure = time.monotonic()
         return False
@@ -206,46 +279,49 @@ class MSFRPCClient:
         """
         logger.info(
             "Starting background authentication to msfrpcd at %s "
-            "(up to %d retries × %ds = %ds)...",
+            "(up to %d retries x %ds = %ds)...",
             self.url,
             self.STARTUP_RETRIES,
             self.STARTUP_RETRY_DELAY,
             self.STARTUP_RETRIES * self.STARTUP_RETRY_DELAY,
         )
         for attempt in range(1, self.STARTUP_RETRIES + 1):
-            result = await self._try_single_login()
+            result, reason = await self._try_single_login()
             if result is True:
                 logger.info(
                     "Startup auth succeeded on attempt %d/%d — "
                     "msfrpcd token acquired.",
                     attempt, self.STARTUP_RETRIES,
                 )
+                self.startup_login_result = "success"
                 return
             if result is False:
                 logger.error(
                     "Startup auth: msfrpcd rejected credentials. "
                     "Check MSFRPC_USER/MSFRPC_PASS env vars.",
                 )
+                self.startup_login_result = f"failed:{reason.value}"
                 return
 
             if attempt < self.STARTUP_RETRIES:
                 logger.info(
-                    "Startup auth: msfrpcd not ready (attempt %d/%d), "
+                    "Startup auth: msfrpcd not ready (%s, attempt %d/%d), "
                     "retrying in %ds...",
-                    attempt, self.STARTUP_RETRIES,
+                    reason.value, attempt, self.STARTUP_RETRIES,
                     self.STARTUP_RETRY_DELAY,
                 )
                 await asyncio.sleep(self.STARTUP_RETRY_DELAY)
 
         logger.error(
-            "Startup auth: all %d attempts failed. msfrpcd may not be "
+            "Startup auth: all %d attempts failed (%s). msfrpcd may not be "
             "running. Tool calls will retry on demand.",
-            self.STARTUP_RETRIES,
+            self.STARTUP_RETRIES, self._last_failure_reason.value,
         )
+        self.startup_login_result = f"failed:{self._last_failure_reason.value}"
         # NOTE: Do NOT set _last_login_failure here — let tool calls
         # attempt their own login cycle independently.
 
-    async def call(self, method: str, *args: Any) -> dict[str, Any]:
+    async def call(self, method: str, *args: Any, tool_name: str = "") -> dict[str, Any]:
         """Call an MSFRPC method using msgpack encoding.
 
         Re-authenticates once on token expiry (default 300s timeout).
@@ -267,24 +343,65 @@ class MSFRPCClient:
 
         if not self.token:
             if not await self.login():
-                # Build a diagnostic error message
-                cooldown_info = ""
+                # Build a diagnostic error message with specific reason
+                cooldown_remaining = None
+                reason = self._last_failure_reason
                 if self._last_login_failure > 0:
                     elapsed = time.monotonic() - self._last_login_failure
-                    remaining = max(0, self.LOGIN_COOLDOWN - elapsed)
-                    if remaining > 0:
-                        cooldown_info = (
-                            f" Login cooldown active ({remaining:.0f}s remaining). "
-                            "Use the msf_status tool to force a reconnection attempt."
-                        )
-                return {
-                    "error": (
-                        "Not authenticated to msfrpcd. "
-                        "Ensure msfrpcd is running and credentials are correct "
-                        f"(user={MSFRPC_USER}, ssl={MSFRPC_SSL}, "
-                        f"host={MSFRPC_HOST}:{MSFRPC_PORT}).{cooldown_info}"
+                    cooldown_remaining = max(0, self.LOGIN_COOLDOWN - elapsed)
+
+                # Check if msfrpcd binary exists (report issue #1)
+                msfrpcd_installed = shutil.which("msfrpcd") is not None
+                if not msfrpcd_installed and reason in (
+                    FailureReason.CONNECTION_REFUSED,
+                    FailureReason.UNKNOWN,
+                ):
+                    reason = FailureReason.MSFRPCD_NOT_INSTALLED
+
+                messages = {
+                    FailureReason.MSFRPCD_NOT_INSTALLED: (
+                        "Metasploit Framework is not installed. "
+                        "Install with: apt-get install -y metasploit-framework, "
+                        "or use Docker: docker compose up metasploit-mcp"
+                    ),
+                    FailureReason.MSFRPCD_NOT_RUNNING: (
+                        f"msfrpcd is not running at {MSFRPC_HOST}:{MSFRPC_PORT}. "
+                        f"Start it with: msfrpcd -U {MSFRPC_USER} -P <pass> "
+                        f"-p {MSFRPC_PORT} -a {MSFRPC_HOST}"
+                    ),
+                    FailureReason.CONNECTION_REFUSED: (
+                        f"Connection refused at {MSFRPC_HOST}:{MSFRPC_PORT}. "
+                        "msfrpcd is not running or not listening on this port."
+                    ),
+                    FailureReason.CONNECTION_TIMEOUT: (
+                        f"Connection timed out at {MSFRPC_HOST}:{MSFRPC_PORT}. "
+                        "Check firewall rules or network connectivity."
+                    ),
+                    FailureReason.CREDENTIALS_REJECTED: (
+                        f"msfrpcd rejected credentials (user={MSFRPC_USER}). "
+                        "Check MSFRPC_USER and MSFRPC_PASS environment variables."
+                    ),
+                    FailureReason.SSL_ERROR: (
+                        f"SSL/TLS error connecting to {MSFRPC_HOST}:{MSFRPC_PORT}. "
+                        "Verify MSFRPC_SSL matches msfrpcd config "
+                        "(current: MSFRPC_SSL={}).".format(MSFRPC_SSL)
+                    ),
+                    FailureReason.COOLDOWN_ACTIVE: (
+                        "Login cooldown is active after previous failed attempts. "
+                        "Use msf_status(force_reconnect=True) to bypass."
                     ),
                 }
+                msg = messages.get(
+                    reason,
+                    f"Cannot connect to msfrpcd at {MSFRPC_HOST}:{MSFRPC_PORT}.",
+                )
+                return _error_response(
+                    tool=tool_name or method,
+                    reason=reason,
+                    message=msg,
+                    cooldown_remaining=cooldown_remaining,
+                )
+
         try:
             payload = msgpack.packb([method, self.token, *args])
             resp = await self._client.post(
@@ -310,11 +427,19 @@ class MSFRPCClient:
                         headers=_MSGPACK_HEADERS,
                     )
                     return msgpack.unpackb(resp.content, raw=False)
-                return {"error": "Re-authentication to msfrpcd failed"}
+                return _error_response(
+                    tool=tool_name or method,
+                    reason=FailureReason.CREDENTIALS_REJECTED,
+                    message="Re-authentication to msfrpcd failed after token expiry.",
+                )
             return data
         except Exception as exc:
             logger.error("MSFRPC call %s failed: %s", method, exc)
-            return {"error": str(exc)}
+            return _error_response(
+                tool=tool_name or method,
+                reason=FailureReason.UNKNOWN,
+                message=f"RPC call failed: {exc}",
+            )
 
     async def close(self) -> None:
         await self._client.aclose()
@@ -325,29 +450,54 @@ _rpc = MSFRPCClient()
 # Background task handle for startup authentication
 _startup_login_task: asyncio.Task | None = None
 
+# Pre-flight check results (report issue #2)
+_preflight_result: dict[str, Any] = {}
+
 
 @asynccontextmanager
 async def _lifespan(server: FastMCP):
-    """FastMCP lifespan — launch background msfrpcd authentication."""
-    global _startup_login_task
+    """FastMCP lifespan — run pre-flight checks and launch background auth."""
+    global _startup_login_task, _preflight_result
 
-    # Pre-flight check: quick connectivity test before starting retry loop
-    import socket
+    # Pre-flight check: detect msfrpcd installation and port reachability
+    # (report issues #1, #2)
+    msfrpcd_installed = shutil.which("msfrpcd") is not None
+    msfconsole_installed = shutil.which("msfconsole") is not None
+    port_reachable = False
+
     try:
         sock = socket.create_connection(
             (MSFRPC_HOST, MSFRPC_PORT), timeout=2,
         )
         sock.close()
+        port_reachable = True
         logger.info(
             "Pre-flight: msfrpcd port %s:%d is reachable.",
             MSFRPC_HOST, MSFRPC_PORT,
         )
     except (ConnectionRefusedError, OSError, socket.timeout):
         logger.warning(
+            "Pre-flight: msfrpcd port %s:%d is NOT reachable.",
+            MSFRPC_HOST, MSFRPC_PORT,
+        )
+
+    _preflight_result = {
+        "msfrpcd_installed": msfrpcd_installed,
+        "msfconsole_installed": msfconsole_installed,
+        "port_reachable": port_reachable,
+    }
+
+    if not msfrpcd_installed and not port_reachable:
+        logger.warning(
+            "Pre-flight: Metasploit Framework is NOT installed and msfrpcd "
+            "is NOT reachable. All Metasploit tools will fail. "
+            "Install with: apt-get install -y metasploit-framework, "
+            "or use Docker: docker compose up metasploit-mcp"
+        )
+    elif not port_reachable:
+        logger.warning(
             "Pre-flight: msfrpcd is NOT reachable at %s:%d. "
-            "All Metasploit tools will fail until msfrpcd is started. "
-            "Ensure msfrpcd is running: "
-            "msfrpcd -U %s -P <pass> -p %d -a %s",
+            "Start it with: msfrpcd -U %s -P <pass> -p %d -a %s",
             MSFRPC_HOST, MSFRPC_PORT,
             MSFRPC_USER, MSFRPC_PORT, MSFRPC_HOST,
         )
@@ -372,15 +522,18 @@ def _json(data: Any) -> str:
 
 
 # ---------------------------------------------------------------------------
-# MCP Tools — Diagnostics
+# MCP Tools — Diagnostics (report issue #5: detailed failure info)
 # ---------------------------------------------------------------------------
 
 @mcp.tool()
 async def msf_status(force_reconnect: bool = False) -> str:
     """Check msfrpcd connection status and optionally force reconnection.
 
-    Use this tool to diagnose authentication failures. When force_reconnect
-    is True, it bypasses the login cooldown and attempts a fresh connection.
+    Use this tool FIRST to diagnose why other Metasploit tools are failing.
+    It reports whether msfrpcd is installed, running, and authenticated.
+
+    When force_reconnect is True, it bypasses the login cooldown and
+    attempts a fresh connection with multiple retries.
 
     Args:
         force_reconnect: If True, clear cooldown and attempt a fresh login.
@@ -390,8 +543,10 @@ async def msf_status(force_reconnect: bool = False) -> str:
         "ssl": MSFRPC_SSL,
         "user": MSFRPC_USER,
         "authenticated": _rpc.token is not None,
-        "token_present": _rpc.token is not None,
     }
+
+    # Pre-flight results (report issue #2)
+    status["preflight"] = _preflight_result
 
     # Cooldown info
     if _rpc._last_login_failure > 0:
@@ -400,14 +555,14 @@ async def msf_status(force_reconnect: bool = False) -> str:
         status["cooldown_active"] = remaining > 0
         status["cooldown_remaining_seconds"] = round(remaining, 1)
         status["last_failure_seconds_ago"] = round(elapsed, 1)
+        status["last_failure_reason"] = _rpc._last_failure_reason.value
     else:
         status["cooldown_active"] = False
 
-    # Startup task status
+    # Startup task status (report issue #9: more descriptive)
+    status["startup_login_result"] = _rpc.startup_login_result
     if _startup_login_task:
-        status["startup_login_done"] = _startup_login_task.done()
-    else:
-        status["startup_login_done"] = "not_started"
+        status["startup_login_task_done"] = _startup_login_task.done()
 
     if force_reconnect:
         logger.info("Force reconnect requested — clearing cooldown and token.")
@@ -416,34 +571,37 @@ async def msf_status(force_reconnect: bool = False) -> str:
         status["action"] = "force_reconnect"
 
         # Try a single login attempt first (fast check)
-        result = await _rpc._try_single_login()
+        result, reason = await _rpc._try_single_login()
         if result is True:
             status["reconnect_result"] = "success"
             status["authenticated"] = True
-            status["token_present"] = True
         elif result is False:
             status["reconnect_result"] = "credentials_rejected"
+            status["reconnect_detail"] = reason.value
             status["authenticated"] = False
         else:
             # Connection failed — try full retry cycle (no cooldown)
-            status["reconnect_result"] = "connection_failed_trying_retries"
+            status["reconnect_detail"] = f"initial_attempt:{reason.value}"
             success = await _rpc.login(
                 retries=5, delay=3, respect_cooldown=False,
             )
             status["reconnect_result"] = "success" if success else "failed"
+            if not success:
+                status["reconnect_detail"] = _rpc._last_failure_reason.value
             status["authenticated"] = success
-            status["token_present"] = _rpc.token is not None
+
     elif not _rpc.token:
         # Not authenticated — try a quick single login (non-blocking)
-        result = await _rpc._try_single_login()
+        result, reason = await _rpc._try_single_login()
         if result is True:
             status["quick_login"] = "success"
             status["authenticated"] = True
-            status["token_present"] = True
         elif result is False:
             status["quick_login"] = "credentials_rejected"
+            status["quick_login_detail"] = reason.value
         else:
             status["quick_login"] = "msfrpcd_unreachable"
+            status["quick_login_detail"] = reason.value
             status["hint"] = (
                 "msfrpcd may still be starting up (takes 30-90s). "
                 "Use msf_status(force_reconnect=True) to retry with "
@@ -465,13 +623,13 @@ async def list_exploits(search: str = "", limit: int = 50) -> str:
         search: Search term to filter exploits (e.g. 'apache', 'smb', 'CVE-2021').
         limit: Maximum number of results to return (default 50).
     """
-    result = await _rpc.call("module.search", search, "exploit")
+    result = await _rpc.call("module.search", search, "exploit", tool_name="list_exploits")
     if "error" in result:
         return _json(result)
     modules = result.get("modules", result.get("result", []))
     if isinstance(modules, list):
         modules = modules[:limit]
-    return _json({"exploits": modules, "count": len(modules)})
+    return _json({"tool": "list_exploits", "exploits": modules, "count": len(modules)})
 
 
 @mcp.tool()
@@ -494,13 +652,80 @@ async def list_payloads(
         query += f" platform:{platform}"
     if arch:
         query += f" arch:{arch}"
-    result = await _rpc.call("module.search", query.strip(), "payload")
+    result = await _rpc.call("module.search", query.strip(), "payload", tool_name="list_payloads")
     if "error" in result:
         return _json(result)
     modules = result.get("modules", result.get("result", []))
     if isinstance(modules, list):
         modules = modules[:limit]
-    return _json({"payloads": modules, "count": len(modules)})
+    return _json({"tool": "list_payloads", "payloads": modules, "count": len(modules)})
+
+
+# ---------------------------------------------------------------------------
+# MCP Tools — Module Info / Option Validation
+# ---------------------------------------------------------------------------
+
+@mcp.tool()
+async def module_info(
+    module_type: str,
+    module_name: str,
+) -> str:
+    """Get detailed information and options for a Metasploit module.
+
+    Use this tool BEFORE running an exploit/auxiliary/post module to discover
+    required options, default values, and module metadata. This helps validate
+    parameters before execution.
+
+    Args:
+        module_type: Module type — one of 'exploit', 'auxiliary', 'post', 'payload', 'encoder', 'nop'.
+        module_name: Full module path (e.g. 'exploit/multi/http/apache_mod_cgi_bash_env_exec').
+    """
+    # Fetch module info (name, description, authors, references, etc.)
+    info = await _rpc.call("module.info", module_type, module_name, tool_name="module_info")
+    if isinstance(info, dict) and info.get("error"):
+        return _json(info)
+
+    # Fetch module options (RHOSTS, RPORT, PAYLOAD, etc.)
+    options = await _rpc.call("module.options", module_type, module_name, tool_name="module_info")
+    if isinstance(options, dict) and options.get("error"):
+        return _json(options)
+
+    # Extract required options for convenience
+    required_opts: dict[str, Any] = {}
+    optional_opts: dict[str, Any] = {}
+    if isinstance(options, dict):
+        for opt_name, opt_detail in options.items():
+            if opt_name == "result":
+                continue
+            if isinstance(opt_detail, dict) and opt_detail.get("required"):
+                required_opts[opt_name] = {
+                    "type": opt_detail.get("type", "string"),
+                    "default": opt_detail.get("default"),
+                    "description": opt_detail.get("desc", ""),
+                }
+            elif isinstance(opt_detail, dict):
+                optional_opts[opt_name] = {
+                    "type": opt_detail.get("type", "string"),
+                    "default": opt_detail.get("default"),
+                    "description": opt_detail.get("desc", ""),
+                }
+
+    return _json({
+        "tool": "module_info",
+        "module_type": module_type,
+        "module_name": module_name,
+        "info": {
+            "name": info.get("name", ""),
+            "description": info.get("description", ""),
+            "authors": info.get("authors", []),
+            "references": info.get("references", []),
+            "rank": info.get("rank", ""),
+            "platform": info.get("platform", []),
+            "arch": info.get("arch", []),
+        },
+        "required_options": required_opts,
+        "optional_options": optional_opts,
+    })
 
 
 # ---------------------------------------------------------------------------
@@ -524,11 +749,12 @@ async def run_exploit(
     """
     # Optionally check vulnerability first
     if check_first:
-        check_result = await _rpc.call("module.check", "exploit", module, options)
+        check_result = await _rpc.call("module.check", "exploit", module, options, tool_name="run_exploit")
         if "error" not in check_result:
             vuln_status = check_result.get("result", "unknown")
             if "not vulnerable" in str(vuln_status).lower():
                 return _json({
+                    "tool": "run_exploit",
                     "status": "not_vulnerable",
                     "check_result": vuln_status,
                     "module": module,
@@ -538,8 +764,44 @@ async def run_exploit(
     if payload:
         options["PAYLOAD"] = payload
 
-    result = await _rpc.call("module.execute", "exploit", module, options)
-    return _json({"module": module, "result": result})
+    # Snapshot existing sessions before execution so we can detect new ones
+    pre_sessions = await _rpc.call("session.list", tool_name="run_exploit")
+    pre_session_ids = set()
+    if isinstance(pre_sessions, dict) and "error" not in pre_sessions:
+        pre_session_ids = {k for k in pre_sessions if k != "result"}
+
+    result = await _rpc.call("module.execute", "exploit", module, options, tool_name="run_exploit")
+    if isinstance(result, dict) and result.get("error"):
+        return _json({"tool": "run_exploit", "module": module, "result": result})
+
+    # Poll for new sessions opened by the exploit (reference: fishke22/MetasploitMCP)
+    new_sessions: dict[str, Any] = {}
+    deadline = time.monotonic() + SESSION_POLL_TIMEOUT
+    while time.monotonic() < deadline:
+        await asyncio.sleep(SESSION_POLL_INTERVAL)
+        current = await _rpc.call("session.list", tool_name="run_exploit")
+        if isinstance(current, dict) and "error" not in current:
+            current_ids = {k for k in current if k != "result"}
+            new_ids = current_ids - pre_session_ids
+            if new_ids:
+                new_sessions = {sid: current[sid] for sid in new_ids}
+                break
+
+    response: dict[str, Any] = {
+        "tool": "run_exploit",
+        "module": module,
+        "result": result,
+    }
+    if new_sessions:
+        response["new_sessions"] = new_sessions
+        response["session_count"] = len(new_sessions)
+    else:
+        response["new_sessions"] = {}
+        response["note"] = (
+            f"No new sessions detected after {SESSION_POLL_TIMEOUT}s polling. "
+            "The exploit may have failed, or the target may not be vulnerable."
+        )
+    return _json(response)
 
 
 @mcp.tool()
@@ -553,8 +815,8 @@ async def run_auxiliary_module(
         module: Full module path (e.g. 'auxiliary/scanner/smb/smb_version').
         options: Dict of module options (e.g. {"RHOSTS": "10.0.0.0/24"}).
     """
-    result = await _rpc.call("module.execute", "auxiliary", module, options)
-    return _json({"module": module, "result": result})
+    result = await _rpc.call("module.execute", "auxiliary", module, options, tool_name="run_auxiliary_module")
+    return _json({"tool": "run_auxiliary_module", "module": module, "result": result})
 
 
 @mcp.tool()
@@ -572,8 +834,8 @@ async def run_post_module(
     """
     opts = options or {}
     opts["SESSION"] = str(session_id)
-    result = await _rpc.call("module.execute", "post", module, opts)
-    return _json({"module": module, "session_id": session_id, "result": result})
+    result = await _rpc.call("module.execute", "post", module, opts, tool_name="run_post_module")
+    return _json({"tool": "run_post_module", "module": module, "session_id": session_id, "result": result})
 
 
 @mcp.tool()
@@ -589,12 +851,13 @@ async def generate_payload(
         options: Payload options (e.g. {"LHOST": "10.0.0.1", "LPORT": "4444"}).
         format: Output format (raw, exe, elf, python, ruby, c, etc.).
     """
-    result = await _rpc.call("module.payload_generate", payload, options, format)
+    result = await _rpc.call("module.payload_generate", payload, options, format, tool_name="generate_payload")
     if "error" in result:
         return _json(result)
     # Payload data may be binary; return metadata
     payload_data = result.get("payload", "")
     return _json({
+        "tool": "generate_payload",
         "payload": payload,
         "format": format,
         "size_bytes": len(payload_data) if isinstance(payload_data, str | bytes) else 0,
@@ -609,13 +872,13 @@ async def generate_payload(
 @mcp.tool()
 async def list_sessions() -> str:
     """List all active Metasploit sessions (shells, meterpreter, etc.)."""
-    result = await _rpc.call("session.list")
+    result = await _rpc.call("session.list", tool_name="list_sessions")
     if "error" in result:
         return _json(result)
     sessions = result if isinstance(result, dict) else {}
     # Filter out the token key if present
     sessions.pop("result", None)
-    return _json({"sessions": sessions, "count": len(sessions)})
+    return _json({"tool": "list_sessions", "sessions": sessions, "count": len(sessions)})
 
 
 @mcp.tool()
@@ -626,21 +889,58 @@ async def send_session_command(
 ) -> str:
     """Execute a command in an active Metasploit session.
 
+    Automatically detects whether the session is a Meterpreter or shell session
+    and uses the appropriate RPC methods (meterpreter_write/meterpreter_read vs
+    shell_write/shell_read).
+
     Args:
         session_id: The session ID to interact with.
         command: Command to execute in the session.
         timeout: Seconds to wait for output (default 30).
     """
-    # Write command
-    write_result = await _rpc.call("session.shell_write", str(session_id), command + "\n")
-    if "error" in write_result:
-        return _json(write_result)
+    sid = str(session_id)
 
-    # Wait and read output
-    await asyncio.sleep(min(timeout, 5))
-    read_result = await _rpc.call("session.shell_read", str(session_id))
+    # Detect session type via session.list (reference: fishke22/MetasploitMCP)
+    sessions = await _rpc.call("session.list", tool_name="send_session_command")
+    session_type = "shell"  # default fallback
+    if isinstance(sessions, dict) and sid in sessions:
+        stype = str(sessions[sid].get("type", "")).lower()
+        if "meterpreter" in stype:
+            session_type = "meterpreter"
+
+    if session_type == "meterpreter":
+        # Meterpreter uses session.meterpreter_write / session.meterpreter_read
+        write_result = await _rpc.call(
+            "session.meterpreter_write", sid, command + "\n",
+            tool_name="send_session_command",
+        )
+        if isinstance(write_result, dict) and "error" in write_result:
+            return _json(write_result)
+
+        await asyncio.sleep(min(timeout, 5))
+        read_result = await _rpc.call(
+            "session.meterpreter_read", sid,
+            tool_name="send_session_command",
+        )
+    else:
+        # Shell session uses session.shell_write / session.shell_read
+        write_result = await _rpc.call(
+            "session.shell_write", sid, command + "\n",
+            tool_name="send_session_command",
+        )
+        if isinstance(write_result, dict) and "error" in write_result:
+            return _json(write_result)
+
+        await asyncio.sleep(min(timeout, 5))
+        read_result = await _rpc.call(
+            "session.shell_read", sid,
+            tool_name="send_session_command",
+        )
+
     return _json({
+        "tool": "send_session_command",
         "session_id": session_id,
+        "session_type": session_type,
         "command": command,
         "output": read_result.get("data", ""),
     })
@@ -653,8 +953,8 @@ async def terminate_session(session_id: int) -> str:
     Args:
         session_id: The session ID to terminate.
     """
-    result = await _rpc.call("session.stop", str(session_id))
-    return _json({"session_id": session_id, "result": result})
+    result = await _rpc.call("session.stop", str(session_id), tool_name="terminate_session")
+    return _json({"tool": "terminate_session", "session_id": session_id, "result": result})
 
 
 # ---------------------------------------------------------------------------
@@ -664,10 +964,10 @@ async def terminate_session(session_id: int) -> str:
 @mcp.tool()
 async def list_listeners() -> str:
     """List all active Metasploit handlers (background jobs)."""
-    result = await _rpc.call("job.list")
+    result = await _rpc.call("job.list", tool_name="list_listeners")
     if "error" in result:
         return _json(result)
-    return _json({"jobs": result, "count": len(result)})
+    return _json({"tool": "list_listeners", "jobs": result, "count": len(result)})
 
 
 @mcp.tool()
@@ -693,9 +993,10 @@ async def start_listener(
     })
     result = await _rpc.call(
         "module.execute", "exploit", "exploit/multi/handler", opts,
+        tool_name="start_listener",
     )
     listener = {"payload": payload, "lhost": lhost, "lport": lport}
-    return _json({"listener": listener, "result": result})
+    return _json({"tool": "start_listener", "listener": listener, "result": result})
 
 
 @mcp.tool()
@@ -705,8 +1006,8 @@ async def stop_job(job_id: int) -> str:
     Args:
         job_id: The job ID to terminate.
     """
-    result = await _rpc.call("job.stop", str(job_id))
-    return _json({"job_id": job_id, "result": result})
+    result = await _rpc.call("job.stop", str(job_id), tool_name="stop_job")
+    return _json({"tool": "stop_job", "job_id": job_id, "result": result})
 
 
 # ---------------------------------------------------------------------------
@@ -725,31 +1026,39 @@ async def msf_console_execute(command: str, timeout: int = 30) -> str:
         timeout: Seconds to wait for output (default 30).
     """
     # Create a console
-    console = await _rpc.call("console.create")
+    console = await _rpc.call("console.create", tool_name="msf_console_execute")
     if "error" in console:
         return _json(console)
     console_id = console.get("id", "0")
 
     # Write command
-    await _rpc.call("console.write", console_id, command + "\n")
+    await _rpc.call("console.write", console_id, command + "\n", tool_name="msf_console_execute")
 
-    # Poll for output
+    # Poll for output — use both `busy` flag and MSF prompt regex for
+    # reliable completion detection (reference: pymetasploit3 console)
     output_parts: list[str] = []
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
-        read = await _rpc.call("console.read", console_id)
+        read = await _rpc.call("console.read", console_id, tool_name="msf_console_execute")
         data = read.get("data", "")
         if data:
             output_parts.append(data)
         busy = read.get("busy", False)
-        if not busy and output_parts:
+        # Check both: busy flag is False AND (we have output, or prompt detected)
+        combined = "".join(output_parts)
+        prompt_detected = bool(_MSF_PROMPT_RE.search(combined))
+        if not busy and (output_parts or prompt_detected):
+            break
+        if prompt_detected:
+            # Prompt appeared even while busy — command is done
             break
         await asyncio.sleep(1)
 
     # Destroy console
-    await _rpc.call("console.destroy", console_id)
+    await _rpc.call("console.destroy", console_id, tool_name="msf_console_execute")
 
     return _json({
+        "tool": "msf_console_execute",
         "command": command,
         "output": "".join(output_parts),
     })

@@ -1,8 +1,7 @@
 """Tests for configuration (v2 architecture).
 
-The v2 Settings no longer has LLM provider settings (openai_api_key,
-anthropic_api_key, llm_provider_priority, etc.) or Aura fields.
-It retains HexStrike, Neo4j, Ollama, MCP Gateway, and general settings.
+The v2 Settings has Neo4j, Ollama, MCP Gateway, Screenshot MCP,
+and general settings.
 """
 
 from __future__ import annotations
@@ -15,9 +14,6 @@ from blhackbox.config import Settings
 class TestSettings:
     def test_defaults(self) -> None:
         s = Settings()
-        assert "hexstrike" in s.hexstrike_url or "localhost" in s.hexstrike_url
-        assert s.hexstrike_timeout == 300
-        assert s.hexstrike_max_retries == 3
         assert s.log_level == "INFO"
 
     def test_max_iterations_default(self) -> None:
@@ -93,14 +89,9 @@ class TestSettings:
         assert not hasattr(s, "aura_instanceid")
         assert not hasattr(s, "aura_instancename")
 
-    def test_hexstrike_url_override(self) -> None:
-        s = Settings(hexstrike_url="http://custom-hexstrike:7777")
-        assert s.hexstrike_url == "http://custom-hexstrike:7777"
-
-    def test_hexstrike_timeout_override(self) -> None:
-        s = Settings(hexstrike_timeout=300)
-        assert s.hexstrike_timeout == 300
-
-    def test_hexstrike_max_retries_override(self) -> None:
-        s = Settings(hexstrike_max_retries=5)
-        assert s.hexstrike_max_retries == 5
+    def test_no_hexstrike_fields(self) -> None:
+        """v2 Settings should not have HexStrike fields (removed)."""
+        s = Settings()
+        assert not hasattr(s, "hexstrike_url")
+        assert not hasattr(s, "hexstrike_timeout")
+        assert not hasattr(s, "hexstrike_max_retries")

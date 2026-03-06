@@ -1,4 +1,4 @@
-"""Translate HexStrike JSON results into knowledge graph operations."""
+"""Translate scan results into knowledge graph operations."""
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ _CVE_PATTERN = re.compile(r"CVE-\d{4}-\d{4,}", re.IGNORECASE)
 
 
 class GraphExporter:
-    """Exports HexStrike results into the Neo4j knowledge graph.
+    """Exports scan results into the Neo4j knowledge graph.
 
     Handles multiple output formats from different tools and agents,
     parsing structured data and creating appropriate nodes/relationships.

@@ -5,9 +5,6 @@
 # endpoint at http://localhost:8080/mcp for host-based clients (Claude Desktop,
 # ChatGPT).
 #
-# All MCP servers are listed here, including the HexStrike MCP adapter
-# which bridges the HexStrike Flask REST API to the MCP protocol.
-#
 # This catalog is ONLY used when the gateway profile is enabled:
 #   docker compose --profile gateway up -d
 #
@@ -26,7 +23,7 @@ registry:
       transport_type: sse
 
   metasploit-mcp:
-    description: "Metasploit Framework — 13+ tools: exploit search, module execution, session management, listeners"
+    description: "Metasploit Framework — 14 tools: exploit search, module execution, session management, listeners"
     title: "Metasploit MCP Server"
     type: "server"
     remote:
@@ -48,14 +45,6 @@ registry:
     type: "server"
     remote:
       url: "http://screenshot-mcp:9004/sse"
-      transport_type: sse
-
-  hexstrike-mcp:
-    description: "HexStrike AI — MCP adapter for 150+ security tools and 12+ AI agents"
-    title: "HexStrike MCP Adapter"
-    type: "server"
-    remote:
-      url: "http://hexstrike-mcp:9005/sse"
       transport_type: sse
 
   ollama-mcp:

@@ -14,11 +14,6 @@ from blhackbox.models.graph import (
     ServiceNode,
     VulnerabilityNode,
 )
-from blhackbox.models.hexstrike import (
-    HexStrikeAgentResponse,
-    HexStrikeAnalysisResponse,
-    HexStrikeToolResponse,
-)
 
 
 class TestTarget:
@@ -80,33 +75,6 @@ class TestScanSession:
         counts = sample_session.severity_counts
         assert isinstance(counts, dict)
         assert counts.get("info", 0) >= 1
-
-
-class TestHexStrikeModels:
-    def test_tool_response(self) -> None:
-        r = HexStrikeToolResponse(
-            success=True, tool="nmap", category="network", output={"ports": [80]}
-        )
-        assert not r.has_errors
-        assert r.output == {"ports": [80]}
-
-    def test_tool_response_with_errors(self) -> None:
-        r = HexStrikeToolResponse(success=False, errors=["timeout"])
-        assert r.has_errors
-
-    def test_analysis_response(self) -> None:
-        r = HexStrikeAnalysisResponse(
-            target="example.com",
-            results={"score": 5},
-            risk_score=5.0,
-        )
-        assert r.risk_score == 5.0
-
-    def test_agent_response(self) -> None:
-        r = HexStrikeAgentResponse(
-            agent="bug_bounty", target="example.com", results={"found": True}
-        )
-        assert not r.has_errors
 
 
 class TestGraphModels:

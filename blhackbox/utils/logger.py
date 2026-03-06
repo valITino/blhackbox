@@ -61,7 +61,7 @@ def print_banner() -> None:
 | |_) | | | | | (_| | (__|   <| |_) | (_) >  <
 |____/|_|_| |_|\__,_|\___|_|\_\_.__/ \___/_/\_\
 
- HexStrike Hybrid Autonomous Pentesting Framework v{__version__}
+ MCP-based Autonomous Pentesting Framework v{__version__}
 [/banner]
 """
     console.print(banner)

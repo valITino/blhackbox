@@ -1,4 +1,4 @@
-"""Port scanning module using HexStrike's nmap/rustscan."""
+"""Port scanning module using nmap/rustscan."""
 
 from __future__ import annotations
 
@@ -7,22 +7,22 @@ import re
 from typing import Any
 
 from blhackbox.models.base import Finding, Severity
-from blhackbox.modules.base import HexStrikeModule
+from blhackbox.modules.base import BlhackboxModule
 
 logger = logging.getLogger("blhackbox.modules.argus_bridge.port_scan")
 
 _PORT_LINE_RE = re.compile(r"(\d{1,5})/(tcp|udp)\s+(\w+)\s+(.*)")
 
 
-class PortScanModule(HexStrikeModule):
-    """Comprehensive port scan using nmap via HexStrike."""
+class PortScanModule(BlhackboxModule):
+    """Comprehensive port scan using nmap."""
 
     name = "port_scan"
     description = "Port scanning and service detection via nmap"
     category = "network"
 
     async def run(self, target: str, **kwargs: Any) -> list[Finding]:
-        """Run nmap service scan via HexStrike."""
+        """Run nmap service scan."""
         self.clear_findings()
         scan_type = kwargs.get("scan_type", "service")
 

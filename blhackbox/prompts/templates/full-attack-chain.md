@@ -178,7 +178,7 @@ Document each chain with:
 4. Business impact assessment
 
 ### Phase 6: Data Processing (REQUIRED)
-Make sure to use all tools (all the MCP Servers available) and also HexStrike and execute everything parallel. and then: 
+Make sure to use all tools (all the MCP Servers available) and execute everything in parallel. Then:
 
 > **This step is mandatory.** All raw outputs must be processed through the
 > Ollama agents before generating the final report.
