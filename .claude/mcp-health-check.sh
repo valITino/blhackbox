@@ -21,54 +21,7 @@ warn() { echo "[!] $*"; ISSUES=$((ISSUES + 1)); }
 info() { echo "[*] $*"; }
 fix()  { echo "[~] FIX: $*"; FIXED=$((FIXED + 1)); }
 
-# ── 1. Metasploit MCP: check msfrpcd availability ──────────────
-info "Checking Metasploit MCP server..."
-
-if command -v msfrpcd >/dev/null 2>&1; then
-    ok "msfrpcd binary found"
-
-    MSFRPC_PORT="${MSFRPC_PORT:-55553}"
-    PORT_OPEN=false
-
-    if command -v ss >/dev/null 2>&1; then
-        ss -tlnp 2>/dev/null | grep -q ":${MSFRPC_PORT}" && PORT_OPEN=true
-    elif command -v netstat >/dev/null 2>&1; then
-        netstat -tlnp 2>/dev/null | grep -q ":${MSFRPC_PORT}" && PORT_OPEN=true
-    fi
-
-    if [ "$PORT_OPEN" = "true" ]; then
-        ok "msfrpcd is listening on port ${MSFRPC_PORT}"
-    else
-        warn "msfrpcd is NOT listening on port ${MSFRPC_PORT}"
-        if [ "$FIX_MODE" = "--fix" ]; then
-            info "Starting msfrpcd..."
-            MSFRPC_USER="${MSFRPC_USER:-msf}"
-            MSFRPC_PASS="${MSFRPC_PASS:-msf}"
-            msfrpcd -U "$MSFRPC_USER" -P "$MSFRPC_PASS" \
-                -p "$MSFRPC_PORT" -a 127.0.0.1 &
-            fix "msfrpcd start command issued (PID $!) — may take 30-90s to be ready"
-        fi
-    fi
-else
-    warn "metasploit-framework is not installed (msfrpcd not found)"
-    info "  Install: apt-get install -y metasploit-framework"
-    info "  Or use Docker: docker compose up metasploit-mcp"
-fi
-
-# Check Python dependencies for metasploit MCP
-if [ -f ".venv/bin/python3" ]; then
-    if .venv/bin/python3 -c "import msgpack, httpx, mcp" 2>/dev/null; then
-        ok "Metasploit MCP Python dependencies available"
-    else
-        warn "Metasploit MCP Python dependencies missing (msgpack, httpx)"
-        if [ "$FIX_MODE" = "--fix" ]; then
-            .venv/bin/pip install -q -r metasploit-mcp/requirements.txt 2>/dev/null && \
-                fix "Installed metasploit-mcp Python dependencies"
-        fi
-    fi
-fi
-
-# ── 2. blhackbox core MCP: check entry point ───────────────────
+# ── 1. blhackbox core MCP: check entry point ───────────────────
 info "Checking blhackbox core MCP server..."
 
 if [ -f ".venv/bin/blhackbox" ]; then
@@ -81,7 +34,7 @@ else
     fi
 fi
 
-# ── 3. Container diagnostics tools ─────────────────────────────
+# ── 2. Container diagnostics tools ─────────────────────────────
 info "Checking diagnostic tools..."
 
 MISSING_TOOLS=()

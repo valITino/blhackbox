@@ -19,12 +19,11 @@ All custom images are published to a single Docker Hub repository, differentiate
 
 ## Images and Tags
 
-Nine custom images are published to `crhacky/blhackbox` on Docker Hub:
+Eight custom images are published to `crhacky/blhackbox` on Docker Hub:
 
 | Service | Tag | Dockerfile | Base |
 |---|---|---|---|
 | **Kali MCP** | `crhacky/blhackbox:kali-mcp` | `docker/kali-mcp.Dockerfile` | `kalilinux/kali-rolling` |
-| **Metasploit MCP** | `crhacky/blhackbox:metasploit-mcp` | `docker/metasploit-mcp.Dockerfile` | `kalilinux/kali-rolling` |
 | **WireMCP** | `crhacky/blhackbox:wire-mcp` | `docker/wire-mcp.Dockerfile` | `debian:bookworm-slim` |
 | **Screenshot MCP** | `crhacky/blhackbox:screenshot-mcp` | `docker/screenshot-mcp.Dockerfile` | `python:3.13-slim` |
 | **Ollama MCP** | `crhacky/blhackbox:ollama-mcp` | `docker/ollama-mcp.Dockerfile` | `python:3.13-slim` |
@@ -58,7 +57,7 @@ In v2, **Claude (or OpenAI) IS the orchestrator** natively via MCP.
 
 ```
 Claude Code ──┬──> Kali MCP (SSE, port 9001)
-(container)   ├──> Metasploit MCP (SSE, port 9002)
+(container)   │    70+ tools: nmap, sqlmap, hydra, msfconsole, msfvenom, etc.
               ├──> WireMCP (SSE, port 9003)
               ├──> Screenshot MCP (SSE, port 9004)
               └──> Ollama MCP (SSE, port 9000)
@@ -87,7 +86,7 @@ Claude Desktop ──> MCP Gateway (localhost:8080/mcp) ──┬──> Kali MC
 
 ## Usage
 
-### Core Stack (10 containers)
+### Core Stack (9 containers)
 
 ```bash
 git clone https://github.com/valITino/blhackbox.git
@@ -130,8 +129,7 @@ make health                # MCP server health check
 
 | Service | Image | Port | Profile | Role |
 |---|---|---|---|---|
-| `kali-mcp` | `crhacky/blhackbox:kali-mcp` | `9001` | default | Kali Linux security tools (50+) |
-| `metasploit-mcp` | `crhacky/blhackbox:metasploit-mcp` | `9002` | default | Metasploit Framework (13+ tools) |
+| `kali-mcp` | `crhacky/blhackbox:kali-mcp` | `9001` | default | Kali Linux security tools + Metasploit (70+) |
 | `wire-mcp` | `crhacky/blhackbox:wire-mcp` | `9003` | default | Wireshark/tshark (7 tools) |
 | `screenshot-mcp` | `crhacky/blhackbox:screenshot-mcp` | `9004` | default | Screenshot MCP (headless Chromium, 4 tools) |
 | `ollama-mcp` | `crhacky/blhackbox:ollama-mcp` | `9000` | default | Thin MCP orchestrator |
@@ -156,8 +154,7 @@ The Claude Code container's `.mcp.json` connects directly to each server:
 {
   "mcpServers": {
     "kali":            { "type": "sse", "url": "http://kali-mcp:9001/sse" },
-    "metasploit":      { "type": "sse", "url": "http://metasploit-mcp:9002/sse" },
-    "wireshark":       { "type": "sse", "url": "http://wire-mcp:9003/sse" },
+    "wireshark":       { "type": "sse", "url": "http://kali-mcp:9003/sse" },
     "screenshot":      { "type": "sse", "url": "http://screenshot-mcp:9004/sse" },
     "ollama-pipeline": { "type": "sse", "url": "http://ollama-mcp:9000/sse" }
   }
@@ -190,11 +187,10 @@ Requires `--profile gateway` (`make up-gateway`).
 | `ANTHROPIC_API_KEY` | - | Required for Claude Code in Docker |
 | `OLLAMA_MODEL` | `llama3.1:8b` | Ollama model for preprocessing agents |
 | `MCP_GATEWAY_PORT` | `8080` | MCP Gateway host port (optional) |
+| `MSF_TIMEOUT` | `300` | Metasploit command timeout in seconds |
 | `NEO4J_URI` | `bolt://neo4j:7687` | Neo4j connection URI (optional) |
 | `NEO4J_USER` | `neo4j` | Neo4j username (optional) |
 | `NEO4J_PASSWORD` | - | Neo4j password, min 8 chars (optional) |
-| `MSFRPC_USER` | `msf` | Metasploit RPC username |
-| `MSFRPC_PASS` | `msf` | Metasploit RPC password |
 | `SCREENSHOT_MCP_PORT` | `9004` | Screenshot MCP server port |
 | `OPENAI_API_KEY` | - | For OpenAI MCP clients (optional) |
 
@@ -205,20 +201,12 @@ Requires `--profile gateway` (`make up-gateway`).
 ### Kali MCP (`crhacky/blhackbox:kali-mcp`)
 
 - **Base**: `kalilinux/kali-rolling`
-- **Tools (50+)**: nmap, masscan, hping3, subfinder, amass, fierce, dnsenum, dnsrecon, theharvester, nikto, gobuster, dirb, dirsearch, ffuf, feroxbuster, whatweb, wafw00f, wpscan, arjun, dalfox, sqlmap, hydra, medusa, john, hashcat, crackmapexec, evil-winrm, enum4linux-ng, responder, netexec, aircrack-ng, bettercap, binwalk, foremost, exiftool, steghide, curl, wget, netcat, socat, and more
-- **Entrypoint**: Kali MCP server (`server.py`)
+- **Tools (70+)**: nmap, masscan, hping3, subfinder, amass, fierce, dnsenum, dnsrecon, theharvester, nikto, gobuster, dirb, dirsearch, ffuf, feroxbuster, whatweb, wafw00f, wpscan, arjun, dalfox, sqlmap, hydra, medusa, john, hashcat, crackmapexec, evil-winrm, enum4linux-ng, responder, netexec, aircrack-ng, bettercap, binwalk, foremost, exiftool, steghide, curl, wget, netcat, socat, **msfconsole**, **msfvenom**, and more
+- **Metasploit**: Integrated via CLI (`msfconsole -qx`) — no msfrpcd daemon needed. Includes PostgreSQL for Metasploit DB support.
+- **MCP Tools**: `run_kali_tool`, `run_shell_command`, `list_available_tools`, `msf_search`, `msf_module_info`, `msf_run_module`, `msf_payload_generate`, `msf_console_execute`, `msf_status`
+- **Entrypoint**: `entrypoint.sh` (starts PostgreSQL for MSF DB, then MCP server)
 - **Transport**: SSE on port 9001
 - **Privileged**: Yes (required for raw socket access)
-
-### Metasploit MCP (`crhacky/blhackbox:metasploit-mcp`)
-
-- **Base**: `kalilinux/kali-rolling` (includes `metasploit-framework`)
-- **Tools (13+)**: list_exploits, list_payloads, run_exploit, run_auxiliary_module, run_post_module, generate_payload, list_sessions, send_session_command, terminate_session, list_listeners, start_listener, stop_job, msf_console_execute
-- **Architecture**: FastMCP server connects to msfrpcd via MSF RPC
-- **Entrypoint**: `entrypoint.sh` (starts msfrpcd + MCP server)
-- **Transport**: SSE on port 9002
-- **Privileged**: Yes (required for exploit execution)
-- **Inspired by**: [GH05TCREW/MetasploitMCP](https://github.com/GH05TCREW/MetasploitMCP), [LYFTIUM-INC/msfconsole-mcp](https://github.com/LYFTIUM-INC/msfconsole-mcp)
 
 ### WireMCP (`crhacky/blhackbox:wire-mcp`)
 
@@ -293,16 +281,16 @@ Named volumes for persistent data:
 
 ## CI/CD Pipeline
 
-Nine custom images are built and pushed to Docker Hub via GitHub Actions:
+Eight custom images are built and pushed to Docker Hub via GitHub Actions:
 
 ```
 PR opened  ───>  CI (lint + test + pip-audit)
                       │
-PR merged  ───>  CI  ───>  Build & Push (9 images)  ───>  Docker Hub
+PR merged  ───>  CI  ───>  Build & Push (8 images)  ───>  Docker Hub
                            (on CI success)
-Tag v*     ──────────────>  Build & Push (9 images)  ───>  Docker Hub
+Tag v*     ──────────────>  Build & Push (8 images)  ───>  Docker Hub
 
-Manual     ──────────────>  Build & Push (9 images)  ───>  Docker Hub
+Manual     ──────────────>  Build & Push (8 images)  ───>  Docker Hub
 ```
 
 Docker Scout vulnerability scanning runs on the ollama-mcp image.
@@ -315,13 +303,13 @@ Docker Scout vulnerability scanning runs on the ollama-mcp image.
 # Pull all pre-built images from Docker Hub
 docker compose pull
 
-# Start core stack (10 containers)
+# Start core stack (9 containers)
 docker compose up -d
 
-# Start with MCP Gateway for Claude Desktop (11 containers)
+# Start with MCP Gateway for Claude Desktop (10 containers)
 make up-gateway
 
-# Start with Neo4j (11 containers)
+# Start with Neo4j (10 containers)
 docker compose --profile neo4j up -d
 
 # Launch Claude Code in Docker

@@ -2,15 +2,14 @@
 #
 # Usage:
 #   docker compose pull                          Pull all pre-built images
-#   docker compose up -d                         Start core stack (10 containers)
-#   docker compose --profile gateway up -d       Start with MCP Gateway (11 containers)
+#   docker compose up -d                         Start core stack (9 containers)
+#   docker compose --profile gateway up -d       Start with MCP Gateway (10 containers)
 #   docker compose --profile claude-code up -d   Start with Claude Code container
 #   docker compose --profile neo4j up -d         Start with Neo4j
 #   docker compose build                         Build all custom images locally
 #
 # MCP servers:
-#   kali-mcp         (FastMCP SSE, port 9001) — Kali Linux security tools (50+)
-#   metasploit-mcp   (FastMCP SSE, port 9002) — Metasploit Framework (14 tools)
+#   kali-mcp         (FastMCP SSE, port 9001) — Kali Linux security tools (70+) + Metasploit Framework
 #   wire-mcp         (FastMCP SSE, port 9003) — Wireshark/tshark (7 tools)
 #   screenshot-mcp   (FastMCP SSE, port 9004) — Headless Chromium screenshots (4 tools)
 #   ollama-mcp       (FastMCP SSE, port 9000) — Ollama preprocessing pipeline
@@ -65,14 +64,12 @@ services:
       - --transport=streaming
       - --port=8080
       - --catalog=/catalog.yaml
-      - --servers=kali-mcp,metasploit-mcp,wire-mcp,screenshot-mcp,ollama-mcp
+      - --servers=kali-mcp,wire-mcp,screenshot-mcp,ollama-mcp
       - --log-calls
     networks:
       - blhackbox_net
     depends_on:
       kali-mcp:
-        condition: service_healthy
-      metasploit-mcp:
         condition: service_healthy
       wire-mcp:
         condition: service_healthy
@@ -85,6 +82,10 @@ services:
   # Host-based clients can connect directly via SSE at http://localhost:9001/sse
   # without the MCP Gateway. Claude Code (Docker) uses the internal URL
   # http://kali-mcp:9001/sse instead.
+  #
+  # Includes Metasploit Framework (msfconsole, msfvenom) — Metasploit tools
+  # are integrated directly into kali-mcp via CLI execution (`msfconsole -qx`).
+  # No separate metasploit-mcp container or msfrpcd daemon needed.
   kali-mcp:
     image: crhacky/blhackbox:kali-mcp
     build:
@@ -99,54 +100,24 @@ services:
       WPSCAN_API_TOKEN: "${WPSCAN_API_TOKEN:-}"
       # Max timeout for long-running scans (Issue #8)
       KALI_MAX_TIMEOUT: "${KALI_MAX_TIMEOUT:-600}"
+      # Metasploit timeout for msfconsole commands
+      MSF_TIMEOUT: "${MSF_TIMEOUT:-300}"
     ports:
       - "${KALI_MCP_PORT:-9001}:9001"
     healthcheck:
       test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:9001/sse')\""]
       interval: 15s
       timeout: 10s
-      retries: 5
-      start_period: 10s
+      retries: 10
+      # Generous start_period: MCP server starts in <2s, but PostgreSQL
+      # and Metasploit DB initialization run in the background (30-90s).
+      start_period: 30s
     networks:
       blhackbox_net:
         # wire-mcp shares this container's network namespace, so add an alias
         # so other containers can also resolve "wire-mcp" to this IP.
         aliases:
           - wire-mcp
-
-  # -- METASPLOIT MCP SERVER -------------------------------------------------
-  # Wraps the Metasploit Framework via msfrpcd (MSF RPC).
-  # Provides 13+ MCP tools for exploit lifecycle management.
-  # Inspired by GH05TCREW/MetasploitMCP and LYFTIUM-INC/msfconsole-mcp.
-  metasploit-mcp:
-    image: crhacky/blhackbox:metasploit-mcp
-    build:
-      context: .
-      dockerfile: docker/metasploit-mcp.Dockerfile
-    container_name: blhackbox-metasploit-mcp
-    restart: unless-stopped
-    privileged: true
-    init: true
-    environment:
-      MSFRPC_USER: "${MSFRPC_USER:-msf}"
-      MSFRPC_PASS: "${MSFRPC_PASS:-msf}"
-      MSFRPC_PORT: "55553"
-      MSFRPC_HOST: "127.0.0.1"
-      MSFRPC_SSL: "true"
-    healthcheck:
-      # Check both the MCP SSE endpoint (port 9002) AND msfrpcd (port 55553).
-      # The MCP server starts quickly, but tools are non-functional without
-      # msfrpcd. Checking both ensures the container only reports healthy
-      # when Metasploit tools are actually usable.
-      # msfrpcd typically needs 30-90s after container start (PostgreSQL init
-      # + msfdb init + msfrpcd startup), hence the generous start_period.
-      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:9002/sse')\" && ss -tlnp | grep -q ':55553'"]
-      interval: 15s
-      timeout: 10s
-      retries: 15
-      start_period: 180s
-    networks:
-      - blhackbox_net
 
   # -- WIREMCP SERVER -------------------------------------------------------
   # Wireshark/tshark MCP server for packet capture and network analysis.
@@ -431,8 +402,8 @@ services:
     environment:
       ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY}"
       # Bypass egress proxies (e.g. GitHub Codespaces) for internal Docker traffic
-      no_proxy: "mcp-gateway,kali-mcp,metasploit-mcp,wire-mcp,screenshot-mcp,ollama-mcp,ollama,agent-ingestion,agent-processing,agent-synthesis,localhost,127.0.0.1"
-      NO_PROXY: "mcp-gateway,kali-mcp,metasploit-mcp,wire-mcp,screenshot-mcp,ollama-mcp,ollama,agent-ingestion,agent-processing,agent-synthesis,localhost,127.0.0.1"
+      no_proxy: "mcp-gateway,kali-mcp,wire-mcp,screenshot-mcp,ollama-mcp,ollama,agent-ingestion,agent-processing,agent-synthesis,localhost,127.0.0.1"
+      NO_PROXY: "mcp-gateway,kali-mcp,wire-mcp,screenshot-mcp,ollama-mcp,ollama,agent-ingestion,agent-processing,agent-synthesis,localhost,127.0.0.1"
     dns:
       - 8.8.8.8
       - 1.1.1.1
@@ -440,8 +411,6 @@ services:
       - results:/tmp/screenshots:ro
     depends_on:
       kali-mcp:
-        condition: service_healthy
-      metasploit-mcp:
         condition: service_healthy
       wire-mcp:
         condition: service_healthy

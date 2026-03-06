@@ -29,10 +29,6 @@ RUN echo '{ \
       "type": "sse", \
       "url": "http://kali-mcp:9001/sse" \
     }, \
-    "metasploit": { \
-      "type": "sse", \
-      "url": "http://metasploit-mcp:9002/sse" \
-    }, \
     "wireshark": { \
       "type": "sse", \
       "url": "http://kali-mcp:9003/sse" \

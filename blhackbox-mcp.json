@@ -3,12 +3,7 @@
     "kali": {
       "type": "sse",
       "url": "http://localhost:9001/sse",
-      "description": "Kali Linux security tools — community MCP server adapted for blhackbox (50+ tools). Connects via SSE to docker compose service on port 9001."
-    },
-    "metasploit": {
-      "command": "docker",
-      "args": ["run", "-i", "--rm", "--network", "blhackbox-net", "blhackbox-metasploit-mcp"],
-      "description": "Metasploit Framework MCP Server — exploit lifecycle management (14 tools via MSF RPC)"
+      "description": "Kali Linux security tools + Metasploit Framework — 70+ tools including msfconsole, msfvenom, nmap, sqlmap, hydra, etc. Connects via SSE to docker compose service on port 9001."
     },
     "wireshark": {
       "command": "docker",
