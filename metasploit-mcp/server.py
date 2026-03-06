@@ -30,6 +30,7 @@ import json
 import logging
 import os
 import time
+from contextlib import asynccontextmanager
 from typing import Any
 
 import httpx
@@ -49,8 +50,6 @@ MCP_PORT = int(os.environ.get("MCP_PORT", "9002"))
 
 # Execution timeout for exploit/module runs
 EXEC_TIMEOUT = int(os.environ.get("EXEC_TIMEOUT", "300"))
-
-mcp = FastMCP("metasploit-mcp", host="0.0.0.0", port=MCP_PORT)
 
 # msfrpcd msgpack headers — msfrpcd ONLY understands binary/message-pack,
 # NOT application/json.  Sending JSON causes silent auth failures.
@@ -81,6 +80,12 @@ class MSFRPCClient:
     # is genuinely down.
     LOGIN_COOLDOWN = int(os.environ.get("MSFRPC_LOGIN_COOLDOWN", "30"))
 
+    # Startup retries — more aggressive than tool-call retries since we
+    # know msfrpcd needs 30-90s. Runs in background so MCP server stays
+    # responsive.
+    STARTUP_RETRIES = int(os.environ.get("MSFRPC_STARTUP_RETRIES", "30"))
+    STARTUP_RETRY_DELAY = int(os.environ.get("MSFRPC_STARTUP_RETRY_DELAY", "5"))
+
     def __init__(self) -> None:
         scheme = "https" if MSFRPC_SSL else "http"
         self.url = f"{scheme}://{MSFRPC_HOST}:{MSFRPC_PORT}/api/"
@@ -92,7 +97,36 @@ class MSFRPCClient:
         # Timestamp of last failed login cycle — used for cooldown
         self._last_login_failure: float = 0.0
 
-    async def login(self) -> bool:
+    async def _try_single_login(self) -> bool | None:
+        """Attempt a single login to msfrpcd.
+
+        Returns True on success, False on auth rejection, None on
+        connection failure (msfrpcd not ready yet).
+        """
+        try:
+            payload = msgpack.packb(["auth.login", MSFRPC_USER, MSFRPC_PASS])
+            resp = await self._client.post(
+                self.url,
+                content=payload,
+                headers=_MSGPACK_HEADERS,
+            )
+            data = msgpack.unpackb(resp.content, raw=False)
+            if data.get("result") == "success":
+                self.token = data["token"]
+                self._last_login_failure = 0.0
+                return True
+            logger.warning("MSFRPC auth rejected: %s", data)
+            return False
+        except (httpx.ConnectError, httpx.ConnectTimeout) as exc:
+            logger.debug("msfrpcd not ready: %s", type(exc).__name__)
+            return None
+        except Exception as exc:
+            logger.warning("MSFRPC connection failed: %s", exc)
+            return None
+
+    async def login(self, retries: int | None = None,
+                    delay: int | None = None,
+                    respect_cooldown: bool = True) -> bool:
         """Authenticate to msfrpcd using msgpack binary protocol.
 
         msfrpcd can take 30-90 seconds to fully start. This method retries
@@ -101,80 +135,154 @@ class MSFRPCClient:
         After all retries are exhausted, a cooldown period prevents
         subsequent tool calls from immediately re-running the full retry
         cycle (which would cause ~90s latency per failed call).
+
+        Args:
+            retries: Override number of retries (default: LOGIN_RETRIES).
+            delay: Override delay between retries (default: LOGIN_RETRY_DELAY).
+            respect_cooldown: If False, skip cooldown check (for diagnostics).
         """
+        max_retries = retries if retries is not None else self.LOGIN_RETRIES
+        retry_delay = delay if delay is not None else self.LOGIN_RETRY_DELAY
+
         # Cooldown: if we recently exhausted all retries, don't retry again
         # immediately. This prevents every tool call from blocking for 90s
         # when msfrpcd is genuinely down.
-        now = time.monotonic()
-        if self._last_login_failure > 0:
-            elapsed = now - self._last_login_failure
-            if elapsed < self.LOGIN_COOLDOWN:
+        if respect_cooldown:
+            now = time.monotonic()
+            if self._last_login_failure > 0:
+                elapsed = now - self._last_login_failure
+                if elapsed < self.LOGIN_COOLDOWN:
+                    remaining = self.LOGIN_COOLDOWN - elapsed
+                    logger.info(
+                        "Login cooldown active (%.0fs remaining). "
+                        "Skipping retry cycle — last failure was %.0fs ago.",
+                        remaining, elapsed,
+                    )
+                    return False
+
+        for attempt in range(1, max_retries + 1):
+            result = await self._try_single_login()
+            if result is True:
                 logger.info(
-                    "Login cooldown active (%.0fs remaining). "
-                    "Skipping retry cycle — last failure was %.0fs ago.",
-                    self.LOGIN_COOLDOWN - elapsed, elapsed,
+                    "Authenticated to msfrpcd at %s (attempt %d/%d)",
+                    self.url, attempt, max_retries,
                 )
+                return True
+            if result is False:
+                # Auth explicitly rejected (wrong creds) — don't keep retrying
+                logger.error(
+                    "msfrpcd rejected credentials (user=%s). "
+                    "Check MSFRPC_USER/MSFRPC_PASS.",
+                    MSFRPC_USER,
+                )
+                self._last_login_failure = time.monotonic()
                 return False
 
-        for attempt in range(1, self.LOGIN_RETRIES + 1):
-            try:
-                payload = msgpack.packb(["auth.login", MSFRPC_USER, MSFRPC_PASS])
-                resp = await self._client.post(
-                    self.url,
-                    content=payload,
-                    headers=_MSGPACK_HEADERS,
-                )
-                data = msgpack.unpackb(resp.content, raw=False)
-                if data.get("result") == "success":
-                    self.token = data["token"]
-                    self._last_login_failure = 0.0  # Reset cooldown on success
-                    logger.info(
-                        "Authenticated to msfrpcd at %s (attempt %d/%d)",
-                        self.url, attempt, self.LOGIN_RETRIES,
-                    )
-                    return True
-                logger.warning(
-                    "MSFRPC auth rejected (attempt %d/%d): %s",
-                    attempt, self.LOGIN_RETRIES, data,
-                )
-            except (httpx.ConnectError, httpx.ConnectTimeout) as exc:
+            # result is None → connection failed, msfrpcd not ready
+            if attempt < max_retries:
                 logger.info(
-                    "msfrpcd not ready (attempt %d/%d): %s",
-                    attempt, self.LOGIN_RETRIES, type(exc).__name__,
+                    "msfrpcd not ready (attempt %d/%d), retrying in %ds...",
+                    attempt, max_retries, retry_delay,
                 )
-            except Exception as exc:
-                logger.warning(
-                    "MSFRPC connection failed (attempt %d/%d): %s",
-                    attempt, self.LOGIN_RETRIES, exc,
-                )
-
-            if attempt < self.LOGIN_RETRIES:
-                logger.info(
-                    "Retrying msfrpcd login in %ds...", self.LOGIN_RETRY_DELAY,
-                )
-                await asyncio.sleep(self.LOGIN_RETRY_DELAY)
+                await asyncio.sleep(retry_delay)
 
         logger.error(
             "All %d msfrpcd login attempts failed at %s. "
             "Verify msfrpcd is running and credentials are correct.",
-            self.LOGIN_RETRIES, self.url,
+            max_retries, self.url,
         )
         self._last_login_failure = time.monotonic()
         return False
+
+    async def startup_login(self) -> None:
+        """Background startup authentication.
+
+        Called once when the MCP server starts. Uses more retries and
+        shorter delays than tool-call login since msfrpcd is expected
+        to need 30-90s to boot (PostgreSQL init + Ruby startup).
+
+        Does NOT set the cooldown on failure — tool calls should still
+        attempt their own login cycle.
+        """
+        logger.info(
+            "Starting background authentication to msfrpcd at %s "
+            "(up to %d retries × %ds = %ds)...",
+            self.url,
+            self.STARTUP_RETRIES,
+            self.STARTUP_RETRY_DELAY,
+            self.STARTUP_RETRIES * self.STARTUP_RETRY_DELAY,
+        )
+        for attempt in range(1, self.STARTUP_RETRIES + 1):
+            result = await self._try_single_login()
+            if result is True:
+                logger.info(
+                    "Startup auth succeeded on attempt %d/%d — "
+                    "msfrpcd token acquired.",
+                    attempt, self.STARTUP_RETRIES,
+                )
+                return
+            if result is False:
+                logger.error(
+                    "Startup auth: msfrpcd rejected credentials. "
+                    "Check MSFRPC_USER/MSFRPC_PASS env vars.",
+                )
+                return
+
+            if attempt < self.STARTUP_RETRIES:
+                logger.info(
+                    "Startup auth: msfrpcd not ready (attempt %d/%d), "
+                    "retrying in %ds...",
+                    attempt, self.STARTUP_RETRIES,
+                    self.STARTUP_RETRY_DELAY,
+                )
+                await asyncio.sleep(self.STARTUP_RETRY_DELAY)
+
+        logger.error(
+            "Startup auth: all %d attempts failed. msfrpcd may not be "
+            "running. Tool calls will retry on demand.",
+            self.STARTUP_RETRIES,
+        )
+        # NOTE: Do NOT set _last_login_failure here — let tool calls
+        # attempt their own login cycle independently.
 
     async def call(self, method: str, *args: Any) -> dict[str, Any]:
         """Call an MSFRPC method using msgpack encoding.
 
         Re-authenticates once on token expiry (default 300s timeout).
         """
+        # If startup login is still running, wait for it (with timeout)
+        # instead of starting a competing login cycle.
+        global _startup_login_task
+        if not self.token and _startup_login_task and not _startup_login_task.done():
+            logger.info(
+                "Waiting for startup authentication to complete before "
+                "calling %s...", method,
+            )
+            try:
+                await asyncio.wait_for(
+                    asyncio.shield(_startup_login_task), timeout=120,
+                )
+            except asyncio.TimeoutError:
+                logger.warning("Startup auth still running after 120s.")
+
         if not self.token:
             if not await self.login():
+                # Build a diagnostic error message
+                cooldown_info = ""
+                if self._last_login_failure > 0:
+                    elapsed = time.monotonic() - self._last_login_failure
+                    remaining = max(0, self.LOGIN_COOLDOWN - elapsed)
+                    if remaining > 0:
+                        cooldown_info = (
+                            f" Login cooldown active ({remaining:.0f}s remaining). "
+                            "Use the msf_status tool to force a reconnection attempt."
+                        )
                 return {
                     "error": (
                         "Not authenticated to msfrpcd. "
                         "Ensure msfrpcd is running and credentials are correct "
                         f"(user={MSFRPC_USER}, ssl={MSFRPC_SSL}, "
-                        f"host={MSFRPC_HOST}:{MSFRPC_PORT})."
+                        f"host={MSFRPC_HOST}:{MSFRPC_PORT}).{cooldown_info}"
                     ),
                 }
         try:
@@ -214,10 +322,113 @@ class MSFRPCClient:
 
 _rpc = MSFRPCClient()
 
+# Background task handle for startup authentication
+_startup_login_task: asyncio.Task | None = None
+
+
+@asynccontextmanager
+async def _lifespan(server: FastMCP):
+    """FastMCP lifespan — launch background msfrpcd authentication."""
+    global _startup_login_task
+    _startup_login_task = asyncio.create_task(_rpc.startup_login())
+    try:
+        yield {}
+    finally:
+        if _startup_login_task and not _startup_login_task.done():
+            _startup_login_task.cancel()
+        await _rpc.close()
+
+
+mcp = FastMCP(
+    "metasploit-mcp", host="0.0.0.0", port=MCP_PORT, lifespan=_lifespan,
+)
+
 
 def _json(data: Any) -> str:
     """Serialize to JSON, handling non-serializable types."""
     return json.dumps(data, indent=2, default=str)
+
+
+# ---------------------------------------------------------------------------
+# MCP Tools — Diagnostics
+# ---------------------------------------------------------------------------
+
+@mcp.tool()
+async def msf_status(force_reconnect: bool = False) -> str:
+    """Check msfrpcd connection status and optionally force reconnection.
+
+    Use this tool to diagnose authentication failures. When force_reconnect
+    is True, it bypasses the login cooldown and attempts a fresh connection.
+
+    Args:
+        force_reconnect: If True, clear cooldown and attempt a fresh login.
+    """
+    status: dict[str, Any] = {
+        "msfrpcd_url": _rpc.url,
+        "ssl": MSFRPC_SSL,
+        "user": MSFRPC_USER,
+        "authenticated": _rpc.token is not None,
+        "token_present": _rpc.token is not None,
+    }
+
+    # Cooldown info
+    if _rpc._last_login_failure > 0:
+        elapsed = time.monotonic() - _rpc._last_login_failure
+        remaining = max(0, _rpc.LOGIN_COOLDOWN - elapsed)
+        status["cooldown_active"] = remaining > 0
+        status["cooldown_remaining_seconds"] = round(remaining, 1)
+        status["last_failure_seconds_ago"] = round(elapsed, 1)
+    else:
+        status["cooldown_active"] = False
+
+    # Startup task status
+    if _startup_login_task:
+        status["startup_login_done"] = _startup_login_task.done()
+    else:
+        status["startup_login_done"] = "not_started"
+
+    if force_reconnect:
+        logger.info("Force reconnect requested — clearing cooldown and token.")
+        _rpc.token = None
+        _rpc._last_login_failure = 0.0
+        status["action"] = "force_reconnect"
+
+        # Try a single login attempt first (fast check)
+        result = await _rpc._try_single_login()
+        if result is True:
+            status["reconnect_result"] = "success"
+            status["authenticated"] = True
+            status["token_present"] = True
+        elif result is False:
+            status["reconnect_result"] = "credentials_rejected"
+            status["authenticated"] = False
+        else:
+            # Connection failed — try full retry cycle (no cooldown)
+            status["reconnect_result"] = "connection_failed_trying_retries"
+            success = await _rpc.login(
+                retries=5, delay=3, respect_cooldown=False,
+            )
+            status["reconnect_result"] = "success" if success else "failed"
+            status["authenticated"] = success
+            status["token_present"] = _rpc.token is not None
+    elif not _rpc.token:
+        # Not authenticated — try a quick single login (non-blocking)
+        result = await _rpc._try_single_login()
+        if result is True:
+            status["quick_login"] = "success"
+            status["authenticated"] = True
+            status["token_present"] = True
+        elif result is False:
+            status["quick_login"] = "credentials_rejected"
+        else:
+            status["quick_login"] = "msfrpcd_unreachable"
+            status["hint"] = (
+                "msfrpcd may still be starting up (takes 30-90s). "
+                "Use msf_status(force_reconnect=True) to retry with "
+                "multiple attempts."
+            )
+
+    return _json(status)
 
 
 # ---------------------------------------------------------------------------
