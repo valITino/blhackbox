@@ -48,7 +48,7 @@ internal LangGraph orchestrator or LLM planner. Here is what happens when you
 type a prompt:
 
 1. **You type a prompt** in your AI client (Claude Code, Claude Desktop, or ChatGPT).
-2. **The AI decides which tools to call** from five MCP servers: Kali Linux MCP (50+ security tools), Metasploit MCP (13+ exploit lifecycle tools), WireMCP (7 packet analysis tools), Screenshot MCP (4 evidence capture tools), and the Ollama preprocessing pipeline.
+2. **The AI decides which tools to call** from four MCP servers: Kali Linux MCP (70+ security tools including Metasploit), WireMCP (7 packet analysis tools), Screenshot MCP (4 evidence capture tools), and the Ollama preprocessing pipeline.
 3. **Each MCP server executes the tool call** in its Docker container and returns raw output to the AI.
 4. **The AI collects all raw outputs** and sends them to the Ollama MCP server via `process_scan_results()`.
 5. **Ollama preprocesses the data** through 3 agent containers in sequence (Ingestion -> Processing -> Synthesis), each calling the local Ollama LLM independently.
@@ -75,12 +75,9 @@ CLAUDE CODE (Docker container on blhackbox_net)
   |  Connects directly to each MCP server via SSE.
   |
   |--- kali (SSE, port 9001) ─────────────>  KALI MCP SERVER
-  |                                            50+ tools: nmap, nikto, gobuster,
-  |                                            sqlmap, hydra, john, hashcat, etc.
-  |
-  |--- metasploit (SSE, port 9002) ───────>  METASPLOIT MCP SERVER
-  |                                            13+ tools via MSF RPC: exploits,
-  |                                            sessions, payloads, listeners
+  |                                            70+ tools: nmap, nikto, gobuster,
+  |                                            sqlmap, hydra, msfconsole, msfvenom,
+  |                                            john, hashcat, etc.
   |
   |--- wireshark (SSE, port 9003) ────────>  WIREMCP SERVER
   |                                            7 tools: packet capture, pcap
@@ -125,8 +122,7 @@ aggregates all servers behind `localhost:8080/mcp`. See
 
 | Container | What it does | Internal Port | Default Profile |
 |-----------|-------------|:---:|:---:|
-| **Kali MCP** | Kali Linux security tools — 50+ tools (nmap, sqlmap, hydra, john, etc.) | 9001 | default |
-| **Metasploit MCP** | Metasploit Framework — 13+ exploit tools via MSF RPC | 9002 | default |
+| **Kali MCP** | Kali Linux security tools + Metasploit Framework — 70+ tools (nmap, sqlmap, hydra, msfconsole, msfvenom, etc.) | 9001 | default |
 | **WireMCP** | Wireshark/tshark — 7 packet capture and analysis tools | 9003 | default |
 | **Screenshot MCP** | Headless Chromium — 4 screenshot and annotation tools | 9004 | default |
 | **Ollama MCP** | Thin orchestrator — calls 3 agent containers in sequence | 9000 | default |
@@ -168,7 +164,7 @@ docker compose pull
 # NOTE: The ollama image is built locally — this is normal.
 # Docker Compose will build it automatically in the next step.
 
-# 4. Start the core stack (10 containers)
+# 4. Start the core stack (9 containers)
 docker compose up -d
 
 # 5. Download the Ollama model (required — runs inside the container)
@@ -183,9 +179,8 @@ make status     # Container status
 make health     # Quick health check of all MCP servers
 ```
 
-You should see 10 containers, all "Up" or "healthy":
+You should see 9 containers, all "Up" or "healthy":
 - `blhackbox-kali-mcp`
-- `blhackbox-metasploit-mcp`
 - `blhackbox-wire-mcp`
 - `blhackbox-screenshot-mcp`
 - `blhackbox-ollama-mcp`
@@ -209,7 +204,7 @@ no MCP Gateway, no host install, no Node.js.
 ### Step 1: Start the stack
 
 Follow [Installation](#installation) above. Make sure `ANTHROPIC_API_KEY` is
-set in your `.env` file. All 10 containers must be healthy (`make health`).
+set in your `.env` file. All 9 containers must be healthy (`make health`).
 
 ### Step 2: Launch Claude Code
 
@@ -235,17 +230,15 @@ Checking service connectivity...
 
   MCP Servers
   Kali MCP               [ OK ]
-  Metasploit MCP         [ OK ]
   WireMCP                [ OK ]
   Screenshot MCP         [ OK ]
   Ollama Pipeline        [ OK ]
 
 ──────────────────────────────────────────────────
-  All 5 services connected.
+  All 4 services connected.
 
   MCP servers (connected via SSE):
-    kali            Kali Linux security tools (50+ tools)
-    metasploit      Metasploit Framework (13+ exploit tools)
+    kali            Kali Linux security tools + Metasploit (70+ tools)
     wireshark       WireMCP — tshark packet capture & analysis
     screenshot      Screenshot MCP — headless Chromium evidence capture
     ollama-pipeline Ollama preprocessing (3-agent pipeline)
@@ -264,7 +257,7 @@ You are now inside an interactive Claude Code session.
 /mcp
 ```
 
-You should see the MCP servers listed: `kali`, `metasploit`, `wireshark`,
+You should see the MCP servers listed: `kali`, `wireshark`,
 `screenshot`, and `ollama-pipeline`, each with their available tools.
 
 ### Step 4: Run your first pentest
@@ -275,15 +268,15 @@ Scan example.com for open ports and web vulnerabilities
 
 Claude Code will autonomously:
 1. Call Kali tools (nmap, subfinder, nikto, etc.)
-2. Collect raw outputs from all tools
-3. Send them to the Ollama preprocessing pipeline
-4. Write a structured pentest report
+2. Search for exploits using Metasploit (`msf_search`)
+3. Collect raw outputs from all tools
+4. Send them to the Ollama preprocessing pipeline
+5. Write a structured pentest report
 
 ### Monitoring (separate terminal)
 
 ```bash
-make logs-kali             # Kali MCP server activity
-make logs-metasploit       # Metasploit MCP activity
+make logs-kali             # Kali MCP server activity (includes Metasploit)
 make logs-wireshark        # WireMCP activity
 make logs-screenshot       # Screenshot MCP activity
 make logs-ollama-mcp       # Ollama MCP server activity
@@ -315,8 +308,8 @@ configures itself automatically.
 3. Type your prompt: `Scan example.com for open ports and web vulnerabilities`
 
 > **Note:** The web session uses the blhackbox stdio MCP server directly
-> (not the Docker stack). For the full Docker pipeline with Kali tools and
-> Ollama preprocessing, use [Tutorial 1](#tutorial-1-claude-code-docker--recommended).
+> (not the Docker stack). For the full Docker pipeline with Kali tools,
+> Metasploit, and Ollama preprocessing, use [Tutorial 1](#tutorial-1-claude-code-docker--recommended).
 
 ---
 
@@ -360,7 +353,7 @@ Restart Claude Desktop. You should see a hammer icon with available tools.
 ### Step 3: Run a pentest
 
 Type your prompt in Claude Desktop. The flow is identical to Tutorial 1 — the
-gateway routes tool calls to the same MCP servers (kali, metasploit, wireshark, screenshot, ollama).
+gateway routes tool calls to the same MCP servers (kali, wireshark, screenshot, ollama).
 
 ---
 
@@ -395,11 +388,11 @@ STEP 1: YOU TYPE A PROMPT
         |
         v
 STEP 2: AI DECIDES WHICH TOOLS TO USE
-  Claude picks tools from Kali MCP, Metasploit MCP, WireMCP, and Screenshot MCP:
+  Claude picks tools from Kali MCP (includes Metasploit), WireMCP, and Screenshot MCP:
     - subfinder (Kali)           -> find subdomains
     - nmap -sV -sC (Kali)       -> port scan + service detection
     - nikto (Kali)               -> web server scanning
-    - list_exploits (Metasploit) -> find matching exploits
+    - msf_search (Kali/MSF)      -> find matching exploits
     - capture_packets (WireMCP)  -> capture traffic during scanning
         |
         v
@@ -448,7 +441,7 @@ STEP 7 (OPTIONAL): RESULTS STORED IN NEO4J
 | **ChatGPT / OpenAI** | **Yes** | GUI/web app on host; needs `localhost:8080/mcp` gateway |
 
 The MCP Gateway (`docker/mcp-gateway:latest`) aggregates all MCP servers
-(kali, metasploit, wireshark, screenshot, ollama) behind a single Streamable
+(kali, wireshark, screenshot, ollama) behind a single Streamable
 HTTP endpoint at `localhost:8080/mcp`. It requires:
 - Docker socket mount (`/var/run/docker.sock`)
 - The `--profile gateway` flag to enable
@@ -531,17 +524,17 @@ docker compose restart kali-mcp        # restart one service
 make restart-agents                    # restart all 3 agents
 ```
 
-### Metasploit MCP shows "unhealthy"
+### Metasploit tools are slow or fail
 
-The entrypoint starts PostgreSQL, initializes the MSF database, then waits for
-`msfrpcd` to accept connections before starting the MCP server. The container
-typically becomes healthy within 60–90 seconds.
+Metasploit tools (`msf_search`, `msf_run_module`, etc.) use `msfconsole -qx`
+for CLI execution. The first invocation takes **10-30 seconds** due to Ruby and
+database initialization (cold start). Subsequent calls in the same container
+session are faster.
 
-If it stays unhealthy, check its logs for PostgreSQL or msfrpcd startup errors:
-
-```bash
-make logs-metasploit
-```
+If Metasploit commands fail:
+1. Check if msfconsole is installed: `docker exec blhackbox-kali-mcp which msfconsole`
+2. Check database status: use the `msf_status` tool
+3. Check container logs: `make logs-kali`
 
 ### Portainer shows "Timeout" on first visit
 
@@ -633,9 +626,9 @@ blhackbox mcp
 ```bash
 make help                  # Show all available targets
 make pull                  # Pull all pre-built images from Docker Hub
-make up                    # Start core stack (10 containers)
-make up-full               # Start with Neo4j (11 containers)
-make up-gateway            # Start with MCP Gateway for Claude Desktop (11 containers)
+make up                    # Start core stack (9 containers)
+make up-full               # Start with Neo4j (10 containers)
+make up-gateway            # Start with MCP Gateway for Claude Desktop (10 containers)
 make down                  # Stop all services
 make claude-code           # Build and launch Claude Code in Docker
 make status                # Container status table
@@ -646,8 +639,7 @@ make ollama-pull           # Pull Ollama model
 make portainer             # Open Portainer dashboard (shows setup instructions)
 make gateway-logs          # Live MCP Gateway logs (requires --profile gateway)
 make restart-agents        # Restart all 3 agent containers
-make logs-kali             # Tail Kali MCP logs
-make logs-metasploit       # Tail Metasploit MCP logs
+make logs-kali             # Tail Kali MCP logs (includes Metasploit)
 make logs-wireshark        # Tail WireMCP logs
 make logs-screenshot       # Tail Screenshot MCP logs
 make logs-ollama-mcp       # Tail Ollama MCP logs
@@ -665,7 +657,7 @@ Only needed if you want to modify Dockerfiles or agent code:
 
 ```bash
 git submodule update --init --recursive   # fetch kali-mcp source
-docker compose build                      # build all 8 custom images locally
+docker compose build                      # build all custom images locally
 docker compose up -d
 ```
 
@@ -677,8 +669,7 @@ All custom images are published to `crhacky/blhackbox`:
 
 | Tag | Description |
 |-----|-------------|
-| `crhacky/blhackbox:kali-mcp` | Kali Linux MCP Server (50+ tools) |
-| `crhacky/blhackbox:metasploit-mcp` | Metasploit MCP Server (13+ exploit tools) |
+| `crhacky/blhackbox:kali-mcp` | Kali Linux MCP Server (70+ tools + Metasploit Framework) |
 | `crhacky/blhackbox:wire-mcp` | WireMCP Server (tshark, 7 tools) |
 | `crhacky/blhackbox:screenshot-mcp` | Screenshot MCP Server (headless Chromium, 4 tools) |
 | `crhacky/blhackbox:ollama-mcp` | Ollama MCP Server (thin orchestrator) |
@@ -759,8 +750,7 @@ blhackbox/
 │       └── session-start.sh        # auto-setup for web sessions
 ├── .mcp.json                        # MCP server config (Claude Code Web)
 ├── docker/
-│   ├── kali-mcp.Dockerfile
-│   ├── metasploit-mcp.Dockerfile
+│   ├── kali-mcp.Dockerfile          # Kali Linux + Metasploit Framework
 │   ├── wire-mcp.Dockerfile
 │   ├── screenshot-mcp.Dockerfile
 │   ├── ollama.Dockerfile
@@ -770,10 +760,10 @@ blhackbox/
 │   ├── agent-synthesis.Dockerfile
 │   ├── claude-code.Dockerfile       # MCP client container
 │   └── claude-code-entrypoint.sh    # Startup script with health checks
-├── kali-mcp/                        # adapted community Kali MCP server (50+ tools)
-├── metasploit-mcp/                  # Metasploit Framework MCP server (13+ tools)
+├── kali-mcp/                        # Kali MCP server (70+ tools + Metasploit)
 ├── wire-mcp/                        # WireMCP server (tshark, 7 tools)
 ├── screenshot-mcp/                  # Screenshot MCP server (Playwright, 4 tools)
+├── metasploit-mcp/                  # [DEPRECATED] Standalone MSF RPC server (kept for reference)
 ├── mcp_servers/
 │   └── ollama_mcp_server.py         # thin MCP orchestrator
 ├── blhackbox/

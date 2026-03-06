@@ -4,17 +4,6 @@
       "command": "bash",
       "args": [".claude/mcp-start.sh"],
       "description": "blhackbox core MCP server — recon, tool execution, graph queries, report generation"
-    },
-    "metasploit": {
-      "command": "bash",
-      "args": [".claude/msf-mcp-start.sh"],
-      "env": {
-        "MSFRPC_USER": "msf",
-        "MSFRPC_PASS": "msf",
-        "MSFRPC_PORT": "55553",
-        "MSFRPC_SSL": "true"
-      },
-      "description": "Metasploit Framework MCP Server — exploit lifecycle management (14 tools via MSF RPC)"
     }
   }
 }
