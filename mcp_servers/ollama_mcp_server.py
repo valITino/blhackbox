@@ -39,6 +39,7 @@ from blhackbox.models.aggregated_payload import (  # noqa: E402
     ErrorLogEntry,
     ExecutiveSummary,
     Findings,
+    PipelineStageTiming,
     RemediationEntry,
 )
 
@@ -181,19 +182,25 @@ async def process_scan_results(
     async with httpx.AsyncClient(timeout=AGENT_TIMEOUT) as client:
         # ── Agent 1: Ingestion ────────────────────────────────────────
         logger.info("Calling IngestionAgent at %s …", AGENT_INGESTION_URL)
+        t1 = time.monotonic()
         ingestion_output = await _call_agent(
             client, AGENT_INGESTION_URL, raw_combined,
             session_id, target, "IngestionAgent", warnings,
         )
+        t1_elapsed = time.monotonic() - t1
+        logger.info("[TIMING] IngestionAgent: %.1fs", t1_elapsed)
         if not ingestion_output:
             warnings.append("IngestionAgent returned empty output")
 
         # ── Agent 2: Processing ───────────────────────────────────────
         logger.info("Calling ProcessingAgent at %s …", AGENT_PROCESSING_URL)
+        t2 = time.monotonic()
         processing_output = await _call_agent(
             client, AGENT_PROCESSING_URL, ingestion_output,
             session_id, target, "ProcessingAgent", warnings,
         )
+        t2_elapsed = time.monotonic() - t2
+        logger.info("[TIMING] ProcessingAgent: %.1fs", t2_elapsed)
         if not processing_output:
             warnings.append("ProcessingAgent returned empty output")
 
@@ -205,12 +212,20 @@ async def process_scan_results(
             "processing_output": processing_output,
         }
         logger.info("Calling SynthesisAgent at %s …", AGENT_SYNTHESIS_URL)
+        t3 = time.monotonic()
         synthesis_output = await _call_agent(
             client, AGENT_SYNTHESIS_URL, synthesis_input,
             session_id, target, "SynthesisAgent", warnings,
         )
+        t3_elapsed = time.monotonic() - t3
+        logger.info("[TIMING] SynthesisAgent: %.1fs", t3_elapsed)
         if not synthesis_output:
             warnings.append("SynthesisAgent returned empty output")
+
+    logger.info(
+        "[TIMING] Pipeline total: %.1fs (ingestion=%.1fs, processing=%.1fs, synthesis=%.1fs)",
+        t1_elapsed + t2_elapsed + t3_elapsed, t1_elapsed, t2_elapsed, t3_elapsed,
+    )
 
     duration = time.monotonic() - start_time
 
@@ -220,11 +235,11 @@ async def process_scan_results(
     )
     error_log = _build_error_log(synthesis_output, processing_output)
 
-    # Calculate compressed size
+    # Calculate structured output size
     payload_json_preview = json.dumps(findings.model_dump(), default=str)
-    compressed_size = len(payload_json_preview.encode("utf-8"))
-    compression_ratio = (
-        compressed_size / total_raw_size if total_raw_size > 0 else 0.0
+    structured_size = len(payload_json_preview.encode("utf-8"))
+    expansion_ratio = (
+        structured_size / total_raw_size if total_raw_size > 0 else 0.0
     )
 
     attack_surface = _build_attack_surface(synthesis_output, processing_output)
@@ -242,10 +257,15 @@ async def process_scan_results(
         metadata=AggregatedMetadata(
             tools_run=list(raw_outputs.keys()),
             total_raw_size_bytes=total_raw_size,
-            compressed_size_bytes=compressed_size,
-            compression_ratio=round(compression_ratio, 4),
+            structured_size_bytes=structured_size,
+            expansion_ratio=round(expansion_ratio, 4),
             ollama_model=OLLAMA_MODEL,
             duration_seconds=round(duration, 2),
+            stage_timing=PipelineStageTiming(
+                ingestion_seconds=round(t1_elapsed, 2),
+                processing_seconds=round(t2_elapsed, 2),
+                synthesis_seconds=round(t3_elapsed, 2),
+            ),
             warning="; ".join(warnings) if warnings else "",
         ),
     )

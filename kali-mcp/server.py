@@ -172,6 +172,14 @@ async def run_shell_command(
     Only tools from the allowlist may appear in the command. The first
     token of each piped segment is validated against the allowlist.
 
+    NOTE: The allowlist is a UX convenience guide, NOT a security boundary.
+    Since 'bash' is in the allowlist, any command can be run via
+    ``bash -c "arbitrary command"``.  This is intentional — the allowlist
+    helps AI agents discover and prefer the correct tool names, while
+    ``bash -c`` provides an escape hatch for shell builtins (echo, cat,
+    etc.) and complex pipelines.  Do not rely on this as an isolation
+    mechanism.
+
     Args:
         command: Full shell command string (e.g. 'curl -sk https://... | grep pattern').
         target: Target identifier for logging/reporting.
@@ -180,8 +188,9 @@ async def run_shell_command(
     timestamp = datetime.now(UTC).isoformat()
     timeout = min(timeout, MAX_TIMEOUT)
 
-    # Basic validation: check that the primary command(s) are allowlisted
+    # UX validation: check that the primary command(s) are allowlisted
     # by extracting the first token of each pipe segment.
+    # NOTE: This is advisory, not a security boundary — see docstring.
     segments = command.split("|")
     for segment in segments:
         segment = segment.strip()

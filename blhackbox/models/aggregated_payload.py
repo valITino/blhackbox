@@ -263,15 +263,33 @@ class RemediationEntry(BaseModel):
 # ---------------------------------------------------------------------------
 
 
+class PipelineStageTiming(BaseModel):
+    """Timing for a single pipeline stage."""
+
+    ingestion_seconds: float = 0.0
+    processing_seconds: float = 0.0
+    synthesis_seconds: float = 0.0
+
+
 class AggregatedMetadata(BaseModel):
     """Metadata about the aggregation run."""
 
     tools_run: list[str] = Field(default_factory=list)
     total_raw_size_bytes: int = 0
-    compressed_size_bytes: int = 0
-    compression_ratio: float = 0.0
+    structured_size_bytes: int = 0
+    expansion_ratio: float = Field(
+        default=0.0,
+        description=(
+            "Ratio of structured output size to raw input size "
+            "(structured_size / raw_size). Values > 1 mean the structured "
+            "output is larger than the raw input."
+        ),
+    )
     ollama_model: str = ""
     duration_seconds: float = 0.0
+    stage_timing: PipelineStageTiming = Field(
+        default_factory=PipelineStageTiming,
+    )
     warning: str = ""
 
 

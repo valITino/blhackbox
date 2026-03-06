@@ -45,7 +45,7 @@ OLLAMA_NUM_CTX = int(os.getenv("OLLAMA_NUM_CTX", "8192"))
 
 # Keep the model in memory between sequential agent calls to avoid repeated
 # cold-start loading.  Default: 10 minutes.
-OLLAMA_KEEP_ALIVE = os.getenv("OLLAMA_KEEP_ALIVE", "10m")
+OLLAMA_KEEP_ALIVE = os.getenv("OLLAMA_KEEP_ALIVE", "30m")
 
 # Number of retries for transient Ollama failures.
 OLLAMA_RETRIES = int(os.getenv("OLLAMA_RETRIES", "2"))

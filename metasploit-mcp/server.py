@@ -76,6 +76,11 @@ class MSFRPCClient:
     LOGIN_RETRIES = int(os.environ.get("MSFRPC_LOGIN_RETRIES", "15"))
     LOGIN_RETRY_DELAY = int(os.environ.get("MSFRPC_LOGIN_RETRY_DELAY", "6"))
 
+    # Cooldown (seconds) after all login retries are exhausted. Prevents
+    # every tool call from re-running the full 90s retry loop when msfrpcd
+    # is genuinely down.
+    LOGIN_COOLDOWN = int(os.environ.get("MSFRPC_LOGIN_COOLDOWN", "30"))
+
     def __init__(self) -> None:
         scheme = "https" if MSFRPC_SSL else "http"
         self.url = f"{scheme}://{MSFRPC_HOST}:{MSFRPC_PORT}/api/"
@@ -84,13 +89,33 @@ class MSFRPCClient:
             verify=False,  # msfrpcd uses self-signed certs
             timeout=EXEC_TIMEOUT,
         )
+        # Timestamp of last failed login cycle — used for cooldown
+        self._last_login_failure: float = 0.0
 
     async def login(self) -> bool:
         """Authenticate to msfrpcd using msgpack binary protocol.
 
         msfrpcd can take 30-90 seconds to fully start. This method retries
         the login attempt with a delay between attempts.
+
+        After all retries are exhausted, a cooldown period prevents
+        subsequent tool calls from immediately re-running the full retry
+        cycle (which would cause ~90s latency per failed call).
         """
+        # Cooldown: if we recently exhausted all retries, don't retry again
+        # immediately. This prevents every tool call from blocking for 90s
+        # when msfrpcd is genuinely down.
+        now = time.monotonic()
+        if self._last_login_failure > 0:
+            elapsed = now - self._last_login_failure
+            if elapsed < self.LOGIN_COOLDOWN:
+                logger.info(
+                    "Login cooldown active (%.0fs remaining). "
+                    "Skipping retry cycle — last failure was %.0fs ago.",
+                    self.LOGIN_COOLDOWN - elapsed, elapsed,
+                )
+                return False
+
         for attempt in range(1, self.LOGIN_RETRIES + 1):
             try:
                 payload = msgpack.packb(["auth.login", MSFRPC_USER, MSFRPC_PASS])
@@ -102,6 +127,7 @@ class MSFRPCClient:
                 data = msgpack.unpackb(resp.content, raw=False)
                 if data.get("result") == "success":
                     self.token = data["token"]
+                    self._last_login_failure = 0.0  # Reset cooldown on success
                     logger.info(
                         "Authenticated to msfrpcd at %s (attempt %d/%d)",
                         self.url, attempt, self.LOGIN_RETRIES,
@@ -133,6 +159,7 @@ class MSFRPCClient:
             "Verify msfrpcd is running and credentials are correct.",
             self.LOGIN_RETRIES, self.url,
         )
+        self._last_login_failure = time.monotonic()
         return False
 
     async def call(self, method: str, *args: Any) -> dict[str, Any]:
