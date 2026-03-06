@@ -360,7 +360,18 @@ class BaseAgentServer:
 
             content = response.message.content or ""
             if not content:
-                return {}
+                logger.warning(
+                    "%s: Ollama returned empty content for model %s",
+                    agent_name, agent_server.model,
+                )
+                raise HTTPException(
+                    status_code=502,
+                    detail=(
+                        f"{agent_name} received empty response from Ollama "
+                        f"(model: {agent_server.model}). The model may have "
+                        f"failed to generate output for the given input size."
+                    ),
+                )
 
             try:
                 return json.loads(content)

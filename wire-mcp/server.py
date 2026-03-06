@@ -163,7 +163,7 @@ async def read_pcap(
         "file": file_path,
         "display_filter": display_filter,
         "output": result.get("stdout", ""),
-        "errors": result.get("stderr", ""),
+        "stderr": result.get("stderr", ""),
         "exit_code": result.get("exit_code", -1),
     })
 

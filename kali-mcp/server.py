@@ -43,6 +43,9 @@ logger = logging.getLogger("kali-mcp")
 #                  msfconsole, msfvenom, msfdb
 #   Wireless:      aircrack-ng, airodump-ng, aireplay-ng, wifite, bettercap
 #   Forensics:     binwalk, foremost, exiftool, steghide, strings, hashid
+#   Shell/System:  echo, cat, ls, whoami, id, ps, grep, awk, sed, head, tail,
+#                  wc, sort, uniq, find, mkdir, cp, mv, chmod, touch, tee, cut,
+#                  env, date, uname, hostname, python3, pip
 #   Utilities:     curl, wget, netcat, socat, sshpass, proxychains4, bash
 ALLOWED_TOOLS = set(
     t.strip()
@@ -65,6 +68,10 @@ ALLOWED_TOOLS = set(
         "aircrack-ng,airodump-ng,aireplay-ng,wifite,bettercap,"
         # --- Forensics / Binary ---
         "binwalk,foremost,exiftool,steghide,strings,hashid,"
+        # --- Shell builtins & common system utilities ---
+        "echo,cat,ls,whoami,id,ps,grep,awk,sed,head,tail,wc,"
+        "sort,uniq,find,mkdir,cp,mv,chmod,touch,tee,cut,"
+        "env,date,uname,hostname,python3,pip,"
         # --- Utilities ---
         "curl,wget,netcat,socat,sshpass,proxychains4,bash",
     ).split(",")
@@ -426,7 +433,22 @@ def _parse_msf_table(output: str) -> list[dict[str, str]]:
         stripped = line.strip()
         if not stripped or re.match(r"^[\s\-=]+$", stripped):
             continue
+        # Skip indented continuation lines (target sub-entries) that
+        # msfconsole emits under multi-target modules.  These start with
+        # whitespace + backslash (\_) or have significantly more leading
+        # whitespace than a normal data row, and would corrupt the parse.
+        if line.startswith("   ") and (
+            stripped.startswith("\\_") or stripped.startswith("\\\\")
+        ):
+            continue
         parts = stripped.split(None, len(cols) - 1)
+        # Sanity check: a valid row should have a numeric index in column 0
+        # when the header starts with '#'.  Skip rows that don't match.
+        if cols and cols[0] == "#" and parts:
+            try:
+                int(parts[0])
+            except ValueError:
+                continue
         row = {}
         for j, col in enumerate(cols):
             row[col.lower()] = parts[j] if j < len(parts) else ""

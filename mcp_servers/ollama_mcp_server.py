@@ -130,7 +130,8 @@ async def _call_agent(
             if status < 500:
                 break
         except Exception as exc:
-            last_error = f"{agent_name} failed: {exc}"
+            err_detail = str(exc).strip() if str(exc).strip() else type(exc).__name__
+            last_error = f"{agent_name} failed: {err_detail}"
             logger.warning(
                 "%s (attempt %d/%d)", last_error, attempt + 1, 1 + AGENT_RETRIES,
             )
@@ -190,7 +191,9 @@ async def process_scan_results(
         t1_elapsed = time.monotonic() - t1
         logger.info("[TIMING] IngestionAgent: %.1fs", t1_elapsed)
         if not ingestion_output:
-            warnings.append("IngestionAgent returned empty output")
+            warnings.append(
+                f"IngestionAgent returned empty output after {t1_elapsed:.0f}s"
+            )
 
         # ── Agent 2: Processing ───────────────────────────────────────
         logger.info("Calling ProcessingAgent at %s …", AGENT_PROCESSING_URL)
@@ -202,7 +205,9 @@ async def process_scan_results(
         t2_elapsed = time.monotonic() - t2
         logger.info("[TIMING] ProcessingAgent: %.1fs", t2_elapsed)
         if not processing_output:
-            warnings.append("ProcessingAgent returned empty output")
+            warnings.append(
+                f"ProcessingAgent returned empty output after {t2_elapsed:.0f}s"
+            )
 
         # ── Agent 3: Synthesis ────────────────────────────────────────
         # Keys match what the synthesis agent prompt expects:
@@ -220,7 +225,10 @@ async def process_scan_results(
         t3_elapsed = time.monotonic() - t3
         logger.info("[TIMING] SynthesisAgent: %.1fs", t3_elapsed)
         if not synthesis_output:
-            warnings.append("SynthesisAgent returned empty output")
+            warnings.append(
+                f"SynthesisAgent returned empty output after {t3_elapsed:.0f}s "
+                f"(model: {OLLAMA_MODEL})"
+            )
 
     logger.info(
         "[TIMING] Pipeline total: %.1fs (ingestion=%.1fs, processing=%.1fs, synthesis=%.1fs)",

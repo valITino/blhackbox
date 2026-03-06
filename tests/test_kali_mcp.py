@@ -76,7 +76,7 @@ class TestAllowedTools:
 
     def test_dangerous_tools_excluded(self) -> None:
         """Tools that should NOT be in the allowlist."""
-        dangerous = {"rm", "dd", "mkfs", "fdisk", "shutdown", "reboot", "sh", "python3"}
+        dangerous = {"rm", "dd", "mkfs", "fdisk", "shutdown", "reboot", "sh"}
         present = dangerous & kali_server.ALLOWED_TOOLS
         assert not present, f"Dangerous tools should not be allowed: {present}"
 
