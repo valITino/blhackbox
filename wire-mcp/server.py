@@ -56,9 +56,19 @@ async def _run_tshark(args: list[str], timeout: int = 60) -> dict:
         stdout_bytes, stderr_bytes = await asyncio.wait_for(
             proc.communicate(), timeout=timeout,
         )
+        stderr_text = stderr_bytes.decode("utf-8", errors="replace")
+        # Filter tshark's "Running as user root" warning — it appears on
+        # every invocation inside Docker and pollutes output without being
+        # actionable.
+        stderr_lines = [
+            line for line in stderr_text.splitlines()
+            if "running as user" not in line.lower()
+            and "this could be dangerous" not in line.lower()
+        ]
+        stderr_text = "\n".join(stderr_lines).strip()
         return {
             "stdout": stdout_bytes.decode("utf-8", errors="replace"),
-            "stderr": stderr_bytes.decode("utf-8", errors="replace"),
+            "stderr": stderr_text,
             "exit_code": proc.returncode or 0,
         }
     except TimeoutError:

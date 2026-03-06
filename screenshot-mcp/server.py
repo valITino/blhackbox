@@ -22,6 +22,7 @@ import os
 import time
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 
@@ -207,7 +208,31 @@ async def take_screenshot(
 
         except Exception as exc:
             logger.exception("Screenshot failed for %s", url)
-            return json.dumps({"error": str(exc), "url": url})
+            error_msg = str(exc)
+            error_type = "unknown"
+            hint = ""
+
+            if "ERR_NAME_NOT_RESOLVED" in error_msg:
+                error_type = "dns_resolution_failed"
+                hint = "The hostname could not be resolved. Check the URL spelling or DNS configuration."
+            elif "ERR_CONNECTION_REFUSED" in error_msg:
+                error_type = "connection_refused"
+                hint = (
+                    "Connection refused — the server is not listening on that port. "
+                    "If targeting another container, use the Docker service name "
+                    "(e.g. http://kali-mcp:9001) instead of localhost."
+                )
+            elif "ERR_CONNECTION_TIMED_OUT" in error_msg or "Timeout" in error_msg:
+                error_type = "timeout"
+                hint = "The connection timed out. The server may be slow or unreachable."
+            elif "ERR_SSL" in error_msg or "ERR_CERT" in error_msg:
+                error_type = "ssl_error"
+                hint = "SSL/TLS error. The page uses ignore_https_errors but the issue may be deeper."
+
+            result: dict[str, Any] = {"error": error_msg, "url": url, "error_type": error_type}
+            if hint:
+                result["hint"] = hint
+            return json.dumps(result)
 
 
 @mcp.tool()
@@ -292,7 +317,30 @@ async def take_element_screenshot(
 
         except Exception as exc:
             logger.exception("Element screenshot failed for %s [%s]", url, selector)
-            return json.dumps({"error": str(exc), "url": url, "selector": selector})
+            error_msg = str(exc)
+            error_type = "unknown"
+            hint = ""
+
+            if "ERR_NAME_NOT_RESOLVED" in error_msg:
+                error_type = "dns_resolution_failed"
+                hint = "The hostname could not be resolved."
+            elif "ERR_CONNECTION_REFUSED" in error_msg:
+                error_type = "connection_refused"
+                hint = (
+                    "Connection refused. If targeting another container, use the "
+                    "Docker service name instead of localhost."
+                )
+            elif "ERR_CONNECTION_TIMED_OUT" in error_msg or "Timeout" in error_msg:
+                error_type = "timeout"
+                hint = "The connection timed out."
+
+            result: dict[str, Any] = {
+                "error": error_msg, "url": url, "selector": selector,
+                "error_type": error_type,
+            }
+            if hint:
+                result["hint"] = hint
+            return json.dumps(result)
 
 
 @mcp.tool()

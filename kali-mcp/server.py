@@ -437,8 +437,13 @@ def _parse_msf_table(output: str) -> list[dict[str, str]]:
         # msfconsole emits under multi-target modules.  These start with
         # whitespace + backslash (\_) or have significantly more leading
         # whitespace than a normal data row, and would corrupt the parse.
+        # Also catch tree-drawing characters like └─ and ├─.
         if line.startswith("   ") and (
-            stripped.startswith("\\_") or stripped.startswith("\\\\")
+            stripped.startswith("\\_")
+            or stripped.startswith("\\\\")
+            or stripped.startswith("|_")
+            or stripped.startswith("└")
+            or stripped.startswith("├")
         ):
             continue
         parts = stripped.split(None, len(cols) - 1)
@@ -449,6 +454,9 @@ def _parse_msf_table(output: str) -> list[dict[str, str]]:
                 int(parts[0])
             except ValueError:
                 continue
+        # Skip rows with too few fields — likely truncated or malformed
+        if len(parts) < max(2, len(cols) // 2):
+            continue
         row = {}
         for j, col in enumerate(cols):
             row[col.lower()] = parts[j] if j < len(parts) else ""
@@ -710,7 +718,9 @@ async def msf_status() -> str:
         )
         return json.dumps(status, indent=2)
 
-    # Get version
+    # Get version — try --version first, fall back to `msfconsole -qx "version"`
+    # which reliably outputs e.g. "Framework Version: 6.4.112-dev".
+    version_str = ""
     try:
         proc = await asyncio.create_subprocess_exec(
             "msfconsole", "--version",
@@ -718,9 +728,30 @@ async def msf_status() -> str:
             stderr=asyncio.subprocess.PIPE,
         )
         stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=15)
-        status["version"] = stdout.decode("utf-8", errors="replace").strip()
+        version_str = stdout.decode("utf-8", errors="replace").strip()
     except Exception:
-        status["version"] = "unknown"
+        pass
+
+    if not version_str:
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                "msfconsole", "-qx", "version; exit",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=60)
+            raw = stdout.decode("utf-8", errors="replace").strip()
+            # Parse "Framework Version: 6.4.112-dev" or similar lines
+            for line in raw.splitlines():
+                if "version" in line.lower():
+                    version_str = line.strip()
+                    break
+            if not version_str:
+                version_str = raw.splitlines()[0] if raw else "unknown"
+        except Exception:
+            version_str = "unknown"
+
+    status["version"] = version_str
 
     # Check database status
     try:
