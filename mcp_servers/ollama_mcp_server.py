@@ -64,8 +64,10 @@ AGENT_SYNTHESIS_URL = os.environ.get(
 )
 
 # HTTP timeout for agent calls — must exceed the agent's own Ollama timeout
-# (default 300 s) plus overhead.  360 s gives a comfortable margin.
-AGENT_TIMEOUT = float(os.environ.get("AGENT_TIMEOUT", "360"))
+# (default 300s) multiplied by max attempts (1 + OLLAMA_RETRIES=2 = 3).
+# With OLLAMA_TIMEOUT=300s and 3 attempts, agents can take up to ~900s
+# internally.  Default 1200s provides margin for backoff and overhead.
+AGENT_TIMEOUT = float(os.environ.get("AGENT_TIMEOUT", "1200"))
 
 # Number of retries for transient agent failures (502, 503, connection errors).
 AGENT_RETRIES = int(os.environ.get("AGENT_RETRIES", "2"))
@@ -240,6 +242,7 @@ async def process_scan_results(
     # ── Assemble AggregatedPayload ────────────────────────────────────
     findings = _build_findings(
         synthesis_output, processing_output, ingestion_output, warnings,
+        target=target,
     )
     error_log = _build_error_log(synthesis_output, processing_output)
 
@@ -294,6 +297,8 @@ def _build_findings(
     processing_output: dict[str, Any],
     ingestion_output: dict[str, Any],
     warnings: list[str],
+    *,
+    target: str = "",
 ) -> Findings:
     """Build Findings from agent outputs, preferring synthesis > processing > ingestion."""
     findings_data = synthesis_output.get("findings", {})
@@ -306,12 +311,12 @@ def _build_findings(
         return Findings()
 
     try:
-        return Findings(**findings_data)
+        findings = Findings(**findings_data)
     except Exception as exc:
         logger.warning("Could not parse findings data: %s", exc)
         warnings.append(f"Findings parse failed: {exc}")
         try:
-            return Findings(
+            findings = Findings(
                 hosts=findings_data.get("hosts", []),
                 ports=findings_data.get("ports", []),
                 services=findings_data.get("services", []),
@@ -327,6 +332,16 @@ def _build_findings(
             )
         except Exception:
             return Findings()
+
+    # Fallback: if host entries have empty IP, fill from the target parameter.
+    # The ingestion agent sometimes fails to extract the IP from tool output
+    # even when the target was explicitly provided.
+    if target:
+        for host in findings.hosts:
+            if not host.ip:
+                host.ip = target
+
+    return findings
 
 
 def _build_error_log(
