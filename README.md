@@ -28,13 +28,13 @@
 - [How Prompts Flow Through the System](#how-prompts-flow-through-the-system)
 - [Do I Need the MCP Gateway?](#do-i-need-the-mcp-gateway)
 - [Portainer Setup](#portainer-setup)
-- [Ollama Preprocessing Pipeline](#ollama-mcp-server--preprocessing-pipeline)
+- [Ollama Preprocessing Pipeline (Optional)](#ollama-preprocessing-pipeline-optional)
 - [Troubleshooting](#troubleshooting)
 - [CLI Reference](#cli-reference)
 - [Makefile Shortcuts](#makefile-shortcuts)
 - [Docker Hub Images](#docker-hub-images)
 - [Neo4j (Optional)](#neo4j-optional)
-- [GPU Support for Ollama](#gpu-support-for-ollama)
+- [GPU Support for Ollama (Optional)](#gpu-support-for-ollama-optional)
 - [Security Notes](#security-notes)
 - [Project Structure](#project-structure)
 - [License](#license)
@@ -48,11 +48,10 @@ internal LangGraph orchestrator or LLM planner. Here is what happens when you
 type a prompt:
 
 1. **You type a prompt** in your AI client (Claude Code, Claude Desktop, or ChatGPT).
-2. **The AI decides which tools to call** from four MCP servers: Kali Linux MCP (70+ security tools including Metasploit), WireMCP (7 packet analysis tools), Screenshot MCP (4 evidence capture tools), and the Ollama preprocessing pipeline.
+2. **The AI decides which tools to call** from three MCP servers: Kali Linux MCP (70+ security tools including Metasploit), WireMCP (7 packet analysis tools), and Screenshot MCP (4 evidence capture tools).
 3. **Each MCP server executes the tool call** in its Docker container and returns raw output to the AI.
-4. **The AI collects all raw outputs** and sends them to the Ollama MCP server via `process_scan_results()`.
-5. **Ollama preprocesses the data** through 3 agent containers in sequence (Ingestion -> Processing -> Synthesis), each calling the local Ollama LLM independently.
-6. **The structured `AggregatedPayload` returns to the AI**, which writes the final pentest report.
+4. **The AI structures the results itself** — parsing, deduplicating, correlating, and building an `AggregatedPayload` directly.
+5. **The AI validates and persists** the payload via `aggregate_results()`, then writes the final pentest report.
 
 Everything runs inside Docker containers. No tools are installed on your host machine.
 
@@ -87,27 +86,14 @@ CLAUDE CODE (Docker container on blhackbox_net)
   |                                            4 tools: web page screenshots,
   |                                            element capture, annotations
   |
-  |--- ollama-pipeline (SSE, port 9000) ───>  OLLAMA MCP SERVER
-                                               |
-                                               |  Calls 3 agents in sequence:
-                                               |
-                                               |---> INGESTION  (port 8001)
-                                               |     Calls Ollama -> structured data
-                                               |
-                                               |---> PROCESSING (port 8002)
-                                               |     Calls Ollama -> deduplicated
-                                               |
-                                               |---> SYNTHESIS  (port 8003)
-                                                     Calls Ollama -> AggregatedPayload
-                                               |
-                                               v
-                                         AggregatedPayload -> back to Claude Code
-                                               |
-                                               v
-                                         AI writes final pentest report
-                                               |
-                                               v (optional)
-                                             NEO4J — cross-session memory
+  |  After collecting raw outputs, Claude structures them directly:
+  |    get_payload_schema() → parse/dedup/correlate → aggregate_results()
+  |
+  v
+AggregatedPayload → generate_report() → final pentest report
+  |
+  v (optional)
+NEO4J — cross-session memory
 
 PORTAINER (https://localhost:9443) — Web UI for all containers
 ```
@@ -125,24 +111,24 @@ aggregates all servers behind `localhost:8080/mcp`. See
 | **Kali MCP** | Kali Linux security tools + Metasploit Framework — 70+ tools (nmap, sqlmap, hydra, msfconsole, msfvenom, etc.) | 9001 | default |
 | **WireMCP** | Wireshark/tshark — 7 packet capture and analysis tools | 9003 | default |
 | **Screenshot MCP** | Headless Chromium — 4 screenshot and annotation tools | 9004 | default |
-| **Ollama MCP** | Thin orchestrator — calls 3 agent containers in sequence | 9000 | default |
-| **Agent: Ingestion** | Parses raw tool output into structured typed data | 8001 | default |
-| **Agent: Processing** | Deduplicates, compresses, annotates errors | 8002 | default |
-| **Agent: Synthesis** | Merges into final `AggregatedPayload` | 8003 | default |
-| **Ollama** | Local LLM inference backend (llama3.1:8b by default) | 11434 | default |
 | **Portainer** | Web UI for managing all containers | 9443 | default |
 | **Claude Code** | Anthropic CLI MCP client in Docker | — | `claude-code` |
 | **MCP Gateway** | Single entry point for host-based MCP clients | 8080 | `gateway` |
 | **Neo4j** | Cross-session knowledge graph | 7474/7687 | `neo4j` |
+| **Ollama MCP** | Legacy thin orchestrator — calls 3 agent containers | 9000 | `ollama` |
+| **Agent: Ingestion** | Parses raw tool output into structured typed data | 8001 | `ollama` |
+| **Agent: Processing** | Deduplicates, compresses, annotates errors | 8002 | `ollama` |
+| **Agent: Synthesis** | Merges into final `AggregatedPayload` | 8003 | `ollama` |
+| **Ollama** | Local LLM inference backend (llama3.1:8b by default) | 11434 | `ollama` |
 
 ---
 
 ## Prerequisites
 
 - **Docker** and **Docker Compose** (Docker Engine on Linux, or Docker Desktop)
-- At least **16 GB RAM** recommended (Ollama + all containers). The default model (`llama3.1:8b`) requires ~8 GB; larger models need more.
+- At least **8 GB RAM** recommended (4 containers in the core stack). If using the optional Ollama pipeline (`--profile ollama`), 16 GB+ is recommended.
 - An **Anthropic API key** from [console.anthropic.com](https://console.anthropic.com) (**required** for Claude Code)
-- **NVIDIA Container Toolkit** (optional — for GPU-accelerated Ollama inference. See [GPU Support](#gpu-support-for-ollama))
+- **NVIDIA Container Toolkit** (optional — only needed if using `--profile ollama` with GPU. See [GPU Support](#gpu-support-for-ollama))
 
 ---
 
@@ -161,15 +147,9 @@ cp .env.example .env
 
 # 3. Pull all pre-built Docker images
 docker compose pull
-# NOTE: The ollama image is built locally — this is normal.
-# Docker Compose will build it automatically in the next step.
 
-# 4. Start the core stack (9 containers)
+# 4. Start the core stack (4 containers)
 docker compose up -d
-
-# 5. Download the Ollama model (required — runs inside the container)
-make ollama-pull
-# This pulls llama3.1:8b (~4.7 GB download). First run may take several minutes.
 ```
 
 **Verify everything is running:**
@@ -179,16 +159,14 @@ make status     # Container status
 make health     # Quick health check of all MCP servers
 ```
 
-You should see 9 containers, all "Up" or "healthy":
+You should see 4 containers, all "Up" or "healthy":
 - `blhackbox-kali-mcp`
 - `blhackbox-wire-mcp`
 - `blhackbox-screenshot-mcp`
-- `blhackbox-ollama-mcp`
-- `blhackbox-agent-ingestion`
-- `blhackbox-agent-processing`
-- `blhackbox-agent-synthesis`
-- `blhackbox-ollama`
 - `blhackbox-portainer`
+
+> **Want local-only processing?** Use `make up-ollama` to also start the
+> Ollama pipeline (adds 5 more containers, requires 16 GB+ RAM).
 
 > **First time?** Open Portainer at `https://localhost:9443` and create an admin
 > account within 5 minutes. See [Portainer Setup](#portainer-setup).
@@ -204,7 +182,7 @@ no MCP Gateway, no host install, no Node.js.
 ### Step 1: Start the stack
 
 Follow [Installation](#installation) above. Make sure `ANTHROPIC_API_KEY` is
-set in your `.env` file. All 9 containers must be healthy (`make health`).
+set in your `.env` file. All core containers must be healthy (`make health`).
 
 ### Step 2: Launch Claude Code
 
@@ -232,16 +210,19 @@ Checking service connectivity...
   Kali MCP               [ OK ]
   WireMCP                [ OK ]
   Screenshot MCP         [ OK ]
-  Ollama Pipeline        [ OK ]
+  Ollama Pipeline        [ WARN ]  (optional — not running)
 
 ──────────────────────────────────────────────────
-  All 4 services connected.
+  All 3 services connected.
 
   MCP servers (connected via SSE):
     kali            Kali Linux security tools + Metasploit (70+ tools)
     wireshark       WireMCP — tshark packet capture & analysis
     screenshot      Screenshot MCP — headless Chromium evidence capture
-    ollama-pipeline Ollama preprocessing (3-agent pipeline)
+
+  Data aggregation:
+    You (Claude) handle parsing, deduplication, and synthesis directly.
+    Use get_payload_schema + aggregate_results to validate & persist.
 
   Quick start:
     /mcp              Check MCP server status
@@ -257,8 +238,8 @@ You are now inside an interactive Claude Code session.
 /mcp
 ```
 
-You should see the MCP servers listed: `kali`, `wireshark`,
-`screenshot`, and `ollama-pipeline`, each with their available tools.
+You should see the MCP servers listed: `kali`, `wireshark`, and
+`screenshot`, each with their available tools.
 
 ### Step 4: Run your first pentest
 
@@ -270,8 +251,8 @@ Claude Code will autonomously:
 1. Call Kali tools (nmap, subfinder, nikto, etc.)
 2. Search for exploits using Metasploit (`msf_search`)
 3. Collect raw outputs from all tools
-4. Send them to the Ollama preprocessing pipeline
-5. Write a structured pentest report
+4. Structure, deduplicate, and correlate findings into an `AggregatedPayload`
+5. Validate via `aggregate_results()` and write a structured pentest report
 
 ### Monitoring (separate terminal)
 
@@ -279,9 +260,6 @@ Claude Code will autonomously:
 make logs-kali             # Kali MCP server activity (includes Metasploit)
 make logs-wireshark        # WireMCP activity
 make logs-screenshot       # Screenshot MCP activity
-make logs-ollama-mcp       # Ollama MCP server activity
-make logs-agent-ingestion  # Ingestion Agent processing
-make logs-agent-synthesis  # Synthesis Agent building payload
 ```
 
 Or use **Portainer** at `https://localhost:9443` to see all container logs and
@@ -308,8 +286,8 @@ configures itself automatically.
 3. Type your prompt: `Scan example.com for open ports and web vulnerabilities`
 
 > **Note:** The web session uses the blhackbox stdio MCP server directly
-> (not the Docker stack). For the full Docker pipeline with Kali tools,
-> Metasploit, and Ollama preprocessing, use [Tutorial 1](#tutorial-1-claude-code-docker--recommended).
+> (not the Docker stack). For the full Docker stack with Kali tools and
+> Metasploit, use [Tutorial 1](#tutorial-1-claude-code-docker--recommended).
 
 ---
 
@@ -353,7 +331,7 @@ Restart Claude Desktop. You should see a hammer icon with available tools.
 ### Step 3: Run a pentest
 
 Type your prompt in Claude Desktop. The flow is identical to Tutorial 1 — the
-gateway routes tool calls to the same MCP servers (kali, wireshark, screenshot, ollama).
+gateway routes tool calls to the same MCP servers (kali, wireshark, screenshot).
 
 ---
 
@@ -402,23 +380,15 @@ STEP 3: TOOLS EXECUTE IN DOCKER CONTAINERS
   Each tool runs in its container and returns raw text.
         |
         v
-STEP 4: AI SENDS RAW OUTPUTS TO OLLAMA FOR PROCESSING
-  After collecting all raw outputs, the AI calls:
-    process_scan_results(raw_outputs)
-  on the Ollama MCP Server.
+STEP 4: AI STRUCTURES THE RESULTS ITSELF
+  The AI (Claude/ChatGPT) parses, deduplicates, correlates, and
+  structures all raw outputs into an AggregatedPayload directly.
+  No external pipeline needed — the MCP host is the brain.
         |
         v
-STEP 5: OLLAMA PIPELINE (3 AGENTS IN SEQUENCE)
-  Agent 1: INGESTION (port 8001)
-    Calls Ollama -> structured typed data
-        |
-        v
-  Agent 2: PROCESSING (port 8002)
-    Calls Ollama -> deduplicated + compressed
-        |
-        v
-  Agent 3: SYNTHESIS (port 8003)
-    Calls Ollama -> final AggregatedPayload
+STEP 5: AI VALIDATES AND PERSISTS
+  The AI calls aggregate_results(payload=...) to validate the
+  AggregatedPayload against the Pydantic schema and save it.
         |
         v
 STEP 6: AI WRITES THE FINAL REPORT
@@ -441,7 +411,7 @@ STEP 7 (OPTIONAL): RESULTS STORED IN NEO4J
 | **ChatGPT / OpenAI** | **Yes** | GUI/web app on host; needs `localhost:8080/mcp` gateway |
 
 The MCP Gateway (`docker/mcp-gateway:latest`) aggregates all MCP servers
-(kali, wireshark, screenshot, ollama) behind a single Streamable
+(kali, wireshark, screenshot) behind a single Streamable
 HTTP endpoint at `localhost:8080/mcp`. It requires:
 - Docker socket mount (`/var/run/docker.sock`)
 - The `--profile gateway` flag to enable
@@ -487,7 +457,13 @@ Then open `https://localhost:9443` again and create your account.
 
 ---
 
-## Ollama MCP Server — Preprocessing Pipeline
+## Ollama Preprocessing Pipeline (Optional)
+
+> **Since v2.1, the MCP host (Claude) handles data aggregation directly.**
+> The Ollama pipeline is kept as an optional fallback for local-only / offline
+> processing where you don't want to use the MCP host's intelligence.
+
+Enable with: `docker compose --profile ollama up -d` (or `make up-ollama`).
 
 The Ollama MCP Server is a thin orchestrator built with
 [FastMCP](https://github.com/modelcontextprotocol/python-sdk) that calls 3
@@ -521,7 +497,6 @@ If a service shows `FAIL`, restart it:
 
 ```bash
 docker compose restart kali-mcp        # restart one service
-make restart-agents                    # restart all 3 agents
 ```
 
 ### Metasploit tools are slow or fail
@@ -545,7 +520,7 @@ missed it, restart:
 docker compose restart portainer
 ```
 
-### Ollama model not pulled
+### Ollama model not pulled (only if using --profile ollama)
 
 The agents need a model loaded in Ollama. Without it, the preprocessing pipeline
 returns empty results:
@@ -563,6 +538,9 @@ OLLAMA_MODEL=llama3.2:3b
 # Then re-pull:
 make ollama-pull
 ```
+
+> **Note:** If you're not using `--profile ollama`, you don't need to pull any
+> model. The MCP host (Claude) handles aggregation directly.
 
 ### MCP Gateway doesn't start
 
@@ -589,9 +567,9 @@ docker compose logs <service-name>     # e.g., kali-mcp, ollama-mcp
 ```
 
 Common causes:
-- Missing Ollama model (agents can't start processing)
 - Port conflict on the host
-- Insufficient memory (increase to 16GB+)
+- Insufficient memory
+- Missing Ollama model (only if using `--profile ollama`)
 
 ---
 
@@ -626,26 +604,27 @@ blhackbox mcp
 ```bash
 make help                  # Show all available targets
 make pull                  # Pull all pre-built images from Docker Hub
-make up                    # Start core stack (9 containers)
-make up-full               # Start with Neo4j (10 containers)
-make up-gateway            # Start with MCP Gateway for Claude Desktop (10 containers)
+make up                    # Start core stack (4 containers)
+make up-ollama             # Start with Ollama pipeline (9 containers, legacy)
+make up-full               # Start with Neo4j (5 containers)
+make up-gateway            # Start with MCP Gateway for Claude Desktop (5 containers)
 make down                  # Stop all services
 make claude-code           # Build and launch Claude Code in Docker
 make status                # Container status table
-make health                # Quick health check of all MCP servers
+make health                # Quick health check of all services
 make test                  # Run tests
 make lint                  # Run linter
-make ollama-pull           # Pull Ollama model
+make ollama-pull           # Pull Ollama model (only if using --profile ollama)
 make portainer             # Open Portainer dashboard (shows setup instructions)
 make gateway-logs          # Live MCP Gateway logs (requires --profile gateway)
-make restart-agents        # Restart all 3 agent containers
+make restart-agents        # Restart all 3 agent containers (requires --profile ollama)
 make logs-kali             # Tail Kali MCP logs (includes Metasploit)
 make logs-wireshark        # Tail WireMCP logs
 make logs-screenshot       # Tail Screenshot MCP logs
-make logs-ollama-mcp       # Tail Ollama MCP logs
-make logs-agent-ingestion  # Tail Ingestion Agent logs
-make logs-agent-processing # Tail Processing Agent logs
-make logs-agent-synthesis  # Tail Synthesis Agent logs
+make logs-ollama-mcp       # Tail Ollama MCP logs (requires --profile ollama)
+make logs-agent-ingestion  # Tail Ingestion Agent logs (requires --profile ollama)
+make logs-agent-processing # Tail Processing Agent logs (requires --profile ollama)
+make logs-agent-synthesis  # Tail Synthesis Agent logs (requires --profile ollama)
 make push-all              # Build and push all images to Docker Hub
 ```
 
@@ -672,14 +651,14 @@ All custom images are published to `crhacky/blhackbox`:
 | `crhacky/blhackbox:kali-mcp` | Kali Linux MCP Server (70+ tools + Metasploit Framework) |
 | `crhacky/blhackbox:wire-mcp` | WireMCP Server (tshark, 7 tools) |
 | `crhacky/blhackbox:screenshot-mcp` | Screenshot MCP Server (headless Chromium, 4 tools) |
-| `crhacky/blhackbox:ollama-mcp` | Ollama MCP Server (thin orchestrator) |
-| `crhacky/blhackbox:agent-ingestion` | Agent 1: Ingestion |
-| `crhacky/blhackbox:agent-processing` | Agent 2: Processing |
-| `crhacky/blhackbox:agent-synthesis` | Agent 3: Synthesis |
 | `crhacky/blhackbox:claude-code` | Claude Code CLI client (direct SSE to MCP servers) |
+| `crhacky/blhackbox:ollama-mcp` | Ollama MCP Server — optional, `--profile ollama` |
+| `crhacky/blhackbox:agent-ingestion` | Agent 1: Ingestion — optional, `--profile ollama` |
+| `crhacky/blhackbox:agent-processing` | Agent 2: Processing — optional, `--profile ollama` |
+| `crhacky/blhackbox:agent-synthesis` | Agent 3: Synthesis — optional, `--profile ollama` |
 
 Custom-built locally (no pre-built image on Docker Hub):
-- `crhacky/blhackbox:ollama` (wraps `ollama/ollama:latest` with auto-pull entrypoint)
+- `crhacky/blhackbox:ollama` (wraps `ollama/ollama:latest` with auto-pull entrypoint — optional, `--profile ollama`)
 
 Official images pulled directly:
 - `portainer/portainer-ce:latest`
@@ -701,7 +680,10 @@ Useful for recurring engagements against the same targets.
 
 ---
 
-## GPU Support for Ollama
+## GPU Support for Ollama (Optional)
+
+> **Only relevant if using `--profile ollama`.** The default stack does not
+> use Ollama — the MCP host handles aggregation directly.
 
 GPU acceleration is **disabled by default** in `docker-compose.yml` for broad
 compatibility. Ollama runs on CPU out of the box.
@@ -733,8 +715,8 @@ inference for the preprocessing pipeline.
   ports 8080 or 9443 to the public internet.
 - **Authorization**: Ensure you have written permission before scanning any target.
 - **Neo4j**: Set a strong password in `.env`. Never use defaults in production.
-- **Agent containers**: Communicate only on the internal `blhackbox_net` Docker
-  network. No ports are exposed to the host.
+- **Agent containers** (optional Ollama pipeline): Communicate only on the
+  internal `blhackbox_net` Docker network. No ports are exposed to the host.
 - **Portainer**: Uses HTTPS with a self-signed certificate. Create a strong
   admin password on first run.
 
@@ -753,11 +735,11 @@ blhackbox/
 │   ├── kali-mcp.Dockerfile          # Kali Linux + Metasploit Framework
 │   ├── wire-mcp.Dockerfile
 │   ├── screenshot-mcp.Dockerfile
-│   ├── ollama.Dockerfile
-│   ├── ollama-mcp.Dockerfile
-│   ├── agent-ingestion.Dockerfile
-│   ├── agent-processing.Dockerfile
-│   ├── agent-synthesis.Dockerfile
+│   ├── ollama.Dockerfile             # optional (--profile ollama)
+│   ├── ollama-mcp.Dockerfile         # optional (--profile ollama)
+│   ├── agent-ingestion.Dockerfile    # optional (--profile ollama)
+│   ├── agent-processing.Dockerfile   # optional (--profile ollama)
+│   ├── agent-synthesis.Dockerfile    # optional (--profile ollama)
 │   ├── claude-code.Dockerfile       # MCP client container
 │   └── claude-code-entrypoint.sh    # Startup script with health checks
 ├── kali-mcp/                        # Kali MCP server (70+ tools + Metasploit)
@@ -765,7 +747,7 @@ blhackbox/
 ├── screenshot-mcp/                  # Screenshot MCP server (Playwright, 4 tools)
 ├── metasploit-mcp/                  # [DEPRECATED] Standalone MSF RPC server (kept for reference)
 ├── mcp_servers/
-│   └── ollama_mcp_server.py         # thin MCP orchestrator
+│   └── ollama_mcp_server.py         # thin MCP orchestrator (optional)
 ├── blhackbox/
 │   ├── mcp/
 │   │   └── server.py               # blhackbox MCP server (stdio)

@@ -2,17 +2,27 @@
 #
 # Usage:
 #   docker compose pull                          Pull all pre-built images
-#   docker compose up -d                         Start core stack (9 containers)
-#   docker compose --profile gateway up -d       Start with MCP Gateway (10 containers)
+#   docker compose up -d                         Start core stack (4 containers)
+#   docker compose --profile ollama up -d        Start with Ollama pipeline (9 containers, legacy)
+#   docker compose --profile gateway up -d       Start with MCP Gateway
 #   docker compose --profile claude-code up -d   Start with Claude Code container
 #   docker compose --profile neo4j up -d         Start with Neo4j
 #   docker compose build                         Build all custom images locally
 #
-# MCP servers:
+# MCP servers (core — always started):
 #   kali-mcp         (FastMCP SSE, port 9001) — Kali Linux security tools (70+) + Metasploit Framework
 #   wire-mcp         (FastMCP SSE, port 9003) — Wireshark/tshark (7 tools)
 #   screenshot-mcp   (FastMCP SSE, port 9004) — Headless Chromium screenshots (4 tools)
-#   ollama-mcp       (FastMCP SSE, port 9000) — Ollama preprocessing pipeline
+#
+# Optional (--profile ollama):
+#   ollama-mcp       (FastMCP SSE, port 9000) — Ollama preprocessing pipeline (legacy)
+#   agent-ingestion, agent-processing, agent-synthesis, ollama
+#
+# The MCP host (Claude Code, Claude Desktop, ChatGPT) now handles data
+# aggregation directly — it parses raw tool outputs, deduplicates, and
+# structures them into an AggregatedPayload, then validates via the
+# aggregate_results tool.  The Ollama pipeline is kept as an optional
+# fallback for local-only / offline processing.
 #
 # Claude Code (Docker) connects directly to MCP servers via SSE.
 # Claude Desktop / ChatGPT connect via the MCP Gateway (--profile gateway).
@@ -64,7 +74,7 @@ services:
       - --transport=streaming
       - --port=8080
       - --catalog=/catalog.yaml
-      - --servers=kali-mcp,wire-mcp,screenshot-mcp,ollama-mcp
+      - --servers=kali-mcp,wire-mcp,screenshot-mcp
       - --log-calls
     networks:
       - blhackbox_net
@@ -74,8 +84,6 @@ services:
       wire-mcp:
         condition: service_healthy
       screenshot-mcp:
-        condition: service_healthy
-      ollama-mcp:
         condition: service_healthy
 
   # -- KALI MCP SERVER -------------------------------------------------------
@@ -184,17 +192,21 @@ services:
     networks:
       - blhackbox_net
 
-  # -- OLLAMA MCP SERVER (CUSTOM) --------------------------------------------
+  # -- OLLAMA MCP SERVER (OPTIONAL — LEGACY) ----------------------------------
   # blhackbox custom component. NOT an official Ollama product.
   # Thin MCP orchestrator -- calls the 3 agent containers in sequence
   # via HTTP, assembles the AggregatedPayload, and returns it to Claude.
-  # Does NOT call Ollama directly.
+  #
+  # OPTIONAL since v2.1: The MCP host (Claude) now handles aggregation
+  # directly via the aggregate_results tool, which is faster and more
+  # accurate.  Enable this pipeline with: docker compose --profile ollama up -d
   ollama-mcp:
     image: crhacky/blhackbox:ollama-mcp
     build:
       context: .
       dockerfile: docker/ollama-mcp.Dockerfile
     container_name: blhackbox-ollama-mcp
+    profiles: ["ollama"]
     restart: unless-stopped
     init: true
     healthcheck:
@@ -224,15 +236,17 @@ services:
     networks:
       - blhackbox_net
 
-  # -- AGENT 1: INGESTION ---------------------------------------------------
+  # -- AGENT 1: INGESTION (OPTIONAL — LEGACY) --------------------------------
   # Parses and structures raw Kali tool output.
   # Calls Ollama /api/chat with ingestion system prompt.
+  # Enable with: docker compose --profile ollama up -d
   agent-ingestion:
     image: crhacky/blhackbox:agent-ingestion
     build:
       context: .
       dockerfile: docker/agent-ingestion.Dockerfile
     container_name: blhackbox-agent-ingestion
+    profiles: ["ollama"]
     restart: unless-stopped
     environment:
       OLLAMA_HOST: "http://ollama:11434"
@@ -252,15 +266,17 @@ services:
     networks:
       - blhackbox_net
 
-  # -- AGENT 2: PROCESSING --------------------------------------------------
+  # -- AGENT 2: PROCESSING (OPTIONAL — LEGACY) --------------------------------
   # Deduplicates, extracts errors, compresses data into efficient blobs.
   # Annotates error_log entries with security_relevance.
+  # Enable with: docker compose --profile ollama up -d
   agent-processing:
     image: crhacky/blhackbox:agent-processing
     build:
       context: .
       dockerfile: docker/agent-processing.Dockerfile
     container_name: blhackbox-agent-processing
+    profiles: ["ollama"]
     restart: unless-stopped
     environment:
       OLLAMA_HOST: "http://ollama:11434"
@@ -280,15 +296,17 @@ services:
     networks:
       - blhackbox_net
 
-  # -- AGENT 3: SYNTHESIS ----------------------------------------------------
+  # -- AGENT 3: SYNTHESIS (OPTIONAL — LEGACY) --------------------------------
   # Merges Agent 1 + Agent 2 output into final AggregatedPayload.
   # Adds metadata, resolves conflicts, sends back to Claude.
+  # Enable with: docker compose --profile ollama up -d
   agent-synthesis:
     image: crhacky/blhackbox:agent-synthesis
     build:
       context: .
       dockerfile: docker/agent-synthesis.Dockerfile
     container_name: blhackbox-agent-synthesis
+    profiles: ["ollama"]
     restart: unless-stopped
     environment:
       OLLAMA_HOST: "http://ollama:11434"
@@ -308,16 +326,18 @@ services:
     networks:
       - blhackbox_net
 
-  # -- OLLAMA ----------------------------------------------------------------
+  # -- OLLAMA (OPTIONAL — LEGACY) -------------------------------------------
   # Custom entrypoint that auto-pulls and warms up the configured model on
   # startup, eliminating cold-start delays (~17 min → seconds on subsequent
   # requests).  All 3 agent containers call this via /api/chat independently.
+  # Enable with: docker compose --profile ollama up -d
   ollama:
     image: crhacky/blhackbox:ollama
     build:
       context: .
       dockerfile: docker/ollama.Dockerfile
     container_name: blhackbox-ollama
+    profiles: ["ollama"]
     restart: unless-stopped
     environment:
       OLLAMA_MODEL: "${OLLAMA_MODEL:-llama3.1:8b}"
@@ -415,8 +435,6 @@ services:
       wire-mcp:
         condition: service_healthy
       screenshot-mcp:
-        condition: service_healthy
-      ollama-mcp:
         condition: service_healthy
     networks:
       - blhackbox_net

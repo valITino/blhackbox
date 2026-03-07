@@ -4,8 +4,8 @@ These templates provide structured workflows for autonomous penetration tests
 through the blhackbox framework. Each template describes **what** needs to be
 done in each phase — the MCP host decides **which** tools and servers to use.
 
-All raw outputs must pass through the **Ollama MCP preprocessing pipeline**
-(Ingestion → Processing → Synthesis) before the final report is generated.
+All raw outputs must be structured into an `AggregatedPayload` by the MCP host
+before the final report is generated.
 
 ## Available Templates
 

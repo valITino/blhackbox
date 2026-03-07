@@ -8,10 +8,16 @@ you will need them in Phase 4.
 
 ## Available Resources
 
-You have access to multiple MCP servers and APIs providing a wide range of
-security capabilities — network scanning, DNS enumeration, web vulnerability
-testing, exploit lifecycle management, packet capture and traffic analysis,
-AI-augmented security agents, and an AI preprocessing pipeline.
+You have access to multiple MCP servers providing a wide range of security
+capabilities — network scanning, DNS enumeration, web vulnerability testing,
+exploit lifecycle management, packet capture and traffic analysis, and
+evidence capture via headless Chromium screenshots.
+
+**You are the orchestrator.** You decide which tools to call, collect the raw
+outputs, then parse, deduplicate, correlate, and structure them into an
+`AggregatedPayload` yourself. Use `get_payload_schema` to see the expected
+format, then `aggregate_results` to validate and persist your structured
+payload for report generation.
 
 > Query each server's tool listing at the start of every engagement to discover
 > which tools and capabilities are available. Choose the best tool for each task
@@ -83,38 +89,32 @@ Append every raw output to `raw_outputs`.
 
 ---
 
-## Phase 4 -- Process (MANDATORY)
+## Phase 4 -- Aggregate (MANDATORY)
 
-**Objective:** Send **all** collected raw data to the Ollama MCP preprocessing
-pipeline for AI-powered aggregation, deduplication, and structured extraction.
+**Objective:** Structure all collected raw data into an `AggregatedPayload`.
 
-> **This step is required.** All raw outputs from Phases 1-3 must be processed
-> through the Ollama agents before generating the final report.
+> **You do this yourself.** Parse, deduplicate, correlate, and structure the
+> raw outputs from Phases 1-3 directly. No external pipeline needed.
 
-1. Call `process_scan_results()` on the **Ollama MCP Server**, passing
-   `raw_outputs` (the dict of all tool outputs collected in Phases 1-3).
+1. Call `get_payload_schema()` to retrieve the `AggregatedPayload` JSON schema
+   (only needed once per session — cache the result).
 
-2. **Wait** for the server to return an `AggregatedPayload` object. This may
-   take several minutes depending on data volume.
+2. Process the raw outputs yourself:
+   - **Parse** raw tool output into structured typed data (hosts, ports,
+     services, vulnerabilities, endpoints, subdomains, technologies, etc.)
+   - **Deduplicate** findings across tools (same CVE from nikto + nuclei → one entry)
+   - **Correlate** cross-tool evidence (nmap version + nikto CVE → higher confidence)
+   - **Assess severity** using pentesting rules (RCE = critical, XSS = medium, etc.)
+   - **Extract errors** (timeouts, WAF blocks, rate limits) into `error_log`
+     with `security_relevance` ratings
+   - **Generate executive summary** with risk level, top findings, and attack chains
+   - **Provide remediation** recommendations prioritized by severity and exploitability
 
-3. The returned `AggregatedPayload` contains:
-   - `payload.findings` -- a `Findings` model with:
-     - `.hosts` -- discovered hosts and their ports/services
-     - `.vulnerabilities` -- deduplicated, severity-rated vulnerabilities
-     - `.endpoints` -- discovered web endpoints
-     - *(and other sub-fields as applicable)*
-   - `payload.error_log` -- a list of `ErrorLogEntry` items (scan errors,
-     timeouts, anomalies, each with a `security_relevance` rating)
-   - `payload.metadata` -- an `AggregatedMetadata` model with:
-     - `.tools_run` -- list of tool names that produced output
-     - `.total_raw_size_bytes` -- total bytes of raw input processed
-     - `.compressed_size_bytes` -- size after deduplication/compression
-     - `.compression_ratio` -- ratio of raw to compressed
-     - `.ollama_model` -- the model used for aggregation
-     - `.duration_seconds` -- wall-clock time for aggregation
-     - `.warning` -- optional warning string (e.g., token limits hit)
+3. Call `aggregate_results(payload=<your structured AggregatedPayload>)` to
+   validate and persist the payload. The tool returns a summary and the
+   session file path for report generation.
 
-Do not modify the payload. Proceed directly to Phase 5.
+Proceed directly to Phase 5.
 
 ---
 
@@ -181,9 +181,9 @@ Provide prioritized, actionable remediation guidance:
 - **Tools used:** full list from `payload.metadata.tools_run`
 - **Scan metadata:**
   - Total raw size: `payload.metadata.total_raw_size_bytes` bytes
-  - Compressed size: `payload.metadata.compressed_size_bytes` bytes
-  - Compression ratio: `payload.metadata.compression_ratio`
-  - Ollama model: `payload.metadata.ollama_model`
+  - Structured size: `payload.metadata.structured_size_bytes` bytes
+  - Expansion ratio: `payload.metadata.expansion_ratio`
+  - Model: `payload.metadata.model`
   - Processing duration: `payload.metadata.duration_seconds` seconds
 - **Warnings:** any value from `payload.metadata.warning`
 - **Host inventory:** full table from `payload.findings.hosts` with ports,

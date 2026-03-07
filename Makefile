@@ -1,4 +1,4 @@
-.PHONY: help up up-full up-gateway down logs test test-local lint format clean nuke \
+.PHONY: help up up-full up-ollama up-gateway down logs test test-local lint format clean nuke \
        pull status health portainer gateway-logs ollama-pull ollama-shell \
        claude-code \
        neo4j-browser logs-ollama-mcp logs-kali \
@@ -18,20 +18,23 @@ help: ## Show this help
 pull: ## Pull all pre-built images from Docker Hub
 	$(COMPOSE) pull
 
-up: ## Start core stack (10 containers — no gateway)
+up: ## Start core stack (4 containers — no Ollama, no gateway)
 	$(COMPOSE) up -d
 
+up-ollama: ## Start with Ollama pipeline (9 containers — legacy local processing)
+	$(COMPOSE) --profile ollama up -d
+
 down: ## Stop all services (all profiles)
-	$(COMPOSE) --profile gateway --profile neo4j --profile claude-code down
+	$(COMPOSE) --profile gateway --profile neo4j --profile claude-code --profile ollama down
 
 logs: ## Tail logs from all services
 	$(COMPOSE) logs -f
 
 # ── Stack variations ─────────────────────────────────────────────
-up-full: ## Start full stack: core + Neo4j (11 containers)
+up-full: ## Start full stack: core + Neo4j (5 containers)
 	$(COMPOSE) --profile neo4j up -d
 
-up-gateway: ## Start core + MCP Gateway for Claude Desktop / ChatGPT (11 containers)
+up-gateway: ## Start core + MCP Gateway for Claude Desktop / ChatGPT (5 containers)
 	$(COMPOSE) --profile gateway up -d
 
 # ── Testing & Code Quality ─────────────────────────────────────
@@ -48,7 +51,7 @@ format: ## Auto-format code
 	ruff format blhackbox/ tests/
 
 clean: ## Remove containers, volumes, networks, and build artifacts (keeps images)
-	$(COMPOSE) --profile gateway --profile neo4j --profile claude-code down -v --remove-orphans
+	$(COMPOSE) --profile gateway --profile neo4j --profile claude-code --profile ollama down -v --remove-orphans
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 	rm -rf dist/ build/ *.egg-info
 
@@ -56,7 +59,7 @@ nuke: ## Full cleanup: containers + volumes + ALL images (frees max disk space)
 	@echo "\033[1;33m  WARNING: This will remove ALL blhackbox containers, volumes, AND images.\033[0m"
 	@echo "\033[2m  You will need to 'docker compose pull' or 'docker compose build' again.\033[0m"
 	@echo ""
-	$(COMPOSE) --profile gateway --profile neo4j --profile claude-code down -v --remove-orphans --rmi all
+	$(COMPOSE) --profile gateway --profile neo4j --profile claude-code --profile ollama down -v --remove-orphans --rmi all
 	@echo ""
 	@echo "\033[2m  Pruning dangling images and build cache...\033[0m"
 	docker image prune -f
@@ -91,7 +94,7 @@ status: ## Health status of all containers
 	@echo ""
 	@echo "\033[1m  blhackbox Container Status\033[0m"
 	@echo "\033[2m  ──────────────────────────────────────\033[0m"
-	@$(COMPOSE) --profile gateway --profile neo4j --profile claude-code ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}" 2>/dev/null || $(COMPOSE) ps
+	@$(COMPOSE) --profile gateway --profile neo4j --profile claude-code --profile ollama ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}" 2>/dev/null || $(COMPOSE) ps
 	@echo ""
 
 health: ## Quick health check of all MCP servers
@@ -108,20 +111,20 @@ health: ## Quick health check of all MCP servers
 		docker exec blhackbox-screenshot-mcp python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:9004/health')" > /dev/null 2>&1 \
 		&& echo "\033[32m[OK]\033[0m" || echo "\033[31m[FAIL]\033[0m"
 	@printf "  %-22s " "Ollama MCP (9000)"; \
-		docker exec blhackbox-ollama-mcp python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:9000/sse')" > /dev/null 2>&1 \
-		&& echo "\033[32m[OK]\033[0m" || echo "\033[31m[FAIL]\033[0m"
+		docker inspect --format='{{.State.Running}}' blhackbox-ollama-mcp 2>/dev/null | grep -q "true" \
+		&& echo "\033[32m[OK]\033[0m" || echo "\033[33m[OFF]\033[0m  (optional — enable with: make up-ollama)"
 	@printf "  %-22s " "Ollama (11434)"; \
-		docker exec blhackbox-ollama ollama list > /dev/null 2>&1 \
-		&& echo "\033[32m[OK]\033[0m" || echo "\033[31m[FAIL]\033[0m"
+		docker inspect --format='{{.State.Running}}' blhackbox-ollama 2>/dev/null | grep -q "true" \
+		&& echo "\033[32m[OK]\033[0m" || echo "\033[33m[OFF]\033[0m  (optional — enable with: make up-ollama)"
 	@printf "  %-22s " "Agent Ingestion"; \
-		docker exec blhackbox-agent-ingestion python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')" > /dev/null 2>&1 \
-		&& echo "\033[32m[OK]\033[0m" || echo "\033[31m[FAIL]\033[0m"
+		docker inspect --format='{{.State.Running}}' blhackbox-agent-ingestion 2>/dev/null | grep -q "true" \
+		&& echo "\033[32m[OK]\033[0m" || echo "\033[33m[OFF]\033[0m  (optional)"
 	@printf "  %-22s " "Agent Processing"; \
-		docker exec blhackbox-agent-processing python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:8002/health')" > /dev/null 2>&1 \
-		&& echo "\033[32m[OK]\033[0m" || echo "\033[31m[FAIL]\033[0m"
+		docker inspect --format='{{.State.Running}}' blhackbox-agent-processing 2>/dev/null | grep -q "true" \
+		&& echo "\033[32m[OK]\033[0m" || echo "\033[33m[OFF]\033[0m  (optional)"
 	@printf "  %-22s " "Agent Synthesis"; \
-		docker exec blhackbox-agent-synthesis python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:8003/health')" > /dev/null 2>&1 \
-		&& echo "\033[32m[OK]\033[0m" || echo "\033[31m[FAIL]\033[0m"
+		docker inspect --format='{{.State.Running}}' blhackbox-agent-synthesis 2>/dev/null | grep -q "true" \
+		&& echo "\033[32m[OK]\033[0m" || echo "\033[33m[OFF]\033[0m  (optional)"
 	@printf "  %-22s " "MCP Gateway (8080)"; \
 		docker inspect --format='{{.State.Running}}' blhackbox-mcp-gateway 2>/dev/null | grep -q "true" \
 		&& echo "\033[32m[OK]\033[0m" || echo "\033[33m[OFF]\033[0m  (optional — enable with: make up-gateway)"
