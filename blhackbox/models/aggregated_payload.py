@@ -82,7 +82,7 @@ class VulnerabilityEntry(BaseModel):
             "Ordered reproduction steps that allow an independent tester "
             "to confirm the finding.  Example: "
             '["1. Navigate to /login", '
-            '"2. Enter \\' OR 1=1-- in username", '
+            "\"2. Enter ' OR 1=1-- in username\", "
             '"3. Observe 302 redirect to /admin"]'
         ),
     )
