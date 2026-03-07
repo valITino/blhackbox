@@ -33,6 +33,7 @@ class TestMCPToolDefinitions:
             "list_tools", "generate_report", "list_templates",
             "get_template", "take_screenshot", "take_element_screenshot",
             "list_screenshots", "annotate_screenshot",
+            "aggregate_results", "get_payload_schema",
         }
         assert expected == names
 
@@ -52,7 +53,7 @@ class TestMCPToolDefinitions:
 class TestMCPListTools:
     async def test_list_tools_returns_all(self) -> None:
         tools = await handle_list_tools()
-        assert len(tools) == 11
+        assert len(tools) == 13
         names = {t.name for t in tools}
         assert "run_tool" in names
         assert "list_templates" in names

@@ -68,8 +68,8 @@ class TestScreenshotToolCount:
 
     async def test_list_tools_includes_screenshot_tools(self) -> None:
         tools = await handle_list_tools()
-        # 7 core tools + 4 screenshot tools = 11
-        assert len(tools) == 11
+        # 9 core tools + 4 screenshot tools = 13
+        assert len(tools) == 13
 
     async def test_list_tools_has_all_expected_names(self) -> None:
         tools = await handle_list_tools()
@@ -86,6 +86,8 @@ class TestScreenshotToolCount:
             "take_element_screenshot",
             "list_screenshots",
             "annotate_screenshot",
+            "aggregate_results",
+            "get_payload_schema",
         }
         assert expected == names
 
