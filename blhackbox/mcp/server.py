@@ -516,8 +516,6 @@ async def _do_get_template(args: dict[str, Any]) -> str:
 
 
 async def _do_aggregate_results(args: dict[str, Any]) -> str:
-    from pathlib import Path
-
     from blhackbox.models.aggregated_payload import AggregatedPayload
 
     raw_payload = args["payload"]
