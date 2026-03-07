@@ -128,17 +128,30 @@ Look for:
 
 ### Step 9: API Security Report
 
-Using the `AggregatedPayload`, produce a detailed report:
+Using the `AggregatedPayload`, produce a detailed report.
+
+> **Every finding MUST include a Proof of Concept.** A finding that only
+> describes a vulnerability without demonstrating it is not valid.
+
+For each finding, include a complete PoC:
+- Numbered reproduction steps (independently reproducible)
+- Exact API request (method, URL, headers, body — copy-pasteable as cURL)
+- Raw API response proving exploitation
+- Impact demonstration (what data was accessed, what action was performed — shown, not described)
+
+Findings without PoC must be downgraded to "info" severity.
+
+Report sections:
 
 1. **Executive Summary** — API security posture overview
 2. **API Inventory** — all discovered endpoints with methods and response codes
-3. **Authentication Assessment** — auth mechanism analysis and weaknesses
-4. **Authorization Issues** — BOLA, IDOR, privilege escalation findings
-5. **Injection Vulnerabilities** — SQL, NoSQL, command injection findings
+3. **Authentication Assessment** — auth mechanism analysis and weaknesses, with PoC
+4. **Authorization Issues** — BOLA, IDOR, privilege escalation with PoC for each
+5. **Injection Vulnerabilities** — SQL, NoSQL, command injection with PoC for each
 6. **OWASP API Top 10 Mapping** — findings mapped to API-specific risks
 7. **Traffic Analysis** — API traffic insights, credential findings, data flow analysis
 8. **Data Exposure** — sensitive data leaks, verbose errors, missing protections
-9. **Configuration Issues** — CORS, rate limiting, security headers
+9. **Configuration Issues** — CORS, rate limiting, security headers with evidence
 10. **Attack Chains** — combined API vulnerability paths
 11. **Remediation Priorities** — ordered by severity and exploitability
 
@@ -151,3 +164,6 @@ Using the `AggregatedPayload`, produce a detailed report:
 - Check both authenticated and unauthenticated access
 - Record every tool output for post-processing
 - Map findings to OWASP API Security Top 10
+- **Every finding MUST have a PoC** — reproduction steps, exact request, raw response, and impact proof
+- Findings without PoC are not valid and must be downgraded to "info" severity
+- Populate `poc_steps`, `poc_payload`, and `evidence` fields in every `VulnerabilityEntry`

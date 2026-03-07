@@ -54,7 +54,12 @@ class ServiceEntry(BaseModel):
 
 
 class VulnerabilityEntry(BaseModel):
-    """A single vulnerability finding."""
+    """A single vulnerability finding with mandatory PoC data.
+
+    Every finding MUST include proof-of-concept information.  A finding
+    without a reproducible PoC is not valid and should be downgraded to
+    severity "info" with a note that exploitation could not be confirmed.
+    """
 
     id: str = ""
     title: str = ""
@@ -64,7 +69,30 @@ class VulnerabilityEntry(BaseModel):
     port: int = 0
     description: str = ""
     references: list[str] = Field(default_factory=list)
-    evidence: str = ""
+    evidence: str = Field(
+        default="",
+        description=(
+            "Raw tool output, HTTP response, or terminal output proving "
+            "the vulnerability exists.  Must be concrete, not theoretical."
+        ),
+    )
+    poc_steps: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Ordered reproduction steps that allow an independent tester "
+            "to confirm the finding.  Example: "
+            '["1. Navigate to /login", '
+            '"2. Enter \\' OR 1=1-- in username", '
+            '"3. Observe 302 redirect to /admin"]'
+        ),
+    )
+    poc_payload: str = Field(
+        default="",
+        description=(
+            "The exact payload, command, or HTTP request used to exploit "
+            "the vulnerability.  Must be copy-pasteable."
+        ),
+    )
     tool_source: str = ""
     likely_false_positive: bool = False
 

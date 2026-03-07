@@ -122,6 +122,9 @@ No preamble, no markdown fences, no explanation text.
 - If the same host appears with different port lists, merge the port lists (union).
 - If tool_source differs, combine them ("nikto,nuclei").
 - For version strings, prefer the more specific version (e.g., "1.18.0" over "1.18").
+- **When merging vulnerabilities, keep the most complete PoC data** — prefer the entry
+  with non-empty `poc_steps`, `poc_payload`, and `evidence`. If both have PoC data,
+  merge the evidence from both tools.
 
 ### 3. Error Log Merging
 - Take error_log from Processing Agent output.
@@ -163,13 +166,22 @@ Generate prioritized remediation steps:
   - `architecture`: Design-level change (network segmentation, auth system overhaul)
   - `process`: Operational change (credential rotation, monitoring, incident response)
 
-### 7. Completeness
+### 7. PoC Validation
+- **Every vulnerability with severity > "info" MUST have PoC data.**
+- Check that `evidence` is non-empty for all confirmed vulnerabilities.
+- Check that `poc_steps` has at least one step for critical and high findings.
+- If a vulnerability has severity ≥ "low" but empty `evidence`, `poc_steps`, and
+  `poc_payload`, downgrade it to "info" and add a note in the description:
+  "Downgraded: exploitation could not be confirmed — no PoC evidence available."
+- A finding without a PoC is not a valid finding.
+
+### 8. Completeness
 - Every field in the schema MUST be present.
 - Missing arrays → `[]`. Missing strings → `""`. Missing numbers → `0`.
 - Metadata: populate what you can from the input. Set fields you cannot determine
   to their zero values.
 
-### 8. Output
+### 9. Output
 Output ONLY valid JSON — no markdown fences, no commentary.
 
 ## Example
@@ -189,7 +201,7 @@ Output ONLY valid JSON — no markdown fences, no commentary.
     "findings": {
       "hosts": [{"ip": "10.0.0.1", "hostname": "target.com", "os": "Linux 5.4", "ports": [{"port": 80, "protocol": "tcp", "state": "open", "service": "http", "version": "nginx/1.18.0", "banner": "", "nse_scripts": {"http-title": "Login Page"}}]}],
       "subdomains": ["mail.target.com", "dev.target.com"],
-      "vulnerabilities": [{"id": "CVE-2021-3449", "title": "OpenSSL DoS", "severity": "high", "cvss": 7.5, "host": "10.0.0.1", "port": 443, "description": "OpenSSL denial of service. Confirmed by multiple tools.", "references": [], "evidence": "Detected by: nikto, nuclei", "tool_source": "nikto,nuclei"}],
+      "vulnerabilities": [{"id": "CVE-2021-3449", "title": "OpenSSL DoS", "severity": "high", "cvss": 7.5, "host": "10.0.0.1", "port": 443, "description": "OpenSSL denial of service. Confirmed by multiple tools.", "references": [], "evidence": "Detected by: nikto, nuclei. nikto: OpenSSL/1.1.1j vulnerable. nuclei: [CVE-2021-3449] [high] confirmed", "poc_steps": ["1. Run nikto against target on port 443", "2. Run nuclei with CVE-2021-3449 template", "3. Both tools confirm vulnerability in OpenSSL 1.1.1j"], "poc_payload": "nuclei -u https://10.0.0.1 -t CVE-2021-3449.yaml", "tool_source": "nikto,nuclei"}],
       "endpoints": [{"url": "/admin", "method": "GET", "status_code": 200, "content_length": 5432, "redirect": ""}],
       "http_headers": [{"host": "target.com", "port": 80, "missing_security_headers": ["X-Frame-Options", "Content-Security-Policy", "Strict-Transport-Security"], "server": "nginx/1.18.0", "x_powered_by": ""}],
       "ports": [], "services": [], "technologies": [], "ssl_certs": [], "credentials": [], "whois": {}, "dns_records": []
@@ -207,7 +219,7 @@ Output ONLY valid JSON — no markdown fences, no commentary.
     "hosts": [{"ip": "10.0.0.1", "hostname": "target.com", "os": "Linux 5.4", "ports": [{"port": 80, "protocol": "tcp", "state": "open", "service": "http", "version": "nginx/1.18.0", "banner": "", "nse_scripts": {"http-title": "Login Page"}}]}],
     "ports": [],
     "services": [],
-    "vulnerabilities": [{"id": "CVE-2021-3449", "title": "OpenSSL DoS", "severity": "high", "cvss": 7.5, "host": "10.0.0.1", "port": 443, "description": "OpenSSL denial of service. Confirmed by multiple tools.", "references": [], "evidence": "Detected by: nikto, nuclei", "tool_source": "nikto,nuclei"}],
+    "vulnerabilities": [{"id": "CVE-2021-3449", "title": "OpenSSL DoS", "severity": "high", "cvss": 7.5, "host": "10.0.0.1", "port": 443, "description": "OpenSSL denial of service. Confirmed by multiple tools.", "references": [], "evidence": "Detected by: nikto, nuclei. nikto: OpenSSL/1.1.1j vulnerable. nuclei: [CVE-2021-3449] [high] confirmed", "poc_steps": ["1. Run nikto against target on port 443", "2. Run nuclei with CVE-2021-3449 template", "3. Both tools confirm vulnerability in OpenSSL 1.1.1j"], "poc_payload": "nuclei -u https://10.0.0.1 -t CVE-2021-3449.yaml", "tool_source": "nikto,nuclei"}],
     "endpoints": [{"url": "/admin", "method": "GET", "status_code": 200, "content_length": 5432, "redirect": ""}],
     "subdomains": ["mail.target.com", "dev.target.com"],
     "technologies": [],

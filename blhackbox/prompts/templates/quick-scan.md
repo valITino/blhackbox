@@ -55,11 +55,15 @@ Run these steps concurrently where possible for speed:
 Using the `AggregatedPayload`, produce a concise report:
 
 1. **Risk Level** — overall risk assessment in one line
-2. **Critical Findings** — any critical/high findings with immediate action items
+2. **Critical Findings** — any critical/high findings with immediate action items and PoC evidence
 3. **Attack Surface** — open ports, services, subdomains, technologies
 4. **Network Traffic Insights** — credential findings and traffic anomalies
 5. **Recommendations** — top 3-5 actions to improve security posture
 6. **Next Steps** — which deeper assessment template to run next
+
+> Even in a quick scan, any confirmed finding must include evidence (tool output,
+> response data) proving it exists. Findings without evidence should be flagged
+> as "requires validation" and noted in Next Steps.
 
 ---
 
@@ -68,3 +72,5 @@ Using the `AggregatedPayload`, produce a concise report:
 - Prioritize speed over completeness
 - Focus on quickly identifying critical issues
 - This is a high-level assessment — recommend deeper templates for follow-up
+- Even in quick mode, include raw evidence for any confirmed finding
+- Populate `evidence` field in every `VulnerabilityEntry` — findings without evidence should note "requires deeper validation"

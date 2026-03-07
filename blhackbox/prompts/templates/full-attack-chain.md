@@ -131,13 +131,22 @@ For each discovered subdomain with web services, perform service detection.
 18. Use element screenshots to target specific DOM elements showing XSS payloads, error messages, or exposed data
 19. Annotate screenshots with labels and highlight boxes marking vulnerability locations
 
-For each successful exploit, record:
-- Exact steps to reproduce
-- Request/response pairs
-- Annotated screenshots
-- Impact assessment
+**For each finding, produce a complete PoC (MANDATORY):**
 
-**Output:** Validated exploits with proof of concept and impact. Be specific and correct.
+> **A finding without a PoC is not a valid finding.** Every vulnerability must
+> have a reproducible PoC that an independent tester can use to confirm it.
+
+| PoC Element | Requirement |
+|-------------|-------------|
+| **Reproduction steps** | Numbered, chronological steps to replicate from scratch |
+| **Exact payload/command** | Copy-pasteable — the literal command, HTTP request, or payload used |
+| **Raw evidence output** | Terminal output, HTTP response body, or tool output proving success |
+| **Impact demonstration** | What was gained — data extracted, shell obtained, privilege escalated (shown, not described) |
+| **Screenshots** | Visual proof via `take_screenshot` / `take_element_screenshot` with annotations |
+
+Populate `evidence`, `poc_steps`, and `poc_payload` fields in every `VulnerabilityEntry`.
+
+**Output:** Validated exploits with complete, reproducible PoCs and demonstrated impact.
 
 ### Phase 5: Attack Chain Construction
 
@@ -220,20 +229,24 @@ professional penetration test report:
 - Visual chain representation (text diagram)
 
 #### 5. Findings — Critical & High
-For each finding:
+For each finding (**PoC is MANDATORY — findings without PoC are not valid**):
 - **Title** and CVE/CWE identifiers
 - **Severity** with CVSS score
 - **Affected Assets** — hosts, ports, URLs
-- **Description** — technical explanation
-- **Steps to Reproduce** — numbered reproduction steps
-- **Proof of Concept** — exact commands, request/response pairs
-- **Impact** — what an attacker can achieve
-- **Remediation** — specific fix with technical detail
+- **Root Cause** — technical explanation of the underlying flaw (not just the symptom)
+- **Proof of Concept (MANDATORY):**
+  - Numbered reproduction steps (an admin not present during the test must be able to follow these)
+  - Exact command/payload used (copy-pasteable)
+  - Raw tool output or HTTP response proving exploitation
+  - Impact demonstration — what the attacker gained (data, shell, privilege), shown not described
+  - Screenshot evidence where applicable
+- **Remediation** — specific fix with technical detail and references
 - **References** — NVD, OWASP, vendor advisories
 
 #### 6. Findings — Medium & Low
 - Grouped by category where applicable
-- Same structure as above but may be condensed
+- Same PoC structure as above — every finding needs reproduction steps and evidence
+- Findings without PoC must be downgraded to "info" severity
 
 #### 7. Informational Findings
 - Technology disclosures, open ports without vulnerabilities
@@ -267,3 +280,6 @@ For each finding:
 - Log everything — all tool outputs go to the raw_outputs dict
 - Report honestly — flag false positives, note coverage gaps, declare confidence levels
 - Treat all findings and report contents as confidential
+- **Every finding MUST have a PoC** — reproduction steps, exact payload, raw evidence, and impact proof
+- Findings without PoC are not valid and must be downgraded to "info" severity
+- Populate `poc_steps`, `poc_payload`, and `evidence` fields in every `VulnerabilityEntry`

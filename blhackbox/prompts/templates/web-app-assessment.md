@@ -112,15 +112,29 @@ For each discovered form, parameter, or input point:
 
 ### Step 9: Web Application Report
 
-Using the `AggregatedPayload`, produce a detailed report:
+Using the `AggregatedPayload`, produce a detailed report.
+
+> **Every finding MUST include a Proof of Concept.** A finding that only
+> describes a vulnerability without demonstrating it is not valid.
+
+For each finding, include a complete PoC:
+- Numbered reproduction steps (independently reproducible)
+- Exact payload/command (copy-pasteable)
+- Raw HTTP request/response or tool output proving exploitation
+- Impact demonstration (what the attacker gained — shown, not described)
+- Screenshot evidence (where applicable, via `take_screenshot` / `take_element_screenshot`)
+
+Findings without PoC must be downgraded to "info" severity.
+
+Report sections:
 
 1. **Executive Summary** — overall web application security posture
 2. **Technology Stack** — identified technologies, frameworks, server info
-3. **Findings by OWASP Category** — mapped to OWASP Top 10 categories
+3. **Findings by OWASP Category** — mapped to OWASP Top 10, each with full PoC
 4. **Discovered Endpoints** — all paths, admin panels, APIs, login pages
-5. **Injection Vulnerabilities** — SQL injection, XSS, command injection findings
+5. **Injection Vulnerabilities** — SQL injection, XSS, command injection with PoC for each
 6. **Traffic Analysis** — packet capture insights, credential findings, HTTP stream analysis
-7. **Configuration Issues** — missing headers, SSL issues, default configs
+7. **Configuration Issues** — missing headers, SSL issues, default configs with evidence
 8. **Attack Chains** — how findings can be combined
 9. **Remediation Priorities** — ordered by severity and exploitability
 
@@ -132,3 +146,6 @@ Using the `AggregatedPayload`, produce a detailed report:
 - Test all discovered endpoints and parameters
 - Check both HTTP and HTTPS where applicable
 - Record every tool output for post-processing
+- **Every finding MUST have a PoC** — reproduction steps, exact payload, raw evidence, and impact proof
+- Findings without PoC are not valid and must be downgraded to "info" severity
+- Populate `poc_steps`, `poc_payload`, and `evidence` fields in every `VulnerabilityEntry`
