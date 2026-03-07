@@ -1,9 +1,13 @@
-"""AggregatedPayload — structured output from the Ollama preprocessing pipeline.
+"""AggregatedPayload — structured pentest findings for report generation.
 
-This model represents the final assembled payload that the blhackbox
-Ollama MCP server returns to Claude after all three agents (Ingestion,
-Processing, Synthesis) have run.  Claude uses this payload to write the
-final pentest report.
+This model represents the structured payload that the MCP host (Claude Code,
+Claude Desktop, or ChatGPT) produces after collecting raw tool outputs,
+parsing, deduplicating, and synthesizing them.  The MCP host calls
+``aggregate_results`` to validate and persist this payload, then
+``generate_report`` to produce the final pentest report.
+
+Legacy: previously assembled by a 3-agent Ollama pipeline (Ingestion →
+Processing → Synthesis).  That pipeline is now optional (``--profile ollama``).
 """
 
 from __future__ import annotations
@@ -285,7 +289,14 @@ class AggregatedMetadata(BaseModel):
             "output is larger than the raw input."
         ),
     )
-    ollama_model: str = ""
+    # Which model performed the aggregation.  When the MCP host (Claude)
+    # does it directly, set to the host model name (e.g. "claude-opus-4-6").
+    # When the legacy Ollama pipeline is used, set to the Ollama model name.
+    model: str = ""
+    ollama_model: str = Field(
+        default="",
+        description="Deprecated — use 'model' instead.  Kept for backward compatibility.",
+    )
     duration_seconds: float = 0.0
     stage_timing: PipelineStageTiming = Field(
         default_factory=PipelineStageTiming,
@@ -301,8 +312,9 @@ class AggregatedMetadata(BaseModel):
 class AggregatedPayload(BaseModel):
     """The complete aggregated pentest data payload.
 
-    Returned by the blhackbox Ollama MCP server to Claude after all three
-    preprocessing agents (Ingestion, Processing, Synthesis) have run.
+    Produced by the MCP host (Claude) after collecting and structuring raw
+    tool outputs.  Validated and persisted via the ``aggregate_results`` MCP
+    tool, then used by ``generate_report`` to produce the final report.
     """
 
     session_id: str

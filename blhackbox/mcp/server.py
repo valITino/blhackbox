@@ -5,13 +5,15 @@ any MCP-compatible LLM can drive autonomous reconnaissance, query the
 knowledge graph, and generate reports.
 
 Blhackbox MCP provides *orchestrated workflows*:
-  - run_tool        → execute a single tool via best available backend
-  - query_graph     → Cypher queries against the knowledge graph
-  - get_findings    → retrieve structured findings for a target
-  - list_tools      → discover available tools across all backends
-  - generate_report → produce HTML/PDF reports from session data
-  - list_templates  → discover available prompt templates
-  - get_template    → retrieve a prompt template for autonomous pentesting
+  - run_tool           → execute a single tool via best available backend
+  - query_graph        → Cypher queries against the knowledge graph
+  - get_findings       → retrieve structured findings for a target
+  - list_tools         → discover available tools across all backends
+  - generate_report    → produce HTML/PDF reports from session data
+  - list_templates     → discover available prompt templates
+  - get_template       → retrieve a prompt template for autonomous pentesting
+  - aggregate_results  → validate & store structured findings (MCP host does the analysis)
+  - get_payload_schema → return the AggregatedPayload JSON schema
 """
 
 from __future__ import annotations
@@ -162,7 +164,7 @@ _TOOLS: list[Tool] = [
             "Retrieve a prompt template by name. Returns the full template "
             "content with [TARGET] placeholders replaced if a target is provided. "
             "Each template instructs the AI to use all available MCP servers "
-            "(Kali MCP, Metasploit MCP, WireMCP, Screenshot MCP, Ollama pipeline)."
+            "(Kali MCP, WireMCP, Screenshot MCP) and aggregate results directly."
         ),
         inputSchema={
             "type": "object",
@@ -181,6 +183,44 @@ _TOOLS: list[Tool] = [
                 },
             },
             "required": ["name"],
+        },
+    ),
+    Tool(
+        name="aggregate_results",
+        description=(
+            "Validate and store structured pentest findings produced by the "
+            "MCP host (Claude). The MCP host parses raw tool outputs, "
+            "deduplicates, correlates, and structures them into an "
+            "AggregatedPayload — then calls this tool to validate and persist "
+            "the payload for report generation and optional Neo4j storage. "
+            "Use get_payload_schema first to see the expected JSON schema."
+        ),
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "payload": {
+                    "type": "object",
+                    "description": (
+                        "Complete AggregatedPayload JSON object. Must include "
+                        "session_id, target, and at least one of: findings, "
+                        "error_log, executive_summary, remediation."
+                    ),
+                },
+            },
+            "required": ["payload"],
+        },
+    ),
+    Tool(
+        name="get_payload_schema",
+        description=(
+            "Return the AggregatedPayload JSON schema so the MCP host knows "
+            "exactly what structure to produce when aggregating raw tool "
+            "outputs. Call this before aggregate_results to understand the "
+            "expected format."
+        ),
+        inputSchema={
+            "type": "object",
+            "properties": {},
         },
     ),
     Tool(
@@ -339,6 +379,10 @@ async def _dispatch(name: str, args: dict[str, Any]) -> str:
         return await _do_list_templates()
     elif name == "get_template":
         return await _do_get_template(args)
+    elif name == "aggregate_results":
+        return await _do_aggregate_results(args)
+    elif name == "get_payload_schema":
+        return await _do_get_payload_schema()
     elif name == "take_screenshot":
         return await _do_take_screenshot(args)
     elif name == "take_element_screenshot":
@@ -464,6 +508,89 @@ async def _do_get_template(args: dict[str, Any]) -> str:
         return content
     except (ValueError, FileNotFoundError) as exc:
         return json.dumps({"error": str(exc)})
+
+
+# ---------------------------------------------------------------------------
+# Aggregate results — MCP host (Claude) does the analysis, this validates
+# ---------------------------------------------------------------------------
+
+
+async def _do_aggregate_results(args: dict[str, Any]) -> str:
+    from blhackbox.models.aggregated_payload import AggregatedPayload
+
+    raw_payload = args["payload"]
+    if not isinstance(raw_payload, dict):
+        return json.dumps({"error": "payload must be a JSON object"})
+
+    # Require at minimum session_id and target
+    if "session_id" not in raw_payload or "target" not in raw_payload:
+        return json.dumps({
+            "error": "payload must include 'session_id' and 'target'"
+        })
+
+    try:
+        payload = AggregatedPayload(**raw_payload)
+    except Exception as exc:
+        return json.dumps({
+            "error": f"Payload validation failed: {exc}",
+            "hint": "Use get_payload_schema to see the expected format.",
+        })
+
+    # Persist as JSON for report generation
+    from blhackbox.config import settings
+
+    results_dir = settings.results_dir
+    results_dir.mkdir(parents=True, exist_ok=True)
+    session_file = results_dir / f"session-{payload.session_id}.json"
+    session_file.write_text(
+        json.dumps(payload.to_dict(), indent=2, default=str),
+        encoding="utf-8",
+    )
+
+    # Optional Neo4j storage (best-effort)
+    try:
+        from blhackbox.core.knowledge_graph import KnowledgeGraphClient
+
+        async with KnowledgeGraphClient() as kg:
+            await kg.run_query(
+                """
+                MERGE (s:AggregatedSession {session_id: $session_id})
+                SET s.target = $target,
+                    s.scan_timestamp = $scan_timestamp,
+                    s.tools_run = $tools_run
+                """,
+                {
+                    "session_id": payload.session_id,
+                    "target": payload.target,
+                    "scan_timestamp": payload.scan_timestamp.isoformat(),
+                    "tools_run": payload.metadata.tools_run,
+                },
+            )
+    except Exception:
+        logger.debug("Neo4j storage skipped (not available or failed)")
+
+    vuln_count = len(payload.findings.vulnerabilities)
+    host_count = len(payload.findings.hosts)
+    return json.dumps({
+        "status": "ok",
+        "session_id": payload.session_id,
+        "session_file": str(session_file),
+        "summary": {
+            "hosts": host_count,
+            "vulnerabilities": vuln_count,
+            "endpoints": len(payload.findings.endpoints),
+            "subdomains": len(payload.findings.subdomains),
+            "risk_level": payload.executive_summary.risk_level,
+        },
+        "hint": f"Use generate_report with session_id='{session_file}' to create the report.",
+    })
+
+
+async def _do_get_payload_schema() -> str:
+    from blhackbox.models.aggregated_payload import AggregatedPayload
+
+    schema = AggregatedPayload.model_json_schema()
+    return json.dumps(schema, indent=2)
 
 
 # ---------------------------------------------------------------------------

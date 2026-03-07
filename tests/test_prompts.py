@@ -42,11 +42,11 @@ class TestLoadTemplate:
                 f"Template {name} missing mandatory data processing step"
             )
 
-    def test_all_templates_mention_ollama_pipeline(self) -> None:
+    def test_all_templates_mention_aggregation_pipeline(self) -> None:
         for name in TEMPLATES:
             content = load_template(name)
-            assert "Ollama" in content or "process_scan_results" in content, (
-                f"Template {name} does not reference Ollama preprocessing pipeline"
+            assert "aggregate_results" in content or "AggregatedPayload" in content, (
+                f"Template {name} does not reference data aggregation pipeline"
             )
 
     def test_all_templates_have_placeholder_section(self) -> None:

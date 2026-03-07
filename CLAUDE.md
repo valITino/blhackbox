@@ -16,7 +16,7 @@ Read the following before writing a single line:
 - `CLAUDE.md` (this file), `README.md`
 - `docker-compose.yml`, `Makefile`, `.env.example`
 - `blhackbox/mcp/server.py` — blhackbox stdio MCP server (Claude Code Web path)
-- `mcp_servers/ollama_mcp_server.py` — Ollama MCP orchestrator
+- `mcp_servers/ollama_mcp_server.py` — Ollama MCP orchestrator (optional, `--profile ollama`)
 - Every file directly relevant to the task: the relevant `Dockerfile`, `*_server.py`, `*_agent.py`, agent prompts in `blhackbox/prompts/agents/` — whatever applies
 - Do not rely on memory from previous sessions. Read the actual current files.
 
@@ -24,7 +24,7 @@ Read the following before writing a single line:
 Before writing code, answer these internally:
 1. What is the root cause — not the symptom, the actual root cause?
 2. Does the fix conflict with anything else in the codebase?
-3. Does it break the Ollama pipeline contract? (`AggregatedPayload` schema must stay stable across Ingestion → Processing → Synthesis)
+3. Does it break the `AggregatedPayload` schema contract? (Must stay stable for `aggregate_results`, report generation, and the optional Ollama pipeline)
 4. Does it violate the `shell=False` rule?
 5. Am I touching agent prompts in `blhackbox/prompts/agents/`? If so — do I need a rebuild, or can I use a volume mount override?
 6. Is there a simpler fix that achieves the same result?
@@ -36,8 +36,11 @@ Only after answering all six — write the fix.
 ## Project Purpose
 BLHACKBOX is an MCP-based autonomous pentesting framework. The AI client (Claude Code,
 Claude Desktop, or ChatGPT) IS the orchestrator — it decides which tools to call,
-collects raw outputs, and sends them to the Ollama pipeline for preprocessing before
-writing the final pentest report.
+collects raw outputs, and structures them directly into an `AggregatedPayload` via
+the `aggregate_results` MCP tool before writing the final pentest report.
+
+The Ollama preprocessing pipeline (3 agents) is now optional (`--profile ollama`)
+for local-only / offline processing. By default, the MCP host handles aggregation.
 
 ## Code Standards
 - All Python code must be type-annotated
@@ -45,7 +48,7 @@ writing the final pentest report.
 - All subprocess calls must use `subprocess.run(args_list, shell=False)`
 - Never use `shell=True` in subprocess calls
 - Never log API keys or secrets
-- `AggregatedPayload` schema (`blhackbox/models/aggregated_payload.py`) is the contract between the pipeline and the AI — do not break it without updating all three agents
+- `AggregatedPayload` schema (`blhackbox/models/aggregated_payload.py`) is the contract between the MCP host and the reporting tools — do not break it without updating all consumers
 
 ## Adding a New MCP Server
 1. Create `new-mcp/` directory with your server code
@@ -57,8 +60,8 @@ writing the final pentest report.
 7. Document tools in README.md components table
 8. Add unit tests
 
-## Adding or Tuning an Agent Prompt
-Agent prompts are in `blhackbox/prompts/agents/`:
+## Adding or Tuning an Agent Prompt (Optional Ollama Pipeline)
+Agent prompts are in `blhackbox/prompts/agents/` (only relevant if using `--profile ollama`):
 - `ingestionagent.md` — Ingestion Agent system prompt
 - `processingagent.md` — Processing Agent system prompt
 - `synthesisagent.md` — Synthesis Agent system prompt

@@ -80,14 +80,15 @@ For discovered services (SSH, FTP, HTTP auth, databases):
 **Important:** Use only default/common credential lists. Do not run exhaustive
 brute force attacks without explicit authorization.
 
-### Step 7: Data Processing (REQUIRED)
+### Step 7: Data Aggregation (REQUIRED)
 
-> **This step is mandatory.** All raw outputs must be processed through the
-> Ollama agents before generating the final report.
+> **This step is mandatory.** You handle data aggregation directly — no
+> external pipeline needed.
 
-1. Collect ALL raw outputs into a single dict keyed by tool/source name
-2. Send all collected data through the **Ollama MCP preprocessing pipeline** (`process_scan_results()`)
-3. Wait for the `AggregatedPayload`
+1. Call `get_payload_schema()` to retrieve the `AggregatedPayload` JSON schema (cache after first call)
+2. Parse, deduplicate, and correlate all raw outputs into the schema yourself
+3. Call `aggregate_results(payload=<your AggregatedPayload>)` to validate and persist
+4. The payload includes: findings, error_log, attack_surface, executive_summary, remediation
 
 ### Step 8: Network Assessment Report
 

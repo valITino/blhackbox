@@ -99,14 +99,15 @@ For each web service discovered:
 4. Test only default/common credentials for discovered login services
 5. Focus on: admin panels, SSH, FTP, database ports
 
-### Step 8: Data Processing (REQUIRED)
+### Step 8: Data Aggregation (REQUIRED)
 
-> **This step is mandatory.** All raw outputs must be processed through the
-> Ollama agents before generating the final report.
+> **This step is mandatory.** You handle data aggregation directly — no
+> external pipeline needed.
 
-1. Collect ALL raw outputs into a single dict keyed by tool/source name
-2. Send all collected data through the **Ollama MCP preprocessing pipeline** (`process_scan_results()`)
-3. Wait for the `AggregatedPayload`
+1. Call `get_payload_schema()` to retrieve the `AggregatedPayload` JSON schema (cache after first call)
+2. Parse, deduplicate, and correlate all raw outputs into the schema yourself
+3. Call `aggregate_results(payload=<your AggregatedPayload>)` to validate and persist
+4. The payload includes: findings, error_log, attack_surface, executive_summary, remediation
 
 ### Step 9: Vulnerability Report
 
