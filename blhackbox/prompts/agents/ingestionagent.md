@@ -69,7 +69,9 @@ explanation text. The JSON must match this schema exactly:
       "port": 80,
       "description": "Path traversal allowing file read outside webroot",
       "references": ["https://nvd.nist.gov/vuln/detail/CVE-2021-12345"],
-      "evidence": "GET /..%2f..%2fetc/passwd returned 200",
+      "evidence": "GET /..%2f..%2fetc/passwd returned 200 with body: root:x:0:0:root:/root:/bin/bash ...",
+      "poc_steps": ["1. Send GET request to /..%2f..%2fetc/passwd", "2. Observe HTTP 200 response with /etc/passwd contents"],
+      "poc_payload": "curl -k 'https://192.168.1.1/..%2f..%2fetc/passwd'",
       "tool_source": "nikto"
     }
   ],
@@ -143,12 +145,16 @@ explanation text. The JSON must match this schema exactly:
 - Extract the HTTP method and URL from each finding
 - Note outdated server versions as vulnerabilities (severity: "info" or "low")
 - Extract missing security headers and map to `http_headers[].missing_security_headers`
+- **PoC**: Use the nikto finding URL + method as `poc_payload`, the full nikto output
+  line as `evidence`
 
 ### sqlmap
 - Extract confirmed injection points as critical vulnerabilities
 - Include the injection type (blind, error-based, time-based, UNION)
 - Include the DBMS type and version if detected
 - Each confirmed injection point = severity "critical"
+- **PoC**: Extract the sqlmap command as `poc_payload`, the injection point URL + parameter
+  as step 1 of `poc_steps`, the DBMS confirmation as `evidence`
 
 ### wpscan
 - Map plugin/theme vulnerabilities to `vulnerabilities[]` with CVE IDs
@@ -158,6 +164,7 @@ explanation text. The JSON must match this schema exactly:
 ### hydra/medusa
 - Each successful login goes in `credentials[]`
 - Include the service type (ssh, ftp, http-form, etc.)
+- **PoC**: The hydra/medusa command as `poc_payload`, "Successful login: user:pass" as `evidence`
 
 ### SSL/TLS scans
 - Map to `ssl_certs[]`
@@ -175,6 +182,14 @@ explanation text. The JSON must match this schema exactly:
 7. Treat informational findings as severity "info" — do not skip them.
 8. Arrays that have no data should be `[]`, objects with no data should be `{}`.
 9. Output ONLY valid JSON — no markdown fences, no commentary.
+10. **Extract PoC data for every vulnerability:**
+    - `evidence`: Raw tool output or HTTP response proving the finding (never empty for confirmed vulns).
+    - `poc_steps`: Ordered list of steps to reproduce. Extract from tool output where possible
+      (e.g., sqlmap shows injection steps, nikto shows the request path).
+    - `poc_payload`: The exact command, payload, or HTTP request used. Extract from tool
+      invocation or output (e.g., the sqlmap command line, the nikto finding URL).
+    - If PoC data is not available from the tool output, set `poc_steps: []` and `poc_payload: ""`
+      but ALWAYS populate `evidence` with the raw tool output that detected the finding.
 
 ## Example
 

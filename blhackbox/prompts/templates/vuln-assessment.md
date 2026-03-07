@@ -111,12 +111,29 @@ For each web service discovered:
 
 ### Step 9: Vulnerability Report
 
-Using the `AggregatedPayload`, produce a detailed report:
+Using the `AggregatedPayload`, produce a detailed report.
+
+> **Every finding MUST include a Proof of Concept.** A finding that only
+> describes a vulnerability without demonstrating it is not valid.
+
+For each finding (critical through low), include:
+- CVE/CWE identifiers and CVSS score
+- Root cause description (not just the symptom)
+- **PoC: Numbered reproduction steps** (independently reproducible)
+- **PoC: Exact payload/command** (copy-pasteable)
+- **PoC: Raw evidence output** (tool output or HTTP response proving exploitation)
+- **PoC: Impact demonstration** (what the attacker gained — shown, not described)
+- **PoC: Screenshot evidence** (where applicable)
+- Remediation with specific technical steps
+
+Findings without PoC must be downgraded to "info" severity.
+
+Report sections:
 
 1. **Executive Summary** — total vulnerabilities by severity, risk posture
 2. **Methodology** — tools used, scanning approach, coverage
-3. **Critical & High Findings** — each with CVE, CVSS, evidence, remediation, references
-4. **Medium & Low Findings** — grouped and summarized
+3. **Critical & High Findings** — each with full PoC (steps, payload, evidence, impact)
+4. **Medium & Low Findings** — each with PoC (same structure, may be condensed)
 5. **False Positive Analysis** — flagged items with rationale
 6. **Network Traffic Analysis** — credential findings, traffic anomalies
 7. **Configuration Weaknesses** — missing headers, weak SSL, information disclosure
@@ -134,3 +151,6 @@ Using the `AggregatedPayload`, produce a detailed report:
 - Record every tool output for post-processing
 - Classify severity using CVSS where available
 - Map findings to OWASP Top 10 and CWE categories
+- **Every finding MUST have a PoC** — reproduction steps, exact payload, raw evidence, and impact proof
+- Findings without PoC are not valid and must be downgraded to "info" severity
+- Populate `poc_steps`, `poc_payload`, and `evidence` fields in every `VulnerabilityEntry`

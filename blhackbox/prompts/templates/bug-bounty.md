@@ -151,15 +151,28 @@ Using the `AggregatedPayload`, produce findings in bug bounty format:
 
 For EACH vulnerability, provide:
 
+> **A finding without a PoC will be rejected by any bug bounty program.**
+> The PoC must be complete enough that the program's security team can
+> reproduce the issue without asking for clarification.
+
 1. **Title** — clear, descriptive vulnerability title
 2. **Severity** — Critical / High / Medium / Low (using CVSS if applicable)
-3. **Summary** — one-paragraph description of the vulnerability
-4. **Steps to Reproduce** — numbered, exact steps to reproduce
-5. **Impact** — what an attacker can achieve (data access, account takeover, RCE, etc.)
-6. **Proof of Concept** — tool output, request/response pairs, traffic captures, annotated screenshots
-7. **Affected Endpoint** — exact URL, parameter, and method
-8. **Remediation** — how to fix the vulnerability
+3. **Summary** — one-paragraph description of the root cause (not just the symptom)
+4. **Steps to Reproduce (MANDATORY)** — numbered, exact steps to reproduce from scratch.
+   A program triager must be able to follow these steps and confirm the vulnerability.
+5. **Proof of Concept (MANDATORY):**
+   - Exact payload, command, or cURL request (copy-pasteable)
+   - Raw HTTP request and response showing the exploit
+   - Tool output proving exploitation succeeded
+   - Annotated screenshots showing the vulnerability in the browser/response
+   - For chained bugs: PoC for each step in the chain
+6. **Impact** — what an attacker can achieve, **demonstrated not described**
+   (e.g., "extracted user PII" with sample data, not "could potentially access data")
+7. **Affected Endpoint** — exact URL, parameter, HTTP method
+8. **Remediation** — how to fix the vulnerability (specific, not generic)
 9. **References** — CVEs, CWEs, OWASP categories
+
+Populate `poc_steps`, `poc_payload`, and `evidence` in every `VulnerabilityEntry`.
 
 Sort findings by severity (critical first) and potential bounty value.
 
@@ -173,3 +186,6 @@ Sort findings by severity (critical first) and potential bounty value.
 - Capture screenshots of each vulnerability for visual proof of concept
 - Write reports in bug bounty format (not pentest format)
 - Each finding should be independently reportable
+- **Every finding MUST have a complete PoC** — without it, the report will be rejected
+- PoC must be independently reproducible by the program's security team
+- Populate `poc_steps`, `poc_payload`, and `evidence` fields in every `VulnerabilityEntry`

@@ -68,10 +68,11 @@ Append every raw output to the same `raw_outputs` dict.
 
 ---
 
-## Phase 3 -- Enumeration
+## Phase 3 -- Enumeration & Exploitation
 
 **Objective:** Deep-dive into web services, directories, technologies, and
-application-layer weaknesses.
+application-layer weaknesses. Validate every finding with a concrete Proof of
+Concept (PoC).
 
 | Task |
 |------|
@@ -84,6 +85,12 @@ application-layer weaknesses.
 | Exploit validation |
 | Credential extraction from traffic |
 | Web application reconnaissance |
+| **PoC development for every confirmed finding** |
+| **Screenshot evidence capture for visual proof** |
+
+For every vulnerability or finding discovered, you **MUST** produce a PoC before
+moving to Phase 4. A finding without a PoC is not a valid finding. See the
+[PoC Requirements](#poc-requirements) section below.
 
 Append every raw output to `raw_outputs`.
 
@@ -105,6 +112,8 @@ Append every raw output to `raw_outputs`.
    - **Deduplicate** findings across tools (same CVE from nikto + nuclei → one entry)
    - **Correlate** cross-tool evidence (nmap version + nikto CVE → higher confidence)
    - **Assess severity** using pentesting rules (RCE = critical, XSS = medium, etc.)
+   - **Attach PoC data** to every vulnerability — populate `evidence`,
+     `poc_steps`, and `poc_payload` fields (see [PoC Requirements](#poc-requirements))
    - **Extract errors** (timeouts, WAF blocks, rate limits) into `error_log`
      with `security_relevance` ratings
    - **Generate executive summary** with risk level, top findings, and attack chains
@@ -153,9 +162,18 @@ For each finding include:
 - Title / CVE (if available)
 - Affected host(s) and port(s)
 - CVSS score (if available)
-- Description of the vulnerability
-- Evidence / proof of concept
+- Description of the vulnerability (root cause, not just the symptom)
+- **Proof of Concept (MANDATORY)** — see [PoC Requirements](#poc-requirements)
+  - Numbered steps to reproduce
+  - Exact command, payload, or request used
+  - Tool output or HTTP response proving exploitation
+  - Screenshot evidence (where applicable)
+  - Impact demonstration (what the attacker gained)
 - References
+
+> **A finding without a PoC is not a valid finding.** If you cannot produce a
+> reproducible PoC, downgrade the finding to "info" severity and note that
+> exploitation could not be confirmed.
 
 ### 4. Anomalies & Scan Artifacts
 
@@ -188,6 +206,63 @@ Provide prioritized, actionable remediation guidance:
 - **Warnings:** any value from `payload.metadata.warning`
 - **Host inventory:** full table from `payload.findings.hosts` with ports,
   services, and versions
+
+---
+
+## PoC Requirements
+
+**Every vulnerability and finding MUST include a Proof of Concept (PoC).** A
+report with findings that only describe a vulnerability without demonstrating
+it is not valid. An administrator who was not present during the test must be
+able to independently reproduce and confirm each finding using only the PoC.
+
+### Required PoC Elements
+
+For **every** finding (critical through low severity), provide:
+
+| Element | Description |
+|---------|-------------|
+| **Reproduction steps** | Numbered, chronological steps to replicate the finding |
+| **Exact command/payload** | Copy-pasteable tool commands, HTTP requests, or exploit payloads |
+| **Raw output/response** | Terminal output, HTTP response body, or tool output proving the exploit worked |
+| **Impact demonstration** | What the attacker gained — not theoretical, but shown (e.g., data returned, shell obtained, privilege escalated) |
+| **Screenshot evidence** | Visual proof via `take_screenshot` / `take_element_screenshot` where applicable |
+
+### PoC by Vulnerability Class
+
+| Vulnerability Class | Minimum PoC Requirement |
+|---------------------|-------------------------|
+| SQL Injection | Injection payload, DBMS response, extracted sample data (max 5 rows) |
+| XSS (Reflected/Stored) | Payload, reflected/stored output in response body, screenshot of rendered payload |
+| RCE / Command Injection | Payload, command output (e.g., `id`, `whoami`), proof of execution |
+| LFI / Path Traversal | Traversal payload, file contents returned (e.g., `/etc/passwd`) |
+| SSRF | Request to internal endpoint, response proving internal access |
+| Authentication Bypass | Steps showing unauthenticated access to protected resource |
+| IDOR | Two requests showing access to another user's data via ID manipulation |
+| Default/Weak Credentials | Service, username:password pair, screenshot of authenticated session |
+| Missing Security Headers | HTTP response headers dump, list of missing headers with risk explanation |
+| SSL/TLS Issues | SSL scan output showing weak ciphers, expired certs, or outdated protocols |
+| Information Disclosure | Exact endpoint and response body containing sensitive data |
+
+### Storing PoC Data in AggregatedPayload
+
+When building the `AggregatedPayload`, populate these `VulnerabilityEntry` fields:
+
+- `evidence`: Raw tool output, HTTP response, or terminal output proving the finding
+- `poc_steps`: Ordered list of reproduction steps (e.g., `["1. Navigate to /login", "2. Enter payload ' OR 1=1-- in username field", "3. Observe 302 redirect to /admin"]`)
+- `poc_payload`: The exact payload, command, or request used (e.g., `"sqlmap -u 'http://target/page?id=1' --dbs --batch"` or the raw HTTP request)
+
+### PoC Validation Checklist
+
+Before including a finding in the report, verify:
+
+- [ ] Can someone reproduce this with only the PoC steps provided?
+- [ ] Is the exact payload/command included and copy-pasteable?
+- [ ] Does the evidence (output/response) clearly prove the vulnerability exists?
+- [ ] Is the impact demonstrated, not just described?
+- [ ] Are screenshots captured for visual findings (XSS, exposed panels, error pages)?
+
+If any check fails, the PoC is incomplete — go back and gather the missing evidence.
 
 ---
 

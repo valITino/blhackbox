@@ -79,6 +79,9 @@ explanation text. The JSON must match this schema:
   increase confidence in the vulnerability.
 - Correlate technology detection (whatweb) with vulnerability reports — if a CVE
   applies to a detected technology version, flag it.
+- **When merging duplicate findings, preserve the best PoC data:** keep the entry
+  with the most complete `poc_steps`, `poc_payload`, and `evidence`. Merge evidence
+  from both tools (e.g., "Detected by: nikto, nuclei. nikto output: ... nuclei output: ...").
 
 ### 4. Severity Assessment
 Reassess severity using these pentesting-specific rules:
@@ -127,11 +130,22 @@ Populate `attack_surface` by counting:
 - `ssl_issues`: SSL/TLS problems (expired, weak cipher, old protocol)
 - `high_value_targets`: List of the most interesting targets for further exploitation
 
-### 8. Data Preservation
+### 8. PoC Data Preservation
+**Never discard PoC data.** Every vulnerability entry must retain its `evidence`,
+`poc_steps`, and `poc_payload` fields through processing. A finding without PoC
+evidence is not a valid finding.
+
+- When deduplicating, keep the PoC with the most detail.
+- When compressing low-severity findings, still preserve at least the `evidence` field.
+- If a finding has empty `poc_steps` and `poc_payload`, it must be flagged with
+  `"likely_false_positive": true` unless the `evidence` field alone is sufficient
+  to confirm the vulnerability.
+
+### 9. Data Preservation
 Never discard data with security value. If an error or anomaly could indicate a
 security control (WAF, IDS, rate limiter, geo-block), keep it in error_log.
 
-### 9. Output
+### 10. Output
 Output ONLY valid JSON — no markdown fences, no commentary.
 
 ## Example
@@ -161,7 +175,7 @@ Output ONLY valid JSON — no markdown fences, no commentary.
     "hosts": [{"ip": "10.0.0.1", "hostname": "target.com", "os": "Linux 5.4", "ports": [{"port": 80, "protocol": "tcp", "state": "open", "service": "http", "version": "nginx/1.18.0", "banner": "", "nse_scripts": {"http-title": "Login Page"}}, {"port": 443, "protocol": "tcp", "state": "filtered", "service": "", "version": "", "banner": "", "nse_scripts": {}}]}],
     "ports": [],
     "services": [],
-    "vulnerabilities": [{"id": "CVE-2021-3449", "title": "OpenSSL DoS", "severity": "high", "cvss": 7.5, "host": "10.0.0.1", "port": 443, "description": "NULL pointer dereference in signature_algorithms processing. Confirmed by multiple tools.", "references": ["https://nvd.nist.gov/vuln/detail/CVE-2021-3449"], "evidence": "Detected by: nikto, nuclei", "tool_source": "nikto,nuclei", "likely_false_positive": false}],
+    "vulnerabilities": [{"id": "CVE-2021-3449", "title": "OpenSSL DoS", "severity": "high", "cvss": 7.5, "host": "10.0.0.1", "port": 443, "description": "NULL pointer dereference in signature_algorithms processing. Confirmed by multiple tools.", "references": ["https://nvd.nist.gov/vuln/detail/CVE-2021-3449"], "evidence": "Detected by: nikto, nuclei. nikto: + OpenSSL/1.1.1j appears vulnerable to CVE-2021-3449. nuclei: [CVE-2021-3449] [high] https://10.0.0.1:443", "poc_steps": ["1. Run nikto against target on port 443", "2. Run nuclei with CVE-2021-3449 template against target", "3. Both tools confirm the vulnerability"], "poc_payload": "nuclei -u https://10.0.0.1 -t CVE-2021-3449.yaml", "tool_source": "nikto,nuclei", "likely_false_positive": false}],
     "endpoints": [{"url": "/admin", "method": "GET", "status_code": 200, "content_length": 5432, "redirect": ""}, {"url": "/api/v1/users", "method": "GET", "status_code": 401, "content_length": 45, "redirect": ""}],
     "subdomains": ["mail.target.com", "dev.target.com", "staging.target.com"],
     "technologies": [],

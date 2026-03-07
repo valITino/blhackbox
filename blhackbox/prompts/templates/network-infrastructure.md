@@ -92,15 +92,29 @@ brute force attacks without explicit authorization.
 
 ### Step 8: Network Assessment Report
 
-Using the `AggregatedPayload`, produce a detailed report:
+Using the `AggregatedPayload`, produce a detailed report.
+
+> **Every finding MUST include a Proof of Concept.** A finding that only
+> describes a vulnerability without demonstrating it is not valid.
+
+For each finding, include a complete PoC:
+- Numbered reproduction steps (independently reproducible)
+- Exact command/payload used (copy-pasteable)
+- Raw tool output or service response proving the finding
+- Impact demonstration (what the attacker gained — shown, not described)
+- Screenshot evidence (where applicable)
+
+Findings without PoC must be downgraded to "info" severity.
+
+Report sections:
 
 1. **Executive Summary** — overall network security posture
 2. **Host Inventory** — all discovered hosts with OS, ports, services, versions
 3. **Network Topology** — discovered network structure and relationships
 4. **Service Analysis** — exposed services, versions, known CVEs
 5. **Network Traffic Analysis** — conversation analysis, protocol distribution, credential findings
-6. **Vulnerability Findings** — all vulnerabilities by severity, with CVSS scores
-7. **Default Credentials** — any discovered weak/default credentials
+6. **Vulnerability Findings** — all vulnerabilities by severity, with CVSS and full PoC
+7. **Default Credentials** — discovered weak/default credentials with service, login pair, and proof
 8. **DNS & Infrastructure** — DNS records, zone transfer results, WHOIS data
 9. **Attack Chains** — paths from initial access to deeper compromise
 10. **Remediation Roadmap** — prioritized by risk and effort
@@ -115,3 +129,6 @@ Using the `AggregatedPayload`, produce a detailed report:
 - Test default credentials only — no exhaustive brute force without explicit approval
 - Record every tool output for post-processing
 - Pay special attention to exposed management interfaces
+- **Every finding MUST have a PoC** — reproduction steps, exact payload, raw evidence, and impact proof
+- Findings without PoC are not valid and must be downgraded to "info" severity
+- Populate `poc_steps`, `poc_payload`, and `evidence` fields in every `VulnerabilityEntry`
