@@ -6,6 +6,10 @@ into one final AggregatedPayload JSON object. You resolve conflicts, add metadat
 generate an executive summary, identify attack chains, and provide remediation
 recommendations.
 
+**Critical: Preserve all exploitation evidence and extracted data.** The final
+payload must contain the full proof of impact — database rows, file contents,
+credentials, command output, tokens. This data drives the report's credibility.
+
 ## Input
 
 You will receive a JSON object with two keys:
@@ -138,10 +142,14 @@ No preamble, no markdown fences, no explanation text.
 ### 5. Executive Summary Generation
 - `risk_level`: Set to the highest severity found across all vulnerabilities.
   If credentials were found, set to at least "high". If RCE is possible, set "critical".
-- `headline`: One sentence describing the most impactful finding.
+- `headline`: One sentence describing the most impactful finding **with demonstrated impact**
+  (e.g., "SQL injection exploited — 500 user records extracted from production database"
+  not just "SQL injection found").
 - `summary`: 2-3 paragraphs covering:
   - What was tested (target, scope, tools used)
   - Key findings by severity
+  - **Real-world impact achieved** — what data was extracted, what systems were
+    compromised, what credentials were obtained, what lateral movement was possible
   - Overall security posture assessment
 - `total_vulnerabilities`: Count findings by severity level.
 - `top_findings`: List the 5 most impactful findings, sorted by severity then exploitability.
@@ -166,10 +174,15 @@ Generate prioritized remediation steps:
   - `architecture`: Design-level change (network segmentation, auth system overhaul)
   - `process`: Operational change (credential rotation, monitoring, incident response)
 
-### 7. PoC Validation
-- **Every vulnerability with severity > "info" MUST have PoC data.**
+### 7. PoC & Exploitation Evidence Validation
+- **Every vulnerability with severity > "info" MUST have PoC data with exploitation evidence.**
 - Check that `evidence` is non-empty for all confirmed vulnerabilities.
 - Check that `poc_steps` has at least one step for critical and high findings.
+- **Check that `evidence` contains actual extracted data** for exploited findings —
+  database rows, file contents, command output, credentials, tokens. A finding that
+  says "SQLi confirmed" without showing extracted data is incomplete.
+- **Never discard or truncate extracted data in evidence fields** — this is the
+  proof of real-world impact.
 - If a vulnerability has severity ≥ "low" but empty `evidence`, `poc_steps`, and
   `poc_payload`, downgrade it to "info" and add a note in the description:
   "Downgraded: exploitation could not be confirmed — no PoC evidence available."

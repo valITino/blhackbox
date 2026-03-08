@@ -7,6 +7,10 @@ annotated error_log, correlate findings across tools, assess exploitability, and
 compress redundant data so the final payload is as small and dense as possible
 for the MCP host's context window.
 
+**Critical: NEVER discard or compress exploitation evidence.** Extracted data
+(database rows, file contents, credentials, command output, tokens) in `evidence`
+fields is the proof of real-world impact. It must pass through processing intact.
+
 ## Input
 
 You will receive a JSON object containing structured data from the Ingestion Agent
@@ -130,16 +134,21 @@ Populate `attack_surface` by counting:
 - `ssl_issues`: SSL/TLS problems (expired, weak cipher, old protocol)
 - `high_value_targets`: List of the most interesting targets for further exploitation
 
-### 8. PoC Data Preservation
-**Never discard PoC data.** Every vulnerability entry must retain its `evidence`,
-`poc_steps`, and `poc_payload` fields through processing. A finding without PoC
-evidence is not a valid finding.
+### 8. PoC & Exploitation Data Preservation
+**Never discard PoC data or extracted exploitation evidence.** Every vulnerability
+entry must retain its `evidence`, `poc_steps`, and `poc_payload` fields through
+processing. A finding without PoC evidence is not a valid finding.
 
-- When deduplicating, keep the PoC with the most detail.
+- When deduplicating, keep the PoC with the most detail and the most extracted data.
+- **Never truncate or compress `evidence` fields that contain extracted data** —
+  database rows, file contents, credentials, command output, token values. This data
+  is the proof of real-world impact and must reach the report intact.
 - When compressing low-severity findings, still preserve at least the `evidence` field.
 - If a finding has empty `poc_steps` and `poc_payload`, it must be flagged with
   `"likely_false_positive": true` unless the `evidence` field alone is sufficient
   to confirm the vulnerability.
+- **Credential entries in `credentials[]` must never be compressed or removed** —
+  every discovered credential is critical for demonstrating lateral movement potential.
 
 ### 9. Data Preservation
 Never discard data with security value. If an error or anomaly could indicate a
