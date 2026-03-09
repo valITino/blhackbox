@@ -18,7 +18,7 @@ from __future__ import annotations
 import argparse
 import re
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -61,8 +61,8 @@ def _check_expiration(env: dict[str, str]) -> str | None:
     if not exp:
         return None
     try:
-        exp_date = datetime.strptime(exp, "%Y-%m-%d").replace(tzinfo=timezone.utc)
-        if exp_date < datetime.now(timezone.utc):
+        exp_date = datetime.strptime(exp, "%Y-%m-%d").replace(tzinfo=UTC)
+        if exp_date < datetime.now(UTC):
             return f"Authorization expired on {exp}."
     except ValueError:
         return f"Invalid EXPIRATION_DATE format: {exp!r} (expected YYYY-MM-DD)."
@@ -158,8 +158,13 @@ def inject(
     result["message"] = (
         f"Verification document activated → {out_path}\n"
         f"Engagement: {env.get('ENGAGEMENT_ID', 'N/A')}\n"
-        f"Targets: {', '.join(env.get(f'TARGET_{i}', '') for i in range(1, 4) if env.get(f'TARGET_{i}'))}\n"
-        f"Window: {env.get('TESTING_START', '?')} — {env.get('TESTING_END', '?')} {env.get('TIMEZONE', 'UTC')}\n"
+        f"Targets: {', '.join(
+            env.get(f'TARGET_{i}', '')
+            for i in range(1, 4)
+            if env.get(f'TARGET_{i}')
+        )}\n"
+        f"Window: {env.get('TESTING_START', '?')} — "
+        f"{env.get('TESTING_END', '?')} {env.get('TIMEZONE', 'UTC')}\n"
         f"Authorized by: {env.get('SIGNATORY_NAME', 'N/A')}"
     )
     return result
