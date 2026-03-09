@@ -90,3 +90,16 @@ def load_playbook() -> str:
     """Load the Claude pentest playbook."""
     path = _PROMPTS_DIR / "claude_playbook.md"
     return path.read_text(encoding="utf-8")
+
+
+def load_verification() -> str | None:
+    """Load the active verification document if it exists.
+
+    Returns:
+        The rendered verification document content, or ``None`` if no
+        active verification document has been generated yet.
+    """
+    active_path = _PROMPTS_DIR.parent.parent / ".claude" / "verification-active.md"
+    if active_path.exists():
+        return active_path.read_text(encoding="utf-8")
+    return None

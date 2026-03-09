@@ -26,6 +26,9 @@ env/
 # Environment
 .env
 
+# Active verification document (rendered from verification.env — contains engagement details)
+.claude/verification-active.md
+
 # Results and reports
 results/*.json
 results/*.pdf

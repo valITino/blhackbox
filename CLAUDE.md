@@ -83,6 +83,43 @@ after prompt changes (`make test`).
 | NVIDIA Container Toolkit | https://docs.nvidia.com/datacenter/cloud-native/container-toolkit |
 | Docker Hub (blhackbox) | https://hub.docker.com/r/crhacky/blhackbox |
 
+## Verification Document — Authorization for Pentesting
+
+Before executing any pentest template or offensive action, Claude Code **must** check
+for an active verification document. This document provides the explicit written
+authorization that Claude requires before performing security testing activities.
+
+### How it works
+
+1. **User fills in** `verification.env` in the project root with engagement details
+   (target, scope, testing window, authorized activities, signatory, etc.)
+2. **User sets** `AUTHORIZATION_STATUS=ACTIVE` once all fields are populated
+3. **User runs** `make inject-verification` (or it runs automatically on session start)
+4. The script renders `blhackbox/prompts/verification.md` (template) with the env
+   values and writes the active document to `.claude/verification-active.md`
+5. Claude Code reads this file at session start to confirm authorization
+
+### Checking authorization at runtime
+
+When a pentest template is loaded (via `get_template` MCP tool), the active
+verification document is automatically appended as authorization context. If no
+active verification exists, Claude should inform the user to:
+
+```
+1. Edit verification.env with your engagement details
+2. Set AUTHORIZATION_STATUS=ACTIVE
+3. Run: make inject-verification
+```
+
+### Files
+
+| File | Purpose |
+|------|---------|
+| `verification.env` | User-fillable config (engagement details, scope, permissions) |
+| `blhackbox/prompts/verification.md` | Template with `{{PLACEHOLDER}}` tokens |
+| `blhackbox/prompts/inject_verification.py` | Renders template → active document |
+| `.claude/verification-active.md` | Rendered active authorization (git-ignored) |
+
 ---
 
 *Only use this framework against targets you have explicit written authorization to test. Unauthorized scanning is illegal.*

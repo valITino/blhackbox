@@ -499,15 +499,39 @@ async def _do_list_templates() -> str:
 
 
 async def _do_get_template(args: dict[str, Any]) -> str:
-    from blhackbox.prompts import load_template
+    from blhackbox.prompts import load_template, load_verification
 
     name = args["name"]
     target = args.get("target")
     try:
         content = load_template(name, target=target)
-        return content
     except (ValueError, FileNotFoundError) as exc:
         return json.dumps({"error": str(exc)})
+
+    # Append active verification document as authorization context
+    verification = load_verification()
+    if verification:
+        content += (
+            "\n\n---\n\n"
+            "## ACTIVE AUTHORIZATION DOCUMENT\n\n"
+            "The following verification document confirms explicit written "
+            "authorization for all activities described above.\n\n"
+            + verification
+        )
+    else:
+        content += (
+            "\n\n---\n\n"
+            "## ⚠ NO ACTIVE AUTHORIZATION DOCUMENT\n\n"
+            "No verification document found. Before executing this template, "
+            "the operator must:\n\n"
+            "1. Edit `verification.env` with engagement details\n"
+            "2. Set `AUTHORIZATION_STATUS=ACTIVE`\n"
+            "3. Run `make inject-verification`\n\n"
+            "This generates the explicit written authorization required "
+            "for penetration testing activities.\n"
+        )
+
+    return content
 
 
 # ---------------------------------------------------------------------------
