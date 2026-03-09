@@ -6,7 +6,8 @@
        logs-agent-ingestion logs-agent-processing logs-agent-synthesis \
        restart-ollama-mcp restart-kali restart-agents \
        restart-wireshark restart-screenshot \
-       push-all wordlists recon report
+       push-all wordlists recon report \
+       inject-verification
 
 COMPOSE := docker compose
 
@@ -212,6 +213,10 @@ recon: ## Quick recon example (requires TARGET env var)
 
 report: ## Generate report for a session (requires SESSION env var)
 	blhackbox report --session $(SESSION) --format pdf
+
+# ── Verification ─────────────────────────────────────────────────
+inject-verification: ## Render verification.env into active authorization document
+	python -m blhackbox.prompts.inject_verification
 
 # ── Build and push (Docker Hub: crhacky/blhackbox) ──────────────
 push-all: ## Build and push all custom images to Docker Hub

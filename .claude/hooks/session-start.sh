@@ -26,6 +26,13 @@ fi
 # Export venv bin to PATH for the session
 echo "export PATH=\"$CLAUDE_PROJECT_DIR/.venv/bin:\$PATH\"" >> "$CLAUDE_ENV_FILE"
 
+# Inject pentest verification document if verification.env is configured.
+# This renders the authorization template and writes it to
+# .claude/verification-active.md so Claude Code sees it in context.
+if [ -f "verification.env" ]; then
+  .venv/bin/python -m blhackbox.prompts.inject_verification 2>&1 || true
+fi
+
 # Run MCP health check (informational — does not block startup)
 if [ -x ".claude/mcp-health-check.sh" ]; then
   .claude/mcp-health-check.sh 2>&1 || true
