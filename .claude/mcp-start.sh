@@ -15,7 +15,7 @@ if [ ! -f ".venv/bin/blhackbox" ]; then
   .venv/bin/pip install -e . --quiet >&2
 fi
 
-# Load .env if present (for NEO4J_*, OLLAMA_*, etc.)
+# Load .env if present (for NEO4J_*, etc.)
 # API keys (ANTHROPIC_API_KEY, OPENAI_API_KEY) are intentionally commented
 # out in .env.example — Claude Code provides its own authentication.
 if [ -f ".env" ]; then

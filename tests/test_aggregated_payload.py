@@ -191,7 +191,7 @@ class TestAggregatedPayload:
                 total_raw_size_bytes=50000,
                 structured_size_bytes=2500,
                 expansion_ratio=0.05,
-                ollama_model="llama3.3",
+                model="llama3.3",
                 duration_seconds=12.5,
             ),
         )
@@ -387,13 +387,13 @@ class TestAggregatedMetadata:
         assert meta.total_raw_size_bytes == 0
         assert meta.structured_size_bytes == 0
         assert meta.expansion_ratio == 0.0
-        assert meta.ollama_model == ""
+        assert meta.model == ""
         assert meta.duration_seconds == 0.0
         assert meta.warning == ""
 
     def test_warning(self) -> None:
-        meta = AggregatedMetadata(warning="Ollama unreachable")
-        assert meta.warning == "Ollama unreachable"
+        meta = AggregatedMetadata(warning="Service unreachable")
+        assert meta.warning == "Service unreachable"
         assert meta.tools_run == []
 
     def test_full_metadata(self) -> None:
@@ -402,7 +402,7 @@ class TestAggregatedMetadata:
             total_raw_size_bytes=100000,
             structured_size_bytes=5000,
             expansion_ratio=0.05,
-            ollama_model="llama3.3",
+            model="llama3.3",
             duration_seconds=25.3,
             warning="",
         )

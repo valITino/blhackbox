@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "blhackbox"
 version = "2.0.0"
-description = "MCP-based autonomous pentesting with knowledge graph and Ollama preprocessing"
+description = "MCP-based autonomous pentesting with knowledge graph"
 readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.11"
@@ -39,12 +39,6 @@ dependencies = [
     "matplotlib==3.10.0",
     # MCP Server (FastMCP for automatic tool schema generation)
     "mcp>=1.23.0",
-    # Ollama (official Python client for LLM inference)
-    "ollama>=0.4.0",
-    # Agent servers (FastAPI containers)
-    "fastapi>=0.115.8",
-    "starlette>=0.49.1",
-    "uvicorn>=0.34.0",
     # Utilities
     "tenacity==9.0.0",
     "python-dotenv==1.0.1",
@@ -70,7 +64,6 @@ include = ["blhackbox*"]
 [tool.setuptools.package-data]
 "blhackbox.data" = ["*.json"]
 "blhackbox.prompts" = ["*.md"]
-"blhackbox.prompts.agents" = ["*.md"]
 
 [tool.ruff]
 target-version = "py311"

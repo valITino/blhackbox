@@ -146,7 +146,7 @@ class TechnologyNode(GraphNode):
 
 
 class AggregatedSessionNode(GraphNode):
-    """Represents an aggregated pentest session processed by the Ollama pipeline."""
+    """Represents an aggregated pentest session."""
 
     label: str = "AggregatedSession"
     merge_key: str = "session_id"
@@ -159,7 +159,7 @@ class AggregatedSessionNode(GraphNode):
         tools_run: list[str] | str = "",
         agents_run: list[str] | str = "",
         compression_ratio: float = 0.0,
-        ollama_model: str = "",
+        model: str = "",
         duration_seconds: float = 0.0,
         warning: str = "",
         **kwargs: Any,
@@ -186,7 +186,7 @@ class AggregatedSessionNode(GraphNode):
                 "tools_run": tools_run_val,
                 "agents_run": agents_run_val,
                 "compression_ratio": compression_ratio,
-                "ollama_model": ollama_model,
+                "model": model,
                 "duration_seconds": duration_seconds,
                 "warning": warning,
             }

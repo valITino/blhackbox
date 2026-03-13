@@ -253,7 +253,7 @@ def generate_md_report_from_payload(
     lines.append("|--------|-------|")
     lines.append(f"| Total Raw Size (bytes) | {payload.metadata.total_raw_size_bytes} |")
     lines.append(f"| Compression Ratio | {payload.metadata.compression_ratio:.2f} |")
-    lines.append(f"| Ollama Model | {payload.metadata.ollama_model} |")
+    lines.append(f"| Model | {payload.metadata.model} |")
     lines.append(f"| Duration | {payload.metadata.duration_seconds:.1f}s |")
     lines.append("")
 

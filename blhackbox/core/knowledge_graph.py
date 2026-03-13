@@ -246,7 +246,7 @@ class KnowledgeGraphClient:
         tools_run: list[str] | str = "",
         agents_run: list[str] | str = "",
         compression_ratio: float = 0.0,
-        ollama_model: str = "",
+        model: str = "",
         duration_seconds: float = 0.0,
         warning: str = "",
     ) -> AggregatedSessionNode:
@@ -258,7 +258,7 @@ class KnowledgeGraphClient:
             tools_run=tools_run,
             agents_run=agents_run,
             compression_ratio=compression_ratio,
-            ollama_model=ollama_model,
+            model=model,
             duration_seconds=duration_seconds,
             warning=warning,
         )

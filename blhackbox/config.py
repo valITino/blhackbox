@@ -29,10 +29,6 @@ class Settings(BaseSettings):
     )
     neo4j_database: str = Field(default="neo4j", description="Neo4j database name")
 
-    # --- Ollama ---
-    ollama_url: str = Field(default="http://ollama:11434", description="Ollama API URL")
-    ollama_model: str = Field(default="llama3.1:8b", description="Ollama model name")
-
     # --- MCP Gateway ---
     mcp_gateway_port: int = Field(default=8080, description="MCP Gateway port")
 

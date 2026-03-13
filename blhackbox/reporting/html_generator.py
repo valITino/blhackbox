@@ -510,8 +510,8 @@ AGGREGATED_HTML_TEMPLATE = """\
                 <div class="value">{{ "%.2f"|format(payload.metadata.compression_ratio) }}</div>
             </div>
             <div class="stat-card">
-                <div class="label">Ollama Model</div>
-                <div class="value">{{ payload.metadata.ollama_model }}</div>
+                <div class="label">Model</div>
+                <div class="value">{{ payload.metadata.model }}</div>
             </div>
             <div class="stat-card">
                 <div class="label">Duration</div>
@@ -538,7 +538,7 @@ def generate_html_report_from_payload(
     """Generate an HTML report from an AggregatedPayload.
 
     This is the v2.0 report generation path, consuming structured output
-    from the Ollama preprocessing pipeline rather than raw scan results.
+    from the aggregation pipeline rather than raw scan results.
 
     Args:
         payload: Aggregated pentest data from the aggregator MCP server.

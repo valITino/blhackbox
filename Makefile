@@ -1,10 +1,9 @@
-.PHONY: help setup up up-full up-ollama up-gateway down logs test test-local lint format clean nuke \
-       pull status health portainer gateway-logs ollama-pull ollama-shell \
+.PHONY: help setup up up-full up-gateway down logs test test-local lint format clean nuke \
+       pull status health portainer gateway-logs \
        claude-code \
-       neo4j-browser logs-ollama-mcp logs-kali \
+       neo4j-browser logs-kali \
        logs-wireshark logs-screenshot \
-       logs-agent-ingestion logs-agent-processing logs-agent-synthesis \
-       restart-ollama-mcp restart-kali restart-agents \
+       restart-kali \
        restart-wireshark restart-screenshot \
        push-all wordlists recon report \
        inject-verification
@@ -22,14 +21,11 @@ help: ## Show this help
 pull: ## Pull all pre-built images from Docker Hub
 	$(COMPOSE) pull
 
-up: ## Start core stack (4 containers — no Ollama, no gateway)
+up: ## Start core stack (4 containers)
 	$(COMPOSE) up -d
 
-up-ollama: ## Start with Ollama pipeline (9 containers — legacy local processing)
-	$(COMPOSE) --profile ollama up -d
-
 down: ## Stop all services (all profiles)
-	$(COMPOSE) --profile gateway --profile neo4j --profile claude-code --profile ollama down
+	$(COMPOSE) --profile gateway --profile neo4j --profile claude-code down
 
 logs: ## Tail logs from all services
 	$(COMPOSE) logs -f
@@ -55,7 +51,7 @@ format: ## Auto-format code
 	ruff format blhackbox/ tests/
 
 clean: ## Remove containers, volumes, networks, and build artifacts (keeps images)
-	$(COMPOSE) --profile gateway --profile neo4j --profile claude-code --profile ollama down -v --remove-orphans
+	$(COMPOSE) --profile gateway --profile neo4j --profile claude-code down -v --remove-orphans
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 	rm -rf dist/ build/ *.egg-info
 
@@ -63,14 +59,12 @@ nuke: ## Full cleanup: containers + volumes + ALL images (frees max disk space)
 	@echo "\033[1;33m  WARNING: This will remove ALL blhackbox containers, volumes, AND images.\033[0m"
 	@echo "\033[2m  You will need to 'docker compose pull' or 'docker compose build' again.\033[0m"
 	@echo ""
-	$(COMPOSE) --profile gateway --profile neo4j --profile claude-code --profile ollama down -v --remove-orphans --rmi all
+	$(COMPOSE) --profile gateway --profile neo4j --profile claude-code down -v --remove-orphans --rmi all
 	@echo ""
 	@echo "\033[2m  Pruning dangling images and build cache...\033[0m"
 	docker image prune -f
 	docker builder prune -f
 	@echo ""
-	@echo "\033[2m  Removing downloaded Ollama models (if volume still exists)...\033[0m"
-	docker volume rm blhackbox_ollama_models 2>/dev/null || true
 	docker volume rm blhackbox_portainer_data 2>/dev/null || true
 	docker volume rm blhackbox_neo4j_data 2>/dev/null || true
 	docker volume rm blhackbox_neo4j_logs 2>/dev/null || true
@@ -97,7 +91,7 @@ status: ## Health status of all containers
 	@echo ""
 	@echo "\033[1m  blhackbox Container Status\033[0m"
 	@echo "\033[2m  ──────────────────────────────────────\033[0m"
-	@$(COMPOSE) --profile gateway --profile neo4j --profile claude-code --profile ollama ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}" 2>/dev/null || $(COMPOSE) ps
+	@$(COMPOSE) --profile gateway --profile neo4j --profile claude-code ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}" 2>/dev/null || $(COMPOSE) ps
 	@echo ""
 
 health: ## Quick health check of all MCP servers
@@ -113,21 +107,6 @@ health: ## Quick health check of all MCP servers
 	@printf "  %-22s " "Screenshot MCP (9004)"; \
 		docker exec blhackbox-screenshot-mcp python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:9004/health')" > /dev/null 2>&1 \
 		&& echo "\033[32m[OK]\033[0m" || echo "\033[31m[FAIL]\033[0m"
-	@printf "  %-22s " "Ollama MCP (9000)"; \
-		docker inspect --format='{{.State.Running}}' blhackbox-ollama-mcp 2>/dev/null | grep -q "true" \
-		&& echo "\033[32m[OK]\033[0m" || echo "\033[33m[OFF]\033[0m  (optional — enable with: make up-ollama)"
-	@printf "  %-22s " "Ollama (11434)"; \
-		docker inspect --format='{{.State.Running}}' blhackbox-ollama 2>/dev/null | grep -q "true" \
-		&& echo "\033[32m[OK]\033[0m" || echo "\033[33m[OFF]\033[0m  (optional — enable with: make up-ollama)"
-	@printf "  %-22s " "Agent Ingestion"; \
-		docker inspect --format='{{.State.Running}}' blhackbox-agent-ingestion 2>/dev/null | grep -q "true" \
-		&& echo "\033[32m[OK]\033[0m" || echo "\033[33m[OFF]\033[0m  (optional)"
-	@printf "  %-22s " "Agent Processing"; \
-		docker inspect --format='{{.State.Running}}' blhackbox-agent-processing 2>/dev/null | grep -q "true" \
-		&& echo "\033[32m[OK]\033[0m" || echo "\033[33m[OFF]\033[0m  (optional)"
-	@printf "  %-22s " "Agent Synthesis"; \
-		docker inspect --format='{{.State.Running}}' blhackbox-agent-synthesis 2>/dev/null | grep -q "true" \
-		&& echo "\033[32m[OK]\033[0m" || echo "\033[33m[OFF]\033[0m  (optional)"
 	@printf "  %-22s " "MCP Gateway (8080)"; \
 		docker inspect --format='{{.State.Running}}' blhackbox-mcp-gateway 2>/dev/null | grep -q "true" \
 		&& echo "\033[32m[OK]\033[0m" || echo "\033[33m[OFF]\033[0m  (optional — enable with: make up-gateway)"
@@ -135,13 +114,6 @@ health: ## Quick health check of all MCP servers
 		curl -skf --max-time 3 https://localhost:9443 > /dev/null 2>&1 \
 		&& echo "\033[32m[OK]\033[0m  https://localhost:9443" || echo "\033[31m[FAIL]\033[0m"
 	@echo ""
-
-# ── Ollama ──────────────────────────────────────────────────────
-ollama-pull: ## Pull default Ollama model into container
-	docker exec blhackbox-ollama ollama pull $$(grep OLLAMA_MODEL .env | cut -d= -f2)
-
-ollama-shell: ## Shell into Ollama container
-	docker exec -it blhackbox-ollama /bin/bash
 
 # ── Monitoring ──────────────────────────────────────────────────
 portainer: ## Open Portainer dashboard (first run: create admin account)
@@ -158,9 +130,6 @@ portainer: ## Open Portainer dashboard (first run: create admin account)
 gateway-logs: ## Live MCP tool call log (requires --profile gateway)
 	$(COMPOSE) logs -f mcp-gateway
 
-logs-ollama-mcp: ## Tail Ollama MCP server logs
-	$(COMPOSE) logs -f ollama-mcp
-
 logs-kali: ## Tail Kali MCP server logs
 	$(COMPOSE) logs -f kali-mcp
 
@@ -170,22 +139,10 @@ logs-wireshark: ## Tail WireMCP server logs
 logs-screenshot: ## Tail Screenshot MCP server logs
 	$(COMPOSE) logs -f screenshot-mcp
 
-logs-agent-ingestion: ## Tail Ingestion Agent logs
-	$(COMPOSE) logs -f agent-ingestion
-
-logs-agent-processing: ## Tail Processing Agent logs
-	$(COMPOSE) logs -f agent-processing
-
-logs-agent-synthesis: ## Tail Synthesis Agent logs
-	$(COMPOSE) logs -f agent-synthesis
-
 neo4j-browser: ## Open Neo4j Browser
 	@open http://localhost:7474 2>/dev/null || xdg-open http://localhost:7474
 
 # ── Per-service restart ──────────────────────────────────────────
-restart-ollama-mcp: ## Restart Ollama MCP server
-	$(COMPOSE) restart ollama-mcp
-
 restart-kali: ## Restart Kali MCP server
 	$(COMPOSE) restart kali-mcp
 
@@ -194,9 +151,6 @@ restart-wireshark: ## Restart WireMCP server
 
 restart-screenshot: ## Restart Screenshot MCP server
 	$(COMPOSE) restart screenshot-mcp
-
-restart-agents: ## Restart all 3 agent containers
-	$(COMPOSE) restart agent-ingestion agent-processing agent-synthesis
 
 # ── Recon & Reporting ──────────────────────────────────────────
 wordlists: ## Download common wordlists
@@ -225,16 +179,8 @@ push-all: ## Build and push all custom images to Docker Hub
 	docker build -f docker/kali-mcp.Dockerfile -t crhacky/blhackbox:kali-mcp .
 	docker build -f docker/wire-mcp.Dockerfile -t crhacky/blhackbox:wire-mcp .
 	docker build -f docker/screenshot-mcp.Dockerfile -t crhacky/blhackbox:screenshot-mcp .
-	docker build -f docker/ollama-mcp.Dockerfile -t crhacky/blhackbox:ollama-mcp .
-	docker build -f docker/agent-ingestion.Dockerfile -t crhacky/blhackbox:agent-ingestion .
-	docker build -f docker/agent-processing.Dockerfile -t crhacky/blhackbox:agent-processing .
-	docker build -f docker/agent-synthesis.Dockerfile -t crhacky/blhackbox:agent-synthesis .
 	docker build -f docker/claude-code.Dockerfile -t crhacky/blhackbox:claude-code .
 	docker push crhacky/blhackbox:kali-mcp
 	docker push crhacky/blhackbox:wire-mcp
 	docker push crhacky/blhackbox:screenshot-mcp
-	docker push crhacky/blhackbox:ollama-mcp
-	docker push crhacky/blhackbox:agent-ingestion
-	docker push crhacky/blhackbox:agent-processing
-	docker push crhacky/blhackbox:agent-synthesis
 	docker push crhacky/blhackbox:claude-code

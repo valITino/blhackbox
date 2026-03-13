@@ -92,18 +92,6 @@ class TestListTemplates:
 class TestLoadAgentPrompt:
     """Test loading agent prompts."""
 
-    def test_load_ingestion_prompt(self) -> None:
-        content = load_agent_prompt("ingestionagent")
-        assert len(content) > 50
-
-    def test_load_processing_prompt(self) -> None:
-        content = load_agent_prompt("processingagent")
-        assert len(content) > 50
-
-    def test_load_synthesis_prompt(self) -> None:
-        content = load_agent_prompt("synthesisagent")
-        assert len(content) > 50
-
     def test_unknown_agent_raises(self) -> None:
         with pytest.raises(FileNotFoundError):
             load_agent_prompt("nonexistent_agent")

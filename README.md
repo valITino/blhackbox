@@ -29,13 +29,11 @@
 - [How Prompts Flow Through the System](#how-prompts-flow-through-the-system)
 - [Do I Need the MCP Gateway?](#do-i-need-the-mcp-gateway)
 - [Portainer Setup](#portainer-setup)
-- [Ollama Preprocessing Pipeline (Optional)](#ollama-preprocessing-pipeline-optional)
 - [Troubleshooting](#troubleshooting)
 - [CLI Reference](#cli-reference)
 - [Makefile Shortcuts](#makefile-shortcuts)
 - [Docker Hub Images](#docker-hub-images)
 - [Neo4j (Optional)](#neo4j-optional)
-- [GPU Support for Ollama (Optional)](#gpu-support-for-ollama-optional)
 - [Authorization & Verification](#authorization--verification)
 - [Security Notes](#security-notes)
 - [Project Structure](#project-structure)
@@ -143,20 +141,15 @@ manually, create it with: `mkdir -p output/reports output/screenshots output/ses
 | **Claude Code** | Anthropic CLI MCP client in Docker | — | `claude-code` |
 | **MCP Gateway** | Single entry point for host-based MCP clients | 8080 | `gateway` |
 | **Neo4j** | Cross-session knowledge graph | 7474/7687 | `neo4j` |
-| **Ollama MCP** | Legacy thin orchestrator — calls 3 agent containers | 9000 | `ollama` |
-| **Agent: Ingestion** | Parses raw tool output into structured typed data | 8001 | `ollama` |
-| **Agent: Processing** | Deduplicates, compresses, annotates errors | 8002 | `ollama` |
-| **Agent: Synthesis** | Merges into final `AggregatedPayload` | 8003 | `ollama` |
-| **Ollama** | Local LLM inference backend (llama3.1:8b by default) | 11434 | `ollama` |
 
 ---
 
 ## Prerequisites
 
 - **Docker** and **Docker Compose** (Docker Engine on Linux, or Docker Desktop)
-- At least **8 GB RAM** recommended (4 containers in the core stack). If using the optional Ollama pipeline (`--profile ollama`), 16 GB+ is recommended.
+- At least **8 GB RAM** recommended (4 containers in the core stack).
 - An **Anthropic API key** from [console.anthropic.com](https://console.anthropic.com) (**required** for Claude Code)
-- **NVIDIA Container Toolkit** (optional — only needed if using `--profile ollama` with GPU. See [GPU Support](#gpu-support-for-ollama))
+
 
 ---
 
@@ -172,7 +165,7 @@ cd blhackbox
 
 The setup wizard will:
 1. Check prerequisites (Docker, Docker Compose, disk space)
-2. Let you choose optional components (Neo4j, MCP Gateway, Ollama)
+2. Let you choose optional components (Neo4j, MCP Gateway)
 3. Prompt for your `ANTHROPIC_API_KEY` (required for Claude Code in Docker)
 4. Generate `.env` and create the `output/` directory
 5. Pull Docker images and start all services
@@ -242,9 +235,6 @@ You should see 4 containers, all "Up" or "healthy":
 - `blhackbox-screenshot-mcp`
 - `blhackbox-portainer`
 
-> **Want local-only processing?** Use `make up-ollama` to also start the
-> Ollama pipeline (adds 5 more containers, requires 16 GB+ RAM).
-
 > **First time?** Open Portainer at `https://localhost:9443` and create an admin
 > account within 5 minutes. See [Portainer Setup](#portainer-setup).
 
@@ -287,7 +277,6 @@ Checking service connectivity...
   Kali MCP               [ OK ]
   WireMCP                [ OK ]
   Screenshot MCP         [ OK ]
-  Ollama Pipeline        [ WARN ]  (optional — not running)
 
 ──────────────────────────────────────────────────
   All 3 services connected.
@@ -534,30 +523,6 @@ Then open `https://localhost:9443` again and create your account.
 
 ---
 
-## Ollama Preprocessing Pipeline (Optional)
-
-> **Since v2.1, the MCP host (Claude) handles data aggregation directly.**
-> The Ollama pipeline is kept as an optional fallback for local-only / offline
-> processing where you don't want to use the MCP host's intelligence.
-
-Enable with: `docker compose --profile ollama up -d` (or `make up-ollama`).
-
-The Ollama MCP Server is a thin orchestrator built with
-[FastMCP](https://github.com/modelcontextprotocol/python-sdk) that calls 3
-agent containers in sequence via HTTP. Each agent container is a FastAPI server
-that calls Ollama via the official
-[`ollama` Python package](https://github.com/ollama/ollama-python) with a
-task-specific system prompt.
-
-1. **Ingestion Agent** (`agent-ingestion:8001`) — Parses raw tool output into structured typed data
-2. **Processing Agent** (`agent-processing:8002`) — Deduplicates, compresses, annotates error_log with security_relevance
-3. **Synthesis Agent** (`agent-synthesis:8003`) — Merges into final `AggregatedPayload`
-
-Agent prompts are baked into each container from `blhackbox/prompts/agents/*.md`
-at build time. Override via volume mount for tuning without rebuilding.
-
----
-
 ## Troubleshooting
 
 ### Claude Code shows "Status: failed" for MCP servers
@@ -597,28 +562,6 @@ missed it, restart:
 docker compose restart portainer
 ```
 
-### Ollama model not pulled (only if using --profile ollama)
-
-The agents need a model loaded in Ollama. Without it, the preprocessing pipeline
-returns empty results:
-
-```bash
-make ollama-pull     # pulls the model specified in .env (default: llama3.1:8b)
-```
-
-If the model fails to load with an "out of memory" error, your system doesn't
-have enough RAM for the configured model. Try a smaller model:
-
-```bash
-# Edit .env and change OLLAMA_MODEL to a smaller model:
-OLLAMA_MODEL=llama3.2:3b
-# Then re-pull:
-make ollama-pull
-```
-
-> **Note:** If you're not using `--profile ollama`, you don't need to pull any
-> model. The MCP host (Claude) handles aggregation directly.
-
 ### MCP Gateway doesn't start
 
 The gateway is **optional** — Claude Code in Docker does not use it. If you
@@ -628,25 +571,17 @@ need it for Claude Desktop / ChatGPT:
 2. Start with the gateway profile: `make up-gateway`
 3. Check logs: `make gateway-logs`
 
-### NVIDIA GPU errors on startup
-
-GPU acceleration is disabled by default. If you enabled it by uncommenting the
-`deploy` block and see errors, ensure the
-[NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html)
-is installed. See [GPU Support](#gpu-support-for-ollama).
-
 ### Container keeps restarting
 
 Check its logs for the specific error:
 
 ```bash
-docker compose logs <service-name>     # e.g., kali-mcp, ollama-mcp
+docker compose logs <service-name>     # e.g., kali-mcp, wire-mcp
 ```
 
 Common causes:
 - Port conflict on the host
 - Insufficient memory
-- Missing Ollama model (only if using `--profile ollama`)
 
 ---
 
@@ -683,7 +618,6 @@ make setup                 # Interactive setup wizard (prereqs, .env, pull, star
 make help                  # Show all available targets
 make pull                  # Pull all pre-built images from Docker Hub
 make up                    # Start core stack (4 containers)
-make up-ollama             # Start with Ollama pipeline (9 containers, legacy)
 make up-full               # Start with Neo4j (5 containers)
 make up-gateway            # Start with MCP Gateway for Claude Desktop (5 containers)
 make down                  # Stop all services
@@ -692,17 +626,11 @@ make status                # Container status table
 make health                # Quick health check of all services
 make test                  # Run tests
 make lint                  # Run linter
-make ollama-pull           # Pull Ollama model (only if using --profile ollama)
 make portainer             # Open Portainer dashboard (shows setup instructions)
 make gateway-logs          # Live MCP Gateway logs (requires --profile gateway)
-make restart-agents        # Restart all 3 agent containers (requires --profile ollama)
 make logs-kali             # Tail Kali MCP logs (includes Metasploit)
 make logs-wireshark        # Tail WireMCP logs
 make logs-screenshot       # Tail Screenshot MCP logs
-make logs-ollama-mcp       # Tail Ollama MCP logs (requires --profile ollama)
-make logs-agent-ingestion  # Tail Ingestion Agent logs (requires --profile ollama)
-make logs-agent-processing # Tail Processing Agent logs (requires --profile ollama)
-make logs-agent-synthesis  # Tail Synthesis Agent logs (requires --profile ollama)
 make inject-verification   # Render verification.env → active authorization document
 make push-all              # Build and push all images to Docker Hub
 ```
@@ -731,13 +659,6 @@ All custom images are published to `crhacky/blhackbox`:
 | `crhacky/blhackbox:wire-mcp` | WireMCP Server (tshark, 7 tools) |
 | `crhacky/blhackbox:screenshot-mcp` | Screenshot MCP Server (headless Chromium, 4 tools) |
 | `crhacky/blhackbox:claude-code` | Claude Code CLI client (direct SSE to MCP servers) |
-| `crhacky/blhackbox:ollama-mcp` | Ollama MCP Server — optional, `--profile ollama` |
-| `crhacky/blhackbox:agent-ingestion` | Agent 1: Ingestion — optional, `--profile ollama` |
-| `crhacky/blhackbox:agent-processing` | Agent 2: Processing — optional, `--profile ollama` |
-| `crhacky/blhackbox:agent-synthesis` | Agent 3: Synthesis — optional, `--profile ollama` |
-
-Custom-built locally (no pre-built image on Docker Hub):
-- `crhacky/blhackbox:ollama` (wraps `ollama/ollama:latest` with auto-pull entrypoint — optional, `--profile ollama`)
 
 Official images pulled directly:
 - `portainer/portainer-ce:latest`
@@ -756,34 +677,6 @@ docker compose --profile neo4j up -d
 
 Stores `AggregatedPayload` results as a graph after each session.
 Useful for recurring engagements against the same targets.
-
----
-
-## GPU Support for Ollama (Optional)
-
-> **Only relevant if using `--profile ollama`.** The default stack does not
-> use Ollama — the MCP host handles aggregation directly.
-
-GPU acceleration is **disabled by default** in `docker-compose.yml` for broad
-compatibility. Ollama runs on CPU out of the box.
-
-**If you have an NVIDIA GPU**, uncomment the `deploy` block under the `ollama`
-service in `docker-compose.yml` to enable GPU acceleration:
-
-```yaml
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
-```
-
-This requires the
-[NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html)
-to be installed on the host. GPU acceleration significantly speeds up Ollama
-inference for the preprocessing pipeline.
 
 ---
 
@@ -925,8 +818,6 @@ Then run `make inject-verification` and start your Claude Code session.
   an active authorization. The rendered document (`.claude/verification-active.md`)
   is git-ignored and never committed.
 - **Neo4j**: Set a strong password in `.env`. Never use defaults in production.
-- **Agent containers** (optional Ollama pipeline): Communicate only on the
-  internal `blhackbox_net` Docker network. No ports are exposed to the host.
 - **Portainer**: Uses HTTPS with a self-signed certificate. Create a strong
   admin password on first run.
 
@@ -952,31 +843,15 @@ blhackbox/
 │   ├── kali-mcp.Dockerfile          # Kali Linux + Metasploit Framework
 │   ├── wire-mcp.Dockerfile
 │   ├── screenshot-mcp.Dockerfile
-│   ├── ollama.Dockerfile             # optional (--profile ollama)
-│   ├── ollama-mcp.Dockerfile         # optional (--profile ollama)
-│   ├── agent-ingestion.Dockerfile    # optional (--profile ollama)
-│   ├── agent-processing.Dockerfile   # optional (--profile ollama)
-│   ├── agent-synthesis.Dockerfile    # optional (--profile ollama)
 │   ├── claude-code.Dockerfile       # MCP client container
 │   └── claude-code-entrypoint.sh    # Startup script with health checks
 ├── kali-mcp/                        # Kali MCP server (70+ tools + Metasploit)
 ├── wire-mcp/                        # WireMCP server (tshark, 7 tools)
 ├── screenshot-mcp/                  # Screenshot MCP server (Playwright, 4 tools)
 ├── metasploit-mcp/                  # [DEPRECATED] Standalone MSF RPC server (kept for reference)
-├── mcp_servers/
-│   └── ollama_mcp_server.py         # thin MCP orchestrator (optional)
 ├── blhackbox/
 │   ├── mcp/
 │   │   └── server.py               # blhackbox MCP server (stdio)
-│   ├── agents/                      # agent server + library code
-│   │   ├── base_agent.py            # base class (library/testing)
-│   │   ├── base_agent_server.py     # FastAPI server base
-│   │   ├── ingestion_agent.py       # library class
-│   │   ├── ingestion_server.py      # container entry point
-│   │   ├── processing_agent.py
-│   │   ├── processing_server.py
-│   │   ├── synthesis_agent.py
-│   │   └── synthesis_server.py
 │   ├── models/
 │   │   ├── aggregated_payload.py    # AggregatedPayload Pydantic model
 │   │   ├── base.py
@@ -984,11 +859,7 @@ blhackbox/
 │   ├── prompts/
 │   │   ├── claude_playbook.md       # pentest playbook for MCP host
 │   │   ├── verification.md          # authorization template ({{PLACEHOLDER}} tokens)
-│   │   ├── inject_verification.py   # renders template → active document
-│   │   └── agents/
-│   │       ├── ingestionagent.md
-│   │       ├── processingagent.md
-│   │       └── synthesisagent.md
+│   │   └── inject_verification.py   # renders template → active document
 │   ├── core/
 │   │   ├── knowledge_graph.py
 │   │   ├── graph_exporter.py

@@ -22,7 +22,7 @@ MAX_RETRIES=20
 RETRY_INTERVAL=3
 
 # Ensure internal Docker hostnames bypass any egress proxy.
-export no_proxy="${no_proxy:+${no_proxy},}mcp-gateway,kali-mcp,wire-mcp,screenshot-mcp,ollama-mcp,ollama,agent-ingestion,agent-processing,agent-synthesis,localhost,127.0.0.1"
+export no_proxy="${no_proxy:+${no_proxy},}mcp-gateway,kali-mcp,wire-mcp,screenshot-mcp,localhost,127.0.0.1"
 export NO_PROXY="$no_proxy"
 
 # ── Functions ───────────────────────────────────────────────────────
@@ -104,15 +104,6 @@ else
     MCP_FAIL=$((MCP_FAIL + 1))
 fi
 
-# Ollama Pipeline is optional — check but don't count as failure
-OLLAMA_STATUS="OFF"
-if check_service "Ollama Pipeline" "http://ollama-mcp:9000/sse"; then
-    printf "  %-22s [ ${CHECK} ]\n" "Ollama Pipeline"
-    OLLAMA_STATUS="ON"
-else
-    printf "  %-22s [ ${WARN} ]  (optional — not running)\n" "Ollama Pipeline"
-fi
-
 # Summary
 echo ""
 echo -e "${DIM}──────────────────────────────────────────────────${NC}"
@@ -134,9 +125,6 @@ echo -e "  ${BOLD}MCP servers (connected via SSE):${NC}"
 echo -e "    kali            ${DIM}Kali Linux security tools + Metasploit (70+ tools)${NC}"
 echo -e "    wireshark       ${DIM}WireMCP — tshark packet capture & analysis${NC}"
 echo -e "    screenshot      ${DIM}Screenshot MCP — headless Chromium evidence capture${NC}"
-if [ "$OLLAMA_STATUS" = "ON" ]; then
-echo -e "    ollama-pipeline ${DIM}Ollama preprocessing (3-agent pipeline, optional)${NC}"
-fi
 echo ""
 echo -e "  ${BOLD}Data aggregation:${NC}"
 echo -e "    ${DIM}You (Claude) handle parsing, deduplication, and synthesis directly.${NC}"
