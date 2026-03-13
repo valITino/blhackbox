@@ -155,14 +155,15 @@ def inject(
 
     result["status"] = "active"
     result["output_path"] = str(out_path)
+    targets = ", ".join(
+        env.get(f"TARGET_{i}", "")
+        for i in range(1, 4)
+        if env.get(f"TARGET_{i}")
+    )
     result["message"] = (
         f"Verification document activated → {out_path}\n"
         f"Engagement: {env.get('ENGAGEMENT_ID', 'N/A')}\n"
-        f"Targets: {', '.join(
-            env.get(f'TARGET_{i}', '')
-            for i in range(1, 4)
-            if env.get(f'TARGET_{i}')
-        )}\n"
+        f"Targets: {targets}\n"
         f"Window: {env.get('TESTING_START', '?')} — "
         f"{env.get('TESTING_END', '?')} {env.get('TIMEZONE', 'UTC')}\n"
         f"Authorized by: {env.get('SIGNATORY_NAME', 'N/A')}"

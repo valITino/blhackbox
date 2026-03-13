@@ -40,7 +40,6 @@ volumes:
   neo4j_logs:
   ollama_models:
   portainer_data:
-  results:
   wordlists:
 
 services:
@@ -182,7 +181,7 @@ services:
     ports:
       - "${SCREENSHOT_MCP_PORT:-9004}:9004"
     volumes:
-      - results:/tmp/screenshots
+      - ./output/screenshots:/tmp/screenshots
     healthcheck:
       test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:9004/health')\""]
       interval: 15s
@@ -428,7 +427,9 @@ services:
       - 8.8.8.8
       - 1.1.1.1
     volumes:
-      - results:/tmp/screenshots:ro
+      - ./output/screenshots:/tmp/screenshots:ro
+      - ./output/reports:/root/reports
+      - ./output/sessions:/root/results
     depends_on:
       kali-mcp:
         condition: service_healthy

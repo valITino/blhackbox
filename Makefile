@@ -1,4 +1,4 @@
-.PHONY: help up up-full up-ollama up-gateway down logs test test-local lint format clean nuke \
+.PHONY: help setup up up-full up-ollama up-gateway down logs test test-local lint format clean nuke \
        pull status health portainer gateway-logs ollama-pull ollama-shell \
        claude-code \
        neo4j-browser logs-ollama-mcp logs-kali \
@@ -10,6 +10,9 @@
        inject-verification
 
 COMPOSE := docker compose
+
+setup: ## Interactive setup wizard (prerequisites, .env, pull, start, health check)
+	@bash setup.sh
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -71,7 +74,6 @@ nuke: ## Full cleanup: containers + volumes + ALL images (frees max disk space)
 	docker volume rm blhackbox_portainer_data 2>/dev/null || true
 	docker volume rm blhackbox_neo4j_data 2>/dev/null || true
 	docker volume rm blhackbox_neo4j_logs 2>/dev/null || true
-	docker volume rm blhackbox_results 2>/dev/null || true
 	docker volume rm blhackbox_wordlists 2>/dev/null || true
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 	rm -rf dist/ build/ *.egg-info
