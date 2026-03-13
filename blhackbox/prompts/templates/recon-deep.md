@@ -17,6 +17,12 @@ TARGET = "[TARGET]"
 # Examples: "example.com", "192.168.1.0/24", "https://app.example.com"
 ```
 
+> **Before you start:**
+> 1. Confirm the `TARGET` placeholder above is set to your actual target
+> 2. Ensure all MCP servers are healthy — run `make health`
+> 3. Verify authorization is active — run `make inject-verification`
+> 4. Query each server's tool listing to discover available recon capabilities
+
 ---
 
 ## Execution Plan
@@ -83,6 +89,63 @@ Using the `AggregatedPayload`, produce a detailed recon report:
 5. **Network Traffic Insights** — conversation patterns and protocol distribution from captures
 6. **Potential Entry Points** — services, login panels, APIs, admin interfaces, exploitable services
 7. **Recommendations for Next Phase** — suggested targets for vulnerability assessment
+
+---
+
+## Reconnaissance Documentation (REQUIRED)
+
+Document the entire recon operation thoroughly. At the end, write the following
+files to `output/reports/` alongside the recon report. Use the target name and
+current date in each filename.
+
+### 1. Recon Log — `recon-log-[TARGET]-DDMMYYYY.md`
+
+Chronological record of the reconnaissance operation:
+
+- **Session metadata** — target, template used (`recon-deep`), session ID,
+  start/end timestamps, total duration
+- **Step-by-step execution log** — for every step (1 through 6):
+  - Step name and stated objective
+  - Each tool executed: tool name, parameters passed, execution status
+    (success / failure / timeout / partial), key output summary
+  - Data points discovered in this step (subdomains, IPs, services, etc.)
+  - Decisions and rationale — why specific tools were chosen, why any
+    enumeration paths were skipped
+- **Tool execution summary table** — every tool called:
+  `Tool | Step | Status | Duration | Notes`
+- **Discovery statistics** — total subdomains found, total hosts, total ports,
+  total services, total technologies identified
+- **Coverage assessment** — what recon areas were covered, what was NOT covered
+  and why (tool unavailable, target type not applicable, etc.)
+
+### 2. Issues & Errors Log — `issues-log-[TARGET]-DDMMYYYY.md`
+
+Record of every problem and anomaly encountered:
+
+- **Tool failures** — tool name, error message, impact on recon coverage,
+  workaround applied
+- **Scan anomalies** — DNS resolution failures, timeouts, rate limiting,
+  geo-restrictions, blocked requests
+- **Warnings** — partial results, incomplete enumerations, truncated outputs
+- **Skipped steps** — what was skipped and why (not applicable to target type,
+  tool unavailable, prerequisite not met)
+- **Data quality notes** — confidence levels, duplicate detection accuracy,
+  areas where data may be incomplete
+
+### 3. Discovery Index — `discovery-index-[TARGET]-DDMMYYYY.md`
+
+A structured catalog of everything discovered:
+
+- **Subdomain inventory** — every subdomain with IP, status (live/dead),
+  discovery source (which tool found it)
+- **DNS record inventory** — complete record listing by type, with raw values
+- **Service inventory** — every host:port:service combination discovered
+- **Technology inventory** — every technology identified, with version and
+  detection source
+- **OSINT findings** — emails, names, metadata extracted, organized by source
+
+> **Write all three documentation files at recon end.** These files provide the
+> foundation data for follow-up vulnerability assessment or pentest engagements.
 
 ---
 

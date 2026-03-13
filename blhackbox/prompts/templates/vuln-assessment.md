@@ -26,6 +26,13 @@ TARGET = "[TARGET]"
 # Options: "web", "network", "all" (default: "all")
 ```
 
+> **Before you start:**
+> 1. Confirm the `TARGET` placeholder above is set to your actual target
+> 2. Set `FOCUS_AREA` if you want to narrow the assessment scope
+> 3. Ensure all MCP servers are healthy — run `make health`
+> 4. Verify authorization is active — run `make inject-verification`
+> 5. Query each server's tool listing to discover available scanning capabilities
+
 ---
 
 ## Execution Plan
@@ -173,6 +180,70 @@ Report sections:
 10. **Remediation Roadmap** — prioritized by severity, exploitability, and effort,
     **tied to demonstrated impact**
 11. **Appendix** — full service inventory, scan metadata
+
+---
+
+## Engagement Documentation (REQUIRED)
+
+Throughout the assessment, track every action, decision, and outcome. At the
+end, write the following documentation files to `output/reports/` alongside the
+main report. Use the target name and current date in each filename.
+
+### 1. Assessment Log — `assessment-log-[TARGET]-DDMMYYYY.md`
+
+A chronological record of the entire vulnerability assessment:
+
+- **Session metadata** — target, focus area, template used (`vuln-assessment`),
+  session ID, start/end timestamps, total duration
+- **Step-by-step execution log** — for every step (1 through 9):
+  - Step name and stated objective
+  - Each tool executed: tool name, parameters passed, execution status
+    (success / failure / timeout / partial), key output summary
+  - Vulnerabilities discovered in this step (title, severity, CVE/CWE)
+  - Decisions and rationale — why specific scanners were chosen, exploitation
+    order, why tests were skipped
+- **Vulnerability lifecycle log** — for each vulnerability: how it was detected
+  (which tool/step), how it was validated (cross-tool confirmation), exploitation
+  attempt and result, final severity classification
+- **Tool execution summary table** — every tool called:
+  `Tool | Step | Status | Duration | Notes`
+- **Coverage assessment** — services scanned, vulnerability categories tested,
+  OWASP Top 10 coverage, CWE categories checked
+- **Credential testing matrix** — services tested × credential sets, results
+
+### 2. Issues & Errors Log — `issues-log-[TARGET]-DDMMYYYY.md`
+
+A complete record of every problem, anomaly, and concern:
+
+- **Tool failures** — tool name, full error message, impact on assessment
+  coverage, workaround applied, retry attempts
+- **Scan anomalies** — timeouts, WAF blocks, rate limiting, unexpected
+  responses, services that crashed during testing
+- **Exploitation failures** — vulnerability identified but exploitation failed:
+  tool used, error encountered, possible reasons
+- **False positive analysis** — each false positive: detection tool, initial
+  severity, evidence for reclassification, final status
+- **Warnings** — partial results, degraded coverage, missing capabilities
+- **Skipped tests** — test name, reason skipped, impact on coverage
+- **Data quality notes** — confidence levels per finding, multi-tool
+  confirmation status, areas requiring manual verification
+
+### 3. Evidence Index — `evidence-index-[TARGET]-DDMMYYYY.md`
+
+A catalog of all evidence artifacts collected:
+
+- **Screenshots** — filename, URL/service captured, what it proves, finding ID
+- **Extracted data inventory** — for each extraction: source, method used,
+  data type, row/record count, storage location
+- **Traffic captures** — pcap filenames, capture window, protocols observed,
+  credentials found
+- **Payload log** — every payload used, organized by vulnerability type,
+  with target endpoint/parameter and outcome (successful / failed / blocked)
+- **Cross-tool validation matrix** — findings confirmed by multiple tools,
+  with each tool's output reference
+
+> **Write all three documentation files at assessment end.** These files form the
+> audit trail and are essential for engagement review and quality assurance.
 
 ---
 

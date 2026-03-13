@@ -27,6 +27,13 @@ TARGET = "[TARGET]"
 # EXCLUDES   = "[EXCLUDED_HOSTS]"   # e.g. "10.0.0.1,10.0.0.254"
 ```
 
+> **Before you start:**
+> 1. Confirm the `TARGET` placeholder above is set to your target IP, range, or domain
+> 2. Set optional `PORTS`, `SCAN_RATE`, and `EXCLUDES` if needed
+> 3. Ensure all MCP servers are healthy — run `make health`
+> 4. Verify authorization is active — run `make inject-verification`
+> 5. Query each server's tool listing to discover available network testing capabilities
+
 ---
 
 ## Execution Plan
@@ -146,6 +153,68 @@ Report sections:
 10. **Attack Chains** — paths from initial access to deeper compromise, **with evidence at each step**
 11. **Remediation Roadmap** — prioritized by risk and effort, **tied to demonstrated impact**
 12. **Appendix** — raw host inventory, full port tables, scan metadata
+
+---
+
+## Engagement Documentation (REQUIRED)
+
+Throughout the assessment, track every action, decision, and outcome. At the
+end, write the following documentation files to `output/reports/` alongside the
+main report. Use the target name and current date in each filename.
+
+### 1. Engagement Log — `engagement-log-[TARGET]-DDMMYYYY.md`
+
+A chronological record of the entire network assessment:
+
+- **Session metadata** — target/range, template used (`network-infrastructure`),
+  session ID, start/end timestamps, total duration, scan rate used
+- **Step-by-step execution log** — for every step (1 through 8):
+  - Step name and stated objective
+  - Each tool executed: tool name, parameters passed, execution status
+    (success / failure / timeout / partial), key output summary
+  - Hosts/services/vulnerabilities discovered in this step
+  - Decisions and rationale — scanning priorities, exploitation order, why
+    specific hosts or services were skipped
+- **Host discovery timeline** — when each host was discovered, which tool found it
+- **Credential reuse map** — every credential found, every service tested,
+  result of each attempt (success / failure / lockout)
+- **Tool execution summary table** — every tool called:
+  `Tool | Step | Status | Duration | Notes`
+- **Coverage assessment** — hosts scanned vs. total in range, port coverage,
+  services enumerated, credential testing matrix
+
+### 2. Issues & Errors Log — `issues-log-[TARGET]-DDMMYYYY.md`
+
+A complete record of every problem, anomaly, and concern:
+
+- **Tool failures** — tool name, full error message, impact on coverage,
+  workaround applied, retry attempts
+- **Network anomalies** — unreachable hosts, filtered ports, IDS/IPS responses,
+  rate limiting, connection resets, unexpected network behavior
+- **Exploitation failures** — vulnerability identified but exploitation failed:
+  tool used, error, possible reasons (patched, mitigated, false positive)
+- **Warnings** — partial scan results, hosts that went offline during testing,
+  scope boundary concerns
+- **Skipped tests** — test name, reason skipped, impact on coverage
+- **False positives** — finding title, detection tool, evidence for classification
+- **Data quality notes** — confidence levels, areas requiring manual verification
+
+### 3. Evidence Index — `evidence-index-[TARGET]-DDMMYYYY.md`
+
+A catalog of all evidence artifacts collected:
+
+- **Screenshots** — filename, service/host captured, what it proves, finding ID
+- **Credential inventory** — all credentials found: source (brute-force / traffic /
+  config), service, username:password, reuse test results across all services
+- **Traffic captures** — pcap filenames, capture window, protocols observed,
+  credentials found, conversation summaries
+- **Exploitation evidence** — for each exploited vulnerability: host, service,
+  exploit used, access gained, data extracted, post-exploitation outputs
+- **Network topology data** — discovered routes, VLAN information, trust
+  relationships between hosts
+
+> **Write all three documentation files at assessment end.** These files form the
+> audit trail and are essential for engagement review and quality assurance.
 
 ---
 

@@ -22,6 +22,11 @@ TARGET = "[TARGET]"
 # Examples: "example.com", "192.168.1.100", "https://app.example.com"
 ```
 
+> **Before you start:**
+> 1. Confirm the `TARGET` placeholder above is set to your actual target
+> 2. Ensure all MCP servers are healthy — run `make health`
+> 3. Verify authorization is active — run `make inject-verification`
+
 ---
 
 ## Execution Plan
@@ -76,6 +81,45 @@ Using the `AggregatedPayload`, produce a concise report:
 > Even in a quick scan, **exploit critical/high findings on the spot**. Show the data
 > extracted, not just that a vulnerability exists. Findings without evidence should be
 > flagged as "requires validation" and noted in Next Steps.
+
+---
+
+## Scan Documentation (REQUIRED)
+
+Even in quick mode, document thoroughly. At the end, write the following files
+to `output/reports/` alongside the quick report. Use the target name and current
+date in each filename.
+
+### 1. Scan Log — `scan-log-[TARGET]-DDMMYYYY.md`
+
+Chronological record of the quick scan:
+
+- **Session metadata** — target, template used (`quick-scan`), session ID,
+  start/end timestamps, total duration
+- **Step execution log** — for each step (1 through 4):
+  - Tools executed: tool name, parameters, status (success / failure / timeout),
+    key output summary
+  - Findings discovered (title, severity, one-line summary)
+  - Decisions made — what was exploited on the spot vs. deferred, and why
+- **Tool execution summary table** — every tool called:
+  `Tool | Step | Status | Duration | Notes`
+- **Coverage summary** — what was scanned, what was NOT covered, recommended
+  deeper templates for follow-up testing
+
+### 2. Issues & Errors Log — `issues-log-[TARGET]-DDMMYYYY.md`
+
+Record of every problem encountered:
+
+- **Tool failures** — tool name, error message, impact on scan coverage
+- **Scan anomalies** — timeouts, WAF blocks, rate limiting, unexpected responses
+- **Warnings** — partial results, degraded coverage, missing capabilities
+- **Skipped checks** — what was skipped and why (time constraints, tool
+  unavailable, out of scope)
+- **Unvalidated findings** — findings flagged as "requires validation" with
+  reason and recommended follow-up approach
+
+> **Write both documentation files at scan end.** Even quick scans need an
+> audit trail for follow-up engagement planning.
 
 ---
 
