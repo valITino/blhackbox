@@ -31,6 +31,14 @@ TARGET = "[TARGET_API_BASE_URL]"
 # AUTH_HEADER    = "[CUSTOM_AUTH_HEADER]"
 ```
 
+> **Before you start:**
+> 1. Confirm the `TARGET` placeholder above is set to your API base URL
+> 2. If you have API documentation (Swagger/OpenAPI), set `API_DOCS_URL`
+> 3. If testing authenticated endpoints, fill in the optional auth fields above
+> 4. Ensure all MCP servers are healthy — run `make health`
+> 5. Verify authorization is active — run `make inject-verification`
+> 6. Query each server's tool listing to discover available API testing capabilities
+
 ---
 
 ## Execution Plan
@@ -183,6 +191,73 @@ Report sections:
 10. **Configuration Issues** — CORS, rate limiting, security headers with evidence
 11. **Attack Chains** — combined API vulnerability paths, **with evidence at each step**
 12. **Remediation Priorities** — ordered by severity and exploitability, **tied to demonstrated impact**
+
+---
+
+## Engagement Documentation (REQUIRED)
+
+Throughout the assessment, track every action, decision, and outcome. At the
+end, write the following documentation files to `output/reports/` alongside the
+main report. Use the target name and current date in each filename.
+
+### 1. Engagement Log — `engagement-log-[TARGET]-DDMMYYYY.md`
+
+A chronological record of the entire API security assessment:
+
+- **Session metadata** — API base URL, template used (`api-security`), session
+  ID, start/end timestamps, total duration, authentication method used
+- **Step-by-step execution log** — for every step (1 through 9):
+  - Step name and stated objective
+  - Each tool executed: tool name, parameters passed, execution status
+    (success / failure / timeout / partial), key output summary
+  - Findings discovered in this step (title, severity, OWASP API Top 10 category)
+  - Decisions and rationale — why specific endpoints were prioritized, what
+    injection types were tested on which parameters
+- **API endpoint inventory log** — every endpoint discovered: method, path,
+  parameters, authentication required, tested (yes/no), findings
+- **OWASP API Top 10 coverage matrix** — for each API category (API1-API10):
+  tests performed, tools used, findings (if any), result
+- **Tool execution summary table** — every tool called:
+  `Tool | Step | Status | Duration | Notes`
+- **Coverage assessment** — endpoints tested vs. discovered, HTTP methods
+  tested per endpoint, injection types per parameter, auth bypass coverage
+
+### 2. Issues & Errors Log — `issues-log-[TARGET]-DDMMYYYY.md`
+
+A complete record of every problem, anomaly, and concern:
+
+- **Tool failures** — tool name, full error message, impact on API testing
+  coverage, workaround applied
+- **API anomalies** — rate limiting responses (429s), authentication failures,
+  unexpected response formats, API version mismatches, WAF/gateway blocks
+- **Exploitation failures** — vulnerability detected but exploitation failed:
+  endpoint, method, error encountered, possible reasons
+- **Warnings** — partial API documentation, undocumented endpoints found,
+  inconsistent API behavior, deprecated endpoints still responding
+- **Skipped tests** — test name, reason skipped, impact on OWASP API coverage
+- **False positives** — finding title, detection tool, evidence for classification
+- **Data quality notes** — confidence levels per finding, areas requiring
+  manual verification, endpoints with inconsistent responses
+
+### 3. Evidence Index — `evidence-index-[TARGET]-DDMMYYYY.md`
+
+A catalog of all evidence artifacts collected:
+
+- **API request/response pairs** — for each finding: exact cURL command,
+  request headers/body, response status/headers/body, linked finding ID
+- **IDOR/BOLA evidence** — side-by-side data from different user contexts,
+  showing cross-user data access
+- **Extracted data inventory** — for each extraction: API endpoint, method,
+  data type, record count, sample data
+- **Token/credential inventory** — all API keys, tokens, credentials found:
+  source, type, scope/permissions, endpoints they grant access to
+- **Traffic captures** — pcap filenames, API conversations, credential/token
+  leakage observed
+- **Injection test matrix** — endpoints × injection types tested, with result
+  (vulnerable / not vulnerable / error / blocked)
+
+> **Write all three documentation files at assessment end.** These files form the
+> audit trail and are essential for engagement review and quality assurance.
 
 ---
 

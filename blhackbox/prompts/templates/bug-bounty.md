@@ -35,6 +35,14 @@ PROGRAM_RULES  = "[PROGRAM_RULES]"
 #           "Rate limit: 10 req/sec, no testing between 00:00-06:00 UTC"
 ```
 
+> **Before you start:**
+> 1. Confirm all placeholders above (`TARGET`, `SCOPE`, `OUT_OF_SCOPE`,
+>    `PROGRAM_RULES`) are set with actual program details
+> 2. Double-check the scope — never test out-of-scope assets
+> 3. Ensure all MCP servers are healthy — run `make health`
+> 4. Verify authorization is active — run `make inject-verification`
+> 5. Query each server's tool listing to discover available hunting capabilities
+
 ---
 
 ## Execution Plan
@@ -182,6 +190,74 @@ For EACH vulnerability, provide:
 Populate `poc_steps`, `poc_payload`, and `evidence` in every `VulnerabilityEntry`.
 
 Sort findings by severity (critical first) and potential bounty value.
+
+---
+
+## Hunt Documentation (REQUIRED)
+
+Throughout the hunt, track every action, decision, and outcome. At the end,
+write the following documentation files to `output/reports/` alongside the
+bug bounty report. Use the target name and current date in each filename.
+
+### 1. Hunt Log — `hunt-log-[TARGET]-DDMMYYYY.md`
+
+A chronological record of the entire bug bounty hunt:
+
+- **Session metadata** — target, program scope, out-of-scope exclusions,
+  program rules, template used (`bug-bounty`), session ID, start/end timestamps
+- **Step-by-step execution log** — for every step (1 through 8):
+  - Step name and stated objective
+  - Each tool executed: tool name, parameters passed, execution status
+    (success / failure / timeout / partial), key output summary
+  - Findings discovered in this step (title, severity, estimated bounty class)
+  - Decisions and rationale — target prioritization choices, why specific
+    subdomains or endpoints were hunted deeper, pivots made
+- **Scope compliance log** — every target tested, confirmation it is in scope,
+  any assets skipped because they were out of scope
+- **Target prioritization rationale** — why specific subdomains/endpoints were
+  prioritized (dev/staging, older tech stack, exposed admin, etc.)
+- **Tool execution summary table** — every tool called:
+  `Tool | Step | Status | Duration | Notes`
+- **Coverage assessment** — in-scope assets tested vs. total discovered,
+  vulnerability classes tested per target, rate limit compliance
+
+### 2. Issues & Errors Log — `issues-log-[TARGET]-DDMMYYYY.md`
+
+A complete record of every problem encountered:
+
+- **Tool failures** — tool name, error message, impact on hunting coverage,
+  workaround applied
+- **Program constraint impacts** — rate limiting compliance, testing window
+  restrictions, prohibited techniques, how constraints affected coverage
+- **Scan anomalies** — WAF blocks, CAPTCHA triggers, IP bans, geo-restrictions,
+  unexpected behavior from target infrastructure
+- **Exploitation failures** — vulnerability detected but exploitation incomplete:
+  endpoint, payload, error, possible reasons, impact on report quality
+- **Warnings** — partial results, inconsistent target behavior, areas where
+  findings may need manual follow-up
+- **Skipped tests** — test name, reason skipped (program rules, out of scope,
+  tool limitation), potential findings missed
+- **Near-misses** — potential vulnerabilities that could not be confirmed:
+  indicators observed, why confirmation failed, recommended follow-up
+- **Data quality notes** — confidence levels per finding, reproducibility
+  assessment
+
+### 3. Evidence Index — `evidence-index-[TARGET]-DDMMYYYY.md`
+
+A catalog of all evidence artifacts collected:
+
+- **Screenshots** — filename, URL captured, what it proves, linked finding,
+  before/after pairs for exploitation evidence
+- **PoC artifacts** — for each finding: complete cURL command, request/response
+  pair, payload used, extracted data with record counts
+- **Extracted data inventory** — for each extraction: source endpoint, method,
+  data type, row/record count, sample data
+- **Traffic captures** — pcap filenames, API keys/tokens/credentials found
+- **Scope verification log** — for each tested asset: in-scope confirmation,
+  program page reference
+
+> **Write all three documentation files at hunt end.** These files support
+> report quality, scope compliance verification, and future hunting sessions.
 
 ---
 

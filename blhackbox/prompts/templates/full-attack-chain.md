@@ -39,6 +39,13 @@ REPORT_FORMAT   = "[REPORT_FORMAT]"
 # Options: "executive", "technical", "both"
 ```
 
+> **Before you start:**
+> 1. Confirm all placeholders above (`TARGET`, `SCOPE`, `OUT_OF_SCOPE`,
+>    `ENGAGEMENT_TYPE`, `CREDENTIALS`, `REPORT_FORMAT`) are set
+> 2. Ensure all MCP servers are healthy — run `make health`
+> 3. Verify authorization is active — run `make inject-verification`
+> 4. Query each server's tool listing to discover available capabilities
+
 ---
 
 ## Attack Chain Execution
@@ -306,6 +313,74 @@ Centralized summary of ALL data obtained during the engagement:
 - Technology stack summary
 - Scan metadata (raw sizes, compression, model, duration)
 - Tool execution log
+
+---
+
+## Engagement Documentation (REQUIRED)
+
+Throughout the engagement, track every action, decision, and outcome. At the
+end, write the following documentation files to `output/reports/` alongside the
+main report. Use the target name and current date in each filename.
+
+### 1. Engagement Log — `engagement-log-[TARGET]-DDMMYYYY.md`
+
+A chronological record of the entire engagement:
+
+- **Session metadata** — target, scope, engagement type, template used
+  (`full-attack-chain`), session ID, start/end timestamps, total duration
+- **Phase-by-phase execution log** — for every phase (1 through 7):
+  - Phase name and stated objective
+  - Each tool executed: tool name, parameters passed, execution status
+    (success / failure / timeout / partial), key output summary
+  - Findings discovered in this phase (title, severity, one-line summary)
+  - Decisions and rationale — why specific tools or exploits were chosen,
+    why tests were skipped, pivots made mid-phase
+- **Attack chain construction log** — for each chain identified:
+  - How the chain was discovered (which findings linked together)
+  - Each step attempted and its outcome
+  - Data extracted at each chain step
+- **Tool execution summary table** — every tool called, in execution order:
+  `Tool | Phase | Status | Duration | Notes`
+- **Coverage assessment** — what was tested, what was NOT tested, and why
+- **Credential reuse map** — every credential found, every service it was
+  tested against, result of each test
+
+### 2. Issues & Errors Log — `issues-log-[TARGET]-DDMMYYYY.md`
+
+A complete record of every problem, anomaly, and concern:
+
+- **Tool failures** — tool name, full error message, impact on testing coverage,
+  workaround applied (if any), retry attempts and outcomes
+- **Scan anomalies** — unexpected responses, connection timeouts, rate limiting
+  triggers, WAF/IDS blocks, geo-restrictions encountered
+- **Exploitation failures** — vulnerability identified but exploitation failed:
+  tool used, error encountered, possible reasons, impact on chain construction
+- **Warnings** — non-fatal issues affecting result accuracy (partial scan
+  coverage, truncated outputs, degraded tool performance)
+- **Skipped tests** — test name, reason skipped, impact on overall coverage
+- **False positives identified** — finding title, tool that flagged it, evidence
+  for classification, final status
+- **Data quality notes** — confidence levels per finding, areas requiring
+  manual verification
+
+### 3. Evidence Index — `evidence-index-[TARGET]-DDMMYYYY.md`
+
+A catalog of all evidence artifacts collected:
+
+- **Screenshots** — filename, URL/endpoint captured, what it proves, linked
+  finding ID
+- **Extracted data inventory** — for each extraction: source, method, data type,
+  row/record count, storage location
+- **Attack chain evidence map** — for each chain: evidence artifacts at each
+  step, organized by chain name
+- **Traffic captures** — pcap filenames, capture window, protocols observed,
+  credentials or tokens found
+- **Payload log** — every payload used, organized by vulnerability type, with
+  target URL/parameter and outcome
+- **Session artifacts** — shell sessions, post-exploitation outputs, timestamps
+
+> **Write all three documentation files at engagement end.** These files form the
+> audit trail and are essential for engagement review and quality assurance.
 
 ---
 

@@ -28,6 +28,13 @@ TARGET = "[TARGET]"
 # PASSWORD     = "[PASSWORD]"
 ```
 
+> **Before you start:**
+> 1. Confirm the `TARGET` placeholder above is set to your web application URL
+> 2. If testing authenticated areas, fill in the optional auth fields above
+> 3. Ensure all MCP servers are healthy — run `make health`
+> 4. Verify authorization is active — run `make inject-verification`
+> 5. Query each server's tool listing to discover available web testing capabilities
+
 ---
 
 ## Execution Plan
@@ -167,6 +174,68 @@ Report sections:
 8. **Configuration Issues** — missing headers, SSL issues, default configs with evidence
 9. **Attack Chains** — how findings can be combined, with evidence at each step
 10. **Remediation Priorities** — ordered by severity and exploitability, tied to demonstrated impact
+
+---
+
+## Engagement Documentation (REQUIRED)
+
+Throughout the assessment, track every action, decision, and outcome. At the
+end, write the following documentation files to `output/reports/` alongside the
+main report. Use the target name and current date in each filename.
+
+### 1. Engagement Log — `engagement-log-[TARGET]-DDMMYYYY.md`
+
+A chronological record of the entire web application assessment:
+
+- **Session metadata** — target URL, template used (`web-app-assessment`),
+  session ID, start/end timestamps, total duration, authentication method used
+- **Step-by-step execution log** — for every step (1 through 9):
+  - Step name and stated objective
+  - Each tool executed: tool name, parameters passed, execution status
+    (success / failure / timeout / partial), key output summary
+  - Findings discovered in this step (title, severity, OWASP category)
+  - Decisions and rationale — why specific tests were chosen or skipped,
+    which parameters were prioritized for injection testing
+- **Endpoint discovery log** — every endpoint found, HTTP method, parameters,
+  authentication required (yes/no), tested (yes/no)
+- **Tool execution summary table** — every tool called:
+  `Tool | Step | Status | Duration | Notes`
+- **Coverage assessment** — endpoints tested vs. total discovered, OWASP Top 10
+  categories covered, injection types tested per parameter
+
+### 2. Issues & Errors Log — `issues-log-[TARGET]-DDMMYYYY.md`
+
+A complete record of every problem, anomaly, and concern:
+
+- **Tool failures** — tool name, full error message, impact on testing coverage,
+  workaround applied
+- **Scan anomalies** — WAF blocks (specific rules triggered if identifiable),
+  rate limiting, CAPTCHA interference, session expiration during testing
+- **Exploitation failures** — vulnerability detected but exploitation failed:
+  tool used, error encountered, possible reasons
+- **Warnings** — partial results, authentication issues, scope boundary concerns
+- **Skipped tests** — test name, reason skipped, impact on OWASP coverage
+- **False positives identified** — finding title, detection tool, evidence for
+  false positive classification
+- **Data quality notes** — confidence levels per finding, areas requiring manual
+  verification
+
+### 3. Evidence Index — `evidence-index-[TARGET]-DDMMYYYY.md`
+
+A catalog of all evidence artifacts collected:
+
+- **Screenshots** — filename, URL captured, what it proves, linked finding ID
+- **Extracted data inventory** — for each extraction: source endpoint, injection
+  method, data type, row/record count
+- **HTTP traffic log** — key request/response pairs captured, credential
+  findings in traffic, session tokens observed
+- **Payload log** — every payload used, organized by OWASP category, with
+  target endpoint/parameter and outcome
+- **Injection test matrix** — table of parameters × injection types tested,
+  with result (vulnerable / not vulnerable / error / skipped)
+
+> **Write all three documentation files at assessment end.** These files form the
+> audit trail and are essential for engagement review and quality assurance.
 
 ---
 

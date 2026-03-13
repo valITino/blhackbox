@@ -18,6 +18,12 @@ TARGET = "[TARGET]"
 # Note: This template uses PASSIVE techniques only — no active scanning.
 ```
 
+> **Before you start:**
+> 1. Confirm the `TARGET` placeholder above is set to your target domain
+> 2. Ensure all MCP servers are healthy — run `make health`
+> 3. Verify authorization is active — run `make inject-verification`
+> 4. Note: This template uses **passive techniques only** — no packets sent to target
+
 ---
 
 ## Execution Plan
@@ -98,6 +104,68 @@ Using the `AggregatedPayload`, produce a detailed intelligence report:
 8. **Potential Attack Surface** — entry points identified through OSINT alone
 9. **Risk Indicators** — expired domains, dangling DNS, subdomain takeover candidates
 10. **Recommendations** — areas requiring further active assessment
+
+---
+
+## OSINT Documentation (REQUIRED)
+
+Document the entire intelligence gathering operation thoroughly. At the end,
+write the following files to `output/reports/` alongside the OSINT report. Use
+the target name and current date in each filename.
+
+### 1. Collection Log — `collection-log-[TARGET]-DDMMYYYY.md`
+
+Chronological record of the intelligence operation:
+
+- **Session metadata** — target domain, template used (`osint-gathering`),
+  session ID, start/end timestamps, total duration
+- **Step-by-step execution log** — for every step (1 through 8):
+  - Step name and stated objective
+  - Each tool executed: tool name, parameters passed, execution status
+    (success / failure / timeout / partial), key data points obtained
+  - Intelligence produced in this step (subdomains, emails, IPs, etc.)
+  - Decisions and rationale — why specific sources were prioritized,
+    what leads were followed or deferred
+- **Source inventory** — every data source queried, response quality
+  (rich / sparse / empty / error), unique data points contributed
+- **Tool execution summary table** — every tool called:
+  `Tool | Step | Status | Duration | Notes`
+- **Collection statistics** — total unique subdomains, emails, IPs, DNS records,
+  technologies, and other data points gathered
+- **Coverage assessment** — OSINT categories covered vs. not covered, and why
+
+### 2. Issues & Errors Log — `issues-log-[TARGET]-DDMMYYYY.md`
+
+Record of every problem encountered:
+
+- **Tool failures** — tool name, error message, impact on intelligence coverage,
+  workaround applied
+- **Source limitations** — API rate limits hit, sources returning empty results,
+  geo-restricted data, paywalled content
+- **Warnings** — stale data indicators (old WHOIS records, expired certificates),
+  conflicting information from different sources
+- **Skipped steps** — what was skipped and why (not applicable, tool unavailable)
+- **Data quality notes** — confidence levels per data point, sources with
+  known reliability issues, areas requiring cross-validation
+
+### 3. Intelligence Index — `intelligence-index-[TARGET]-DDMMYYYY.md`
+
+Structured catalog of all intelligence collected:
+
+- **Domain intelligence** — registrar data, ownership chain, registration timeline
+- **DNS record inventory** — every record by type, raw values, analysis notes
+- **Subdomain inventory** — every subdomain with discovery source, IP resolution,
+  categorization (dev/staging/prod/admin/api/etc.)
+- **Email inventory** — every email address found, source, associated role/name
+- **Infrastructure map** — hosting providers, CDN/WAF presence, cloud provider,
+  IP ranges, mail infrastructure
+- **Technology indicators** — technologies identified through passive analysis,
+  with version info where available
+- **Risk indicators** — dangling DNS, subdomain takeover candidates, expired
+  certificates, exposed internal naming
+
+> **Write all three documentation files at operation end.** These files form the
+> intelligence baseline for follow-up active assessment engagements.
 
 ---
 
