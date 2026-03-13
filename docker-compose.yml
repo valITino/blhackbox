@@ -3,7 +3,6 @@
 # Usage:
 #   docker compose pull                          Pull all pre-built images
 #   docker compose up -d                         Start core stack (4 containers)
-#   docker compose --profile ollama up -d        Start with Ollama pipeline (9 containers, legacy)
 #   docker compose --profile gateway up -d       Start with MCP Gateway
 #   docker compose --profile claude-code up -d   Start with Claude Code container
 #   docker compose --profile neo4j up -d         Start with Neo4j
@@ -14,15 +13,10 @@
 #   wire-mcp         (FastMCP SSE, port 9003) — Wireshark/tshark (7 tools)
 #   screenshot-mcp   (FastMCP SSE, port 9004) — Headless Chromium screenshots (4 tools)
 #
-# Optional (--profile ollama):
-#   ollama-mcp       (FastMCP SSE, port 9000) — Ollama preprocessing pipeline (legacy)
-#   agent-ingestion, agent-processing, agent-synthesis, ollama
-#
-# The MCP host (Claude Code, Claude Desktop, ChatGPT) now handles data
+# The MCP host (Claude Code, Claude Desktop, ChatGPT) handles data
 # aggregation directly — it parses raw tool outputs, deduplicates, and
 # structures them into an AggregatedPayload, then validates via the
-# aggregate_results tool.  The Ollama pipeline is kept as an optional
-# fallback for local-only / offline processing.
+# aggregate_results tool.
 #
 # Claude Code (Docker) connects directly to MCP servers via SSE.
 # Claude Desktop / ChatGPT connect via the MCP Gateway (--profile gateway).
@@ -38,7 +32,6 @@ networks:
 volumes:
   neo4j_data:
   neo4j_logs:
-  ollama_models:
   portainer_data:
   wordlists:
 
@@ -191,188 +184,6 @@ services:
     networks:
       - blhackbox_net
 
-  # -- OLLAMA MCP SERVER (OPTIONAL — LEGACY) ----------------------------------
-  # blhackbox custom component. NOT an official Ollama product.
-  # Thin MCP orchestrator -- calls the 3 agent containers in sequence
-  # via HTTP, assembles the AggregatedPayload, and returns it to Claude.
-  #
-  # OPTIONAL since v2.1: The MCP host (Claude) now handles aggregation
-  # directly via the aggregate_results tool, which is faster and more
-  # accurate.  Enable this pipeline with: docker compose --profile ollama up -d
-  ollama-mcp:
-    image: crhacky/blhackbox:ollama-mcp
-    build:
-      context: .
-      dockerfile: docker/ollama-mcp.Dockerfile
-    container_name: blhackbox-ollama-mcp
-    profiles: ["ollama"]
-    restart: unless-stopped
-    init: true
-    healthcheck:
-      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:9000/sse')\""]
-      interval: 15s
-      timeout: 10s
-      retries: 5
-      start_period: 10s
-    environment:
-      OLLAMA_HOST: "http://ollama:11434"
-      OLLAMA_MODEL: "${OLLAMA_MODEL:-llama3.1:8b}"
-      AGENT_INGESTION_URL: "http://agent-ingestion:8001"
-      AGENT_PROCESSING_URL: "http://agent-processing:8002"
-      AGENT_SYNTHESIS_URL: "http://agent-synthesis:8003"
-      AGENT_TIMEOUT: "${AGENT_TIMEOUT:-1200}"
-      AGENT_RETRIES: "${AGENT_RETRIES:-2}"
-      NEO4J_URI: "${NEO4J_URI:-bolt://neo4j:7687}"
-      NEO4J_USER: "${NEO4J_USER:-neo4j}"
-      NEO4J_PASSWORD: "${NEO4J_PASSWORD:-}"
-    depends_on:
-      agent-ingestion:
-        condition: service_healthy
-      agent-processing:
-        condition: service_healthy
-      agent-synthesis:
-        condition: service_healthy
-    networks:
-      - blhackbox_net
-
-  # -- AGENT 1: INGESTION (OPTIONAL — LEGACY) --------------------------------
-  # Parses and structures raw Kali tool output.
-  # Calls Ollama /api/chat with ingestion system prompt.
-  # Enable with: docker compose --profile ollama up -d
-  agent-ingestion:
-    image: crhacky/blhackbox:agent-ingestion
-    build:
-      context: .
-      dockerfile: docker/agent-ingestion.Dockerfile
-    container_name: blhackbox-agent-ingestion
-    profiles: ["ollama"]
-    restart: unless-stopped
-    environment:
-      OLLAMA_HOST: "http://ollama:11434"
-      OLLAMA_MODEL: "${OLLAMA_MODEL:-llama3.1:8b}"
-      OLLAMA_TIMEOUT: "${OLLAMA_TIMEOUT:-300}"
-      OLLAMA_NUM_CTX: "${OLLAMA_NUM_CTX:-8192}"
-      OLLAMA_KEEP_ALIVE: "${OLLAMA_KEEP_ALIVE:-30m}"
-      OLLAMA_RETRIES: "${OLLAMA_RETRIES:-2}"
-    depends_on:
-      ollama:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:8001/health')\""]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    networks:
-      - blhackbox_net
-
-  # -- AGENT 2: PROCESSING (OPTIONAL — LEGACY) --------------------------------
-  # Deduplicates, extracts errors, compresses data into efficient blobs.
-  # Annotates error_log entries with security_relevance.
-  # Enable with: docker compose --profile ollama up -d
-  agent-processing:
-    image: crhacky/blhackbox:agent-processing
-    build:
-      context: .
-      dockerfile: docker/agent-processing.Dockerfile
-    container_name: blhackbox-agent-processing
-    profiles: ["ollama"]
-    restart: unless-stopped
-    environment:
-      OLLAMA_HOST: "http://ollama:11434"
-      OLLAMA_MODEL: "${OLLAMA_MODEL:-llama3.1:8b}"
-      OLLAMA_TIMEOUT: "${OLLAMA_TIMEOUT:-300}"
-      OLLAMA_NUM_CTX: "${OLLAMA_NUM_CTX:-8192}"
-      OLLAMA_KEEP_ALIVE: "${OLLAMA_KEEP_ALIVE:-30m}"
-      OLLAMA_RETRIES: "${OLLAMA_RETRIES:-2}"
-    depends_on:
-      ollama:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:8002/health')\""]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    networks:
-      - blhackbox_net
-
-  # -- AGENT 3: SYNTHESIS (OPTIONAL — LEGACY) --------------------------------
-  # Merges Agent 1 + Agent 2 output into final AggregatedPayload.
-  # Adds metadata, resolves conflicts, sends back to Claude.
-  # Enable with: docker compose --profile ollama up -d
-  agent-synthesis:
-    image: crhacky/blhackbox:agent-synthesis
-    build:
-      context: .
-      dockerfile: docker/agent-synthesis.Dockerfile
-    container_name: blhackbox-agent-synthesis
-    profiles: ["ollama"]
-    restart: unless-stopped
-    environment:
-      OLLAMA_HOST: "http://ollama:11434"
-      OLLAMA_MODEL: "${OLLAMA_MODEL:-llama3.1:8b}"
-      OLLAMA_TIMEOUT: "${OLLAMA_TIMEOUT:-300}"
-      OLLAMA_NUM_CTX: "${OLLAMA_NUM_CTX:-8192}"
-      OLLAMA_KEEP_ALIVE: "${OLLAMA_KEEP_ALIVE:-30m}"
-      OLLAMA_RETRIES: "${OLLAMA_RETRIES:-2}"
-    depends_on:
-      ollama:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:8003/health')\""]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    networks:
-      - blhackbox_net
-
-  # -- OLLAMA (OPTIONAL — LEGACY) -------------------------------------------
-  # Custom entrypoint that auto-pulls and warms up the configured model on
-  # startup, eliminating cold-start delays (~17 min → seconds on subsequent
-  # requests).  All 3 agent containers call this via /api/chat independently.
-  # Enable with: docker compose --profile ollama up -d
-  ollama:
-    image: crhacky/blhackbox:ollama
-    build:
-      context: .
-      dockerfile: docker/ollama.Dockerfile
-    container_name: blhackbox-ollama
-    profiles: ["ollama"]
-    restart: unless-stopped
-    environment:
-      OLLAMA_MODEL: "${OLLAMA_MODEL:-llama3.1:8b}"
-      # Keep models loaded in memory between sequential agent calls.
-      # The 3-stage pipeline (ingestion → processing → synthesis) runs
-      # sequentially, and reloading the model between calls adds minutes
-      # of latency on CPU-only systems.  30m ensures the model stays
-      # resident for the entire pipeline.
-      OLLAMA_KEEP_ALIVE: "${OLLAMA_KEEP_ALIVE:-30m}"
-      # Allow parallel inference requests from multiple agent containers.
-      # While the current pipeline is sequential, this enables future
-      # parallelism and prevents request queueing during health checks.
-      OLLAMA_NUM_PARALLEL: "${OLLAMA_NUM_PARALLEL:-3}"
-    volumes:
-      - ollama_models:/root/.ollama
-    healthcheck:
-      # Verify the server is up AND the model is actually loaded
-      test: ["CMD-SHELL", "ollama list | grep -q \"${OLLAMA_MODEL:-llama3.1:8b}\" || ollama list"]
-      interval: 15s
-      timeout: 10s
-      retries: 20
-      start_period: 120s
-    networks:
-      - blhackbox_net
-    # GPU support -- disabled by default for broad compatibility.
-    # If you have an NVIDIA GPU, uncomment the 'deploy' block below
-    # to enable GPU acceleration for Ollama. This can reduce pipeline
-    # processing time from ~17 minutes (CPU) to under 2 minutes (GPU).
-    # deploy:
-    #   resources:
-    #     reservations:
-    #       devices:
-    #         - driver: nvidia
-    #           count: all
-    #           capabilities: [gpu]
-
   # -- NEO4J (OPTIONAL) ------------------------------------------------------
   # Enable with: docker compose --profile neo4j up -d
   # Provides cross-session persistence and relationship querying.
@@ -421,8 +232,8 @@ services:
     environment:
       ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY}"
       # Bypass egress proxies (e.g. GitHub Codespaces) for internal Docker traffic
-      no_proxy: "mcp-gateway,kali-mcp,wire-mcp,screenshot-mcp,ollama-mcp,ollama,agent-ingestion,agent-processing,agent-synthesis,localhost,127.0.0.1"
-      NO_PROXY: "mcp-gateway,kali-mcp,wire-mcp,screenshot-mcp,ollama-mcp,ollama,agent-ingestion,agent-processing,agent-synthesis,localhost,127.0.0.1"
+      no_proxy: "mcp-gateway,kali-mcp,wire-mcp,screenshot-mcp,localhost,127.0.0.1"
+      NO_PROXY: "mcp-gateway,kali-mcp,wire-mcp,screenshot-mcp,localhost,127.0.0.1"
     dns:
       - 8.8.8.8
       - 1.1.1.1

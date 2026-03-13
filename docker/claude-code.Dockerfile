@@ -36,10 +36,6 @@ RUN echo '{ \
     "screenshot": { \
       "type": "sse", \
       "url": "http://screenshot-mcp:9004/sse" \
-    }, \
-    "ollama-pipeline": { \
-      "type": "sse", \
-      "url": "http://ollama-mcp:9000/sse" \
     } \
   } \
 }' > .mcp.json

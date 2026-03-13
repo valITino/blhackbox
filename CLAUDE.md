@@ -16,20 +16,18 @@ Read the following before writing a single line:
 - `CLAUDE.md` (this file), `README.md`
 - `docker-compose.yml`, `Makefile`, `.env.example`
 - `blhackbox/mcp/server.py` — blhackbox stdio MCP server (Claude Code Web path)
-- `mcp_servers/ollama_mcp_server.py` — Ollama MCP orchestrator (optional, `--profile ollama`)
-- Every file directly relevant to the task: the relevant `Dockerfile`, `*_server.py`, `*_agent.py`, agent prompts in `blhackbox/prompts/agents/` — whatever applies
+- Every file directly relevant to the task: the relevant `Dockerfile`, `*_server.py` — whatever applies
 - Do not rely on memory from previous sessions. Read the actual current files.
 
 **Phase 3: Understand Before Acting**
 Before writing code, answer these internally:
 1. What is the root cause — not the symptom, the actual root cause?
 2. Does the fix conflict with anything else in the codebase?
-3. Does it break the `AggregatedPayload` schema contract? (Must stay stable for `aggregate_results`, report generation, and the optional Ollama pipeline)
+3. Does it break the `AggregatedPayload` schema contract? (Must stay stable for `aggregate_results` and report generation)
 4. Does it violate the `shell=False` rule?
-5. Am I touching agent prompts in `blhackbox/prompts/agents/`? If so — do I need a rebuild, or can I use a volume mount override?
-6. Is there a simpler fix that achieves the same result?
+5. Is there a simpler fix that achieves the same result?
 
-Only after answering all six — write the fix.
+Only after answering all five — write the fix.
 
 ---
 
@@ -39,8 +37,7 @@ Claude Desktop, or ChatGPT) IS the orchestrator — it decides which tools to ca
 collects raw outputs, and structures them directly into an `AggregatedPayload` via
 the `aggregate_results` MCP tool before writing the final pentest report.
 
-The Ollama preprocessing pipeline (3 agents) is now optional (`--profile ollama`)
-for local-only / offline processing. By default, the MCP host handles aggregation.
+The MCP host handles all data aggregation directly.
 
 ## Code Standards
 - All Python code must be type-annotated
@@ -60,27 +57,13 @@ for local-only / offline processing. By default, the MCP host handles aggregatio
 7. Document tools in README.md components table
 8. Add unit tests
 
-## Adding or Tuning an Agent Prompt (Optional Ollama Pipeline)
-Agent prompts are in `blhackbox/prompts/agents/` (only relevant if using `--profile ollama`):
-- `ingestionagent.md` — Ingestion Agent system prompt
-- `processingagent.md` — Processing Agent system prompt
-- `synthesisagent.md` — Synthesis Agent system prompt
-
-**To tune without rebuilding:** Mount the file as a volume in `docker-compose.yml`.
-**To make it permanent:** Edit the `.md` file and rebuild the relevant image.
-
-Always validate that the `AggregatedPayload` Pydantic model still parses correctly
-after prompt changes (`make test`).
-
 ## Key Reference Links
 | Resource | URL |
 |----------|-----|
 | FastMCP (Python MCP framework) | https://pypi.org/project/fastmcp |
 | MCP Protocol spec | https://modelcontextprotocol.io |
 | MCP Gateway | https://hub.docker.com/r/docker/mcp-gateway |
-| Ollama Python SDK | https://github.com/ollama/ollama-python |
 | Portainer CE | https://docs.portainer.io |
-| NVIDIA Container Toolkit | https://docs.nvidia.com/datacenter/cloud-native/container-toolkit |
 | Docker Hub (blhackbox) | https://hub.docker.com/r/crhacky/blhackbox |
 
 ## Verification Document — Authorization for Pentesting

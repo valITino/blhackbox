@@ -48,9 +48,8 @@ usage() {
     echo ""
     echo "Options:"
     echo "  --api-key KEY     Set ANTHROPIC_API_KEY (skips interactive prompt)"
-    echo "  --minimal         Core stack only (no Neo4j, no Ollama)"
+    echo "  --minimal         Core stack only (no Neo4j)"
     echo "  --with-neo4j      Enable Neo4j knowledge graph"
-    echo "  --with-ollama     Enable Ollama local pipeline"
     echo "  --with-gateway    Enable MCP Gateway for Claude Desktop/ChatGPT"
     echo "  --skip-pull       Skip docker compose pull (use cached images)"
     echo "  --help            Show this help"
@@ -206,14 +205,6 @@ select_profiles() {
         fi
     fi
 
-    # Ollama
-    if [[ "$PROFILES" != *"ollama"* ]]; then
-        read -rp "  Enable Ollama local pipeline? [y/N] " yn
-        if [[ "$yn" =~ ^[Yy] ]]; then
-            PROFILES="${PROFILES:+$PROFILES }--profile ollama"
-        fi
-    fi
-
     echo ""
 }
 
@@ -343,10 +334,6 @@ while [[ $# -gt 0 ]]; do
             ;;
         --with-neo4j)
             PROFILES="${PROFILES:+$PROFILES }--profile neo4j"
-            shift
-            ;;
-        --with-ollama)
-            PROFILES="${PROFILES:+$PROFILES }--profile ollama"
             shift
             ;;
         --with-gateway)

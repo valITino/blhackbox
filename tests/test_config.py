@@ -1,6 +1,6 @@
 """Tests for configuration (v2 architecture).
 
-The v2 Settings has Neo4j, Ollama, MCP Gateway, Screenshot MCP,
+The v2 Settings has Neo4j, MCP Gateway, Screenshot MCP,
 and general settings.
 """
 
@@ -39,19 +39,6 @@ class TestSettings:
         assert "bolt://" in s.neo4j_uri
         assert s.neo4j_user == "neo4j"
         assert s.neo4j_password == ""
-
-    def test_ollama_defaults(self) -> None:
-        s = Settings()
-        assert "ollama" in s.ollama_url or "localhost" in s.ollama_url
-        assert s.ollama_model == "llama3.1:8b"
-
-    def test_ollama_url_override(self) -> None:
-        s = Settings(ollama_url="http://custom-ollama:9999")
-        assert s.ollama_url == "http://custom-ollama:9999"
-
-    def test_ollama_model_override(self) -> None:
-        s = Settings(ollama_model="mistral")
-        assert s.ollama_model == "mistral"
 
     def test_mcp_gateway_port_default(self) -> None:
         s = Settings()

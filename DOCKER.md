@@ -19,21 +19,14 @@ All custom images are published to a single Docker Hub repository, differentiate
 
 ## Images and Tags
 
-Eight custom images are published to `crhacky/blhackbox` on Docker Hub:
+Four custom images are published to `crhacky/blhackbox` on Docker Hub:
 
 | Service | Tag | Dockerfile | Base |
 |---|---|---|---|
 | **Kali MCP** | `crhacky/blhackbox:kali-mcp` | `docker/kali-mcp.Dockerfile` | `kalilinux/kali-rolling` |
 | **WireMCP** | `crhacky/blhackbox:wire-mcp` | `docker/wire-mcp.Dockerfile` | `debian:bookworm-slim` |
 | **Screenshot MCP** | `crhacky/blhackbox:screenshot-mcp` | `docker/screenshot-mcp.Dockerfile` | `python:3.13-slim` |
-| **Ollama MCP** | `crhacky/blhackbox:ollama-mcp` | `docker/ollama-mcp.Dockerfile` | `python:3.13-slim` |
-| **Agent: Ingestion** | `crhacky/blhackbox:agent-ingestion` | `docker/agent-ingestion.Dockerfile` | `python:3.13-slim` |
-| **Agent: Processing** | `crhacky/blhackbox:agent-processing` | `docker/agent-processing.Dockerfile` | `python:3.13-slim` |
-| **Agent: Synthesis** | `crhacky/blhackbox:agent-synthesis` | `docker/agent-synthesis.Dockerfile` | `python:3.13-slim` |
 | **Claude Code** | `crhacky/blhackbox:claude-code` | `docker/claude-code.Dockerfile` | `node:22-slim` |
-
-Custom-built locally (no pre-built image on Docker Hub):
-- `crhacky/blhackbox:ollama` — wraps `ollama/ollama:latest` with auto-pull entrypoint (`docker/ollama.Dockerfile`)
 
 Official images pulled directly (no custom build):
 - `portainer/portainer-ce:latest` — Docker management UI
@@ -63,15 +56,6 @@ Claude Code ──┬──> Kali MCP (SSE, port 9001)
               │
               │  After collecting raw outputs, Claude structures them directly:
               │    get_payload_schema() → parse/dedup/correlate → aggregate_results()
-              │
-              └──> (optional) Ollama MCP (SSE, port 9000)
-                        │
-                        ├──► agent-ingestion:8001
-                        ├──► agent-processing:8002
-                        └──► agent-synthesis:8003
-                                  │
-                                  ▼
-                               Ollama (LLM backend)
 
 output/          Host-mounted directory for reports, screenshots, sessions
 Portainer        Docker UI (https://localhost:9443)
@@ -85,10 +69,6 @@ Claude Desktop ──> MCP Gateway (localhost:8080/mcp) ──┬──> Kali MC
 (host app)                                            ├──> WireMCP
                                                       └──> Screenshot MCP
 ```
-
-> **Ollama is optional since v2.1.** The MCP host (Claude) now handles data
-> aggregation directly. The Ollama pipeline is kept as an optional fallback
-> for local-only / offline processing. Enable with `--profile ollama`.
 
 ---
 
@@ -152,11 +132,6 @@ make health                # MCP server health check
 | `claude-code` | `crhacky/blhackbox:claude-code` | - | `claude-code` | Claude Code CLI client (Docker) |
 | `mcp-gateway` | `docker/mcp-gateway:latest` | `8080` | `gateway` | Single MCP entry point (host clients) |
 | `neo4j` | `neo4j:5` | `7474` `7687` | `neo4j` | Cross-session knowledge graph |
-| `ollama-mcp` | `crhacky/blhackbox:ollama-mcp` | `9000` | `ollama` | Thin MCP orchestrator (optional) |
-| `agent-ingestion` | `crhacky/blhackbox:agent-ingestion` | `8001` | `ollama` | Agent 1: parse raw output (optional) |
-| `agent-processing` | `crhacky/blhackbox:agent-processing` | `8002` | `ollama` | Agent 2: deduplicate, compress (optional) |
-| `agent-synthesis` | `crhacky/blhackbox:agent-synthesis` | `8003` | `ollama` | Agent 3: assemble payload (optional) |
-| `ollama` | `crhacky/blhackbox:ollama` (built locally) | `11434` | `ollama` | LLM inference backend (optional) |
 
 ---
 
@@ -171,8 +146,7 @@ The Claude Code container's `.mcp.json` connects directly to each server:
   "mcpServers": {
     "kali":            { "type": "sse", "url": "http://kali-mcp:9001/sse" },
     "wireshark":       { "type": "sse", "url": "http://kali-mcp:9003/sse" },
-    "screenshot":      { "type": "sse", "url": "http://screenshot-mcp:9004/sse" },
-    "ollama-pipeline": { "type": "sse", "url": "http://ollama-mcp:9000/sse" }
+    "screenshot":      { "type": "sse", "url": "http://screenshot-mcp:9004/sse" }
   }
 }
 ```
@@ -201,7 +175,6 @@ Requires `--profile gateway` (`make up-gateway`).
 | Variable | Default | Description |
 |---|---|---|
 | `ANTHROPIC_API_KEY` | - | Required for Claude Code in Docker |
-| `OLLAMA_MODEL` | `llama3.1:8b` | Ollama model for preprocessing agents |
 | `MCP_GATEWAY_PORT` | `8080` | MCP Gateway host port (optional) |
 | `MSF_TIMEOUT` | `300` | Metasploit command timeout in seconds |
 | `NEO4J_URI` | `bolt://neo4j:7687` | Neo4j connection URI (optional) |
@@ -240,24 +213,6 @@ Requires `--profile gateway` (`make up-gateway`).
 - **Entrypoint**: Screenshot MCP server (FastMCP + Playwright headless Chromium)
 - **Transport**: SSE on port 9004
 
-### Ollama MCP (`crhacky/blhackbox:ollama-mcp`)
-
-- **Base**: `python:3.13-slim`
-- **Entrypoint**: `ollama_mcp_server.py`
-- **Transport**: SSE on port 9000
-- **Role**: Thin MCP orchestrator (built with FastMCP) — calls 3 agent containers via HTTP, does NOT call Ollama directly
-- **NOT an official Ollama product**
-
-### Agent Containers (`agent-ingestion`, `agent-processing`, `agent-synthesis`)
-
-- **Base**: `python:3.13-slim`
-- **Entrypoint**: FastAPI server (`uvicorn`)
-- **Ports**: 8001, 8002, 8003 respectively (internal only)
-- **Depends on**: Ollama container (each calls Ollama via the official `ollama` Python package)
-- **Health endpoint**: `GET /health` — returns immediately without calling Ollama
-- Prompts baked in from `blhackbox/prompts/agents/` at build time
-- Can be overridden via volume mount for tuning without rebuilding
-
 ### Claude Code (`crhacky/blhackbox:claude-code`)
 
 - **Base**: `node:22-slim`
@@ -286,7 +241,6 @@ Named volumes for persistent data:
 
 | Volume | Service | Purpose |
 |---|---|---|
-| `ollama_models` | ollama | Ollama model storage (optional) |
 | `neo4j_data` | neo4j | Neo4j graph database (optional) |
 | `neo4j_logs` | neo4j | Neo4j logs (optional) |
 | `portainer_data` | portainer | Portainer configuration |
@@ -304,19 +258,17 @@ Host bind mounts for output (accessible on your local filesystem):
 
 ## CI/CD Pipeline
 
-Eight custom images are built and pushed to Docker Hub via GitHub Actions:
+Four custom images are built and pushed to Docker Hub via GitHub Actions:
 
 ```
 PR opened  ───>  CI (lint + test + pip-audit)
                       │
-PR merged  ───>  CI  ───>  Build & Push (8 images)  ───>  Docker Hub
+PR merged  ───>  CI  ───>  Build & Push (4 images)  ───>  Docker Hub
                            (on CI success)
-Tag v*     ──────────────>  Build & Push (8 images)  ───>  Docker Hub
+Tag v*     ──────────────>  Build & Push (4 images)  ───>  Docker Hub
 
-Manual     ──────────────>  Build & Push (8 images)  ───>  Docker Hub
+Manual     ──────────────>  Build & Push (4 images)  ───>  Docker Hub
 ```
-
-Docker Scout vulnerability scanning runs on the ollama-mcp image.
 
 ---
 
@@ -338,14 +290,8 @@ make up-gateway
 # Start with Neo4j (5 containers)
 docker compose --profile neo4j up -d
 
-# Start with Ollama pipeline (9 containers, optional)
-docker compose --profile ollama up -d
-
 # Launch Claude Code in Docker
 make claude-code
-
-# Pull the Ollama model (only if using --profile ollama)
-make ollama-pull
 
 # Check health of all MCP servers
 make health
@@ -366,24 +312,11 @@ make clean                 # also removes volumes
 
 ---
 
-## GPU Support
-
-GPU acceleration is **disabled by default** for broad compatibility. Ollama runs
-on CPU out of the box.
-
-If you have an NVIDIA GPU, uncomment the `deploy` block under the `ollama`
-service in `docker-compose.yml` and install the
-[NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html)
-on the host. GPU acceleration significantly speeds up Ollama inference.
-
----
-
 ## Security
 
 - **Docker socket**: MCP Gateway (optional) and Portainer mount `/var/run/docker.sock`. This grants effective root on the host. Never expose ports 8080 or 9443 to the public internet.
 - **Authorization**: Ensure you have written permission before scanning any target.
 - **Neo4j**: Set a strong password in `.env`. Never use defaults in production.
-- **Agent containers**: Communicate only on the internal `blhackbox_net` Docker network. No ports exposed to host.
 - **Portainer**: Uses HTTPS with a self-signed certificate. Create a strong admin password on first run.
 
 **This tool is for authorized security testing only.** Unauthorized access to computer systems is illegal.

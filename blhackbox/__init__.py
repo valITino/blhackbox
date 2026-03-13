@@ -1,3 +1,3 @@
-"""Blhackbox – MCP-based autonomous pentesting with knowledge graph and Ollama preprocessing."""
+"""Blhackbox – MCP-based autonomous pentesting with knowledge graph."""
 
 __version__ = "2.0.0"

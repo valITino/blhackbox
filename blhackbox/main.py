@@ -54,7 +54,6 @@ def version() -> None:
     """Show the Blhackbox version."""
     print_banner()
     rich_console.print(f"[info]Version:[/info] {blhackbox.__version__}")
-    rich_console.print(f"[info]Ollama URL:[/info] {settings.ollama_url}")
     rich_console.print(f"[info]Neo4j URI:[/info] {settings.neo4j_uri}")
 
 

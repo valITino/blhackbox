@@ -66,7 +66,7 @@ def generate_pdf_report_from_payload(
     """Generate a PDF report from an AggregatedPayload.
 
     This is the v2.0 report generation path, consuming structured output
-    from the Ollama preprocessing pipeline.
+    from the aggregation pipeline.
 
     Args:
         payload: Aggregated pentest data from the aggregator MCP server.

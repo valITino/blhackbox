@@ -48,22 +48,6 @@ jobs:
             dockerfile: docker/screenshot-mcp.Dockerfile
             tag_prefix: "screenshot-mcp-"
             scout: false
-          - service: ollama-mcp
-            dockerfile: docker/ollama-mcp.Dockerfile
-            tag_prefix: "ollama-mcp-"
-            scout: true
-          - service: agent-ingestion
-            dockerfile: docker/agent-ingestion.Dockerfile
-            tag_prefix: "agent-ingestion-"
-            scout: false
-          - service: agent-processing
-            dockerfile: docker/agent-processing.Dockerfile
-            tag_prefix: "agent-processing-"
-            scout: false
-          - service: agent-synthesis
-            dockerfile: docker/agent-synthesis.Dockerfile
-            tag_prefix: "agent-synthesis-"
-            scout: false
           - service: claude-code
             dockerfile: docker/claude-code.Dockerfile
             tag_prefix: "claude-code-"
