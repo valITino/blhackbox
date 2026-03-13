@@ -331,6 +331,96 @@ Provide prioritized, actionable remediation guidance:
 
 ---
 
+## Engagement Documentation & Report Storage
+
+At the end of every engagement, produce **three separate documents** and store
+them in the correct location. This ensures all deliverables persist on the
+host machine via Docker volume mounts and are organized for client delivery.
+
+### Report Output Directory
+
+| Environment | Report Path | Session Data Path | Screenshots Path |
+|-------------|-------------|-------------------|------------------|
+| **Docker container** (Claude Code) | `/root/reports/` | `/root/results/` | `/tmp/screenshots` (read-only) |
+| **Host machine** (via mount) | `./output/reports/` | `./output/sessions/` | `./output/screenshots/` |
+| **Local** (no Docker) | `reports/` | `results/` | N/A |
+
+Inside the reports directory, create a date-stamped engagement folder for each
+engagement. All three documents go into this folder alongside the main report:
+
+```
+output/reports/
+  [TARGET]-DDMMYYYY/
+    report-[TARGET]-DDMMYYYY.md          ← Final pentest report
+    engagement-log-[TARGET]-DDMMYYYY.md  ← Process & decision log
+    issues-log-[TARGET]-DDMMYYYY.md      ← Errors, warnings, problems
+```
+
+> **In the Docker container**, write to `/root/reports/[TARGET]-DDMMYYYY/`.
+> The host will see the files at `./output/reports/[TARGET]-DDMMYYYY/`
+> automatically via the volume mount.
+
+### Document 1: Final Pentest Report — `report-[TARGET]-DDMMYYYY.md`
+
+This is the client-facing deliverable — the full penetration test report as
+described in [Phase 5](#phase-5--report). Contains executive summary, findings
+with PoCs, attack chains, extracted data inventory, remediation roadmap, and
+appendix.
+
+### Document 2: Engagement Log — `engagement-log-[TARGET]-DDMMYYYY.md`
+
+A chronological record of the entire engagement process:
+
+- **Session metadata** — target, template used, session ID, start/end
+  timestamps, total duration
+- **Phase-by-phase execution log** — for every phase (1 through 5):
+  - Phase name and objective
+  - Each tool executed: tool name, parameters, execution status
+    (success / failure / timeout / partial), key output summary
+  - Findings discovered in this phase (title, severity, one-line summary)
+  - Decisions and rationale — why specific tools were chosen, why tests were
+    skipped, pivots made mid-phase
+- **Tool execution summary table** — every tool called, in execution order:
+  `Tool | Phase | Status | Duration | Notes`
+- **Coverage assessment** — what was tested, what was NOT tested, and why
+  (tool unavailable, out of scope, blocked by WAF, timed out, etc.)
+- **Attack surface delta** — what was known before vs. after each phase
+
+### Document 3: Issues & Errors Log — `issues-log-[TARGET]-DDMMYYYY.md`
+
+A complete record of every problem, anomaly, and concern encountered:
+
+- **Tool failures** — tool name, full error message, impact on testing coverage,
+  workaround applied (if any), retry attempts and outcomes
+- **Scan anomalies** — unexpected responses, connection timeouts, rate limiting
+  triggers, WAF/IDS blocks, geo-restrictions encountered
+- **Exploitation failures** — vulnerability identified but exploitation failed:
+  tool used, error encountered, possible reasons, impact on findings
+- **Warnings** — non-fatal issues that may affect result accuracy (partial scan
+  coverage, truncated outputs, degraded tool performance)
+- **Skipped tests** — test name, reason skipped (tool unavailable, prerequisite
+  not met, out of scope, blocked), impact on overall coverage
+- **False positives identified** — finding title, tool that flagged it, evidence
+  for why it is a false positive, final classification
+- **Data quality notes** — confidence levels per finding, areas where results may
+  be incomplete or require manual verification
+
+### Storage Checklist
+
+Before ending the engagement, verify:
+
+- [ ] All three documents are written to the correct engagement folder
+- [ ] The engagement folder uses the naming convention `[TARGET]-DDMMYYYY`
+- [ ] Target name is slugified (lowercase, hyphens, no special chars)
+- [ ] The `AggregatedPayload` session JSON is persisted in the sessions directory
+- [ ] Screenshots are saved and referenced by filename in the report
+
+> **Write all three documents at engagement end.** These form the complete audit
+> trail and are essential for engagement review, quality assurance, and client
+> delivery.
+
+---
+
 ## PoC Requirements
 
 **Every vulnerability and finding MUST include a Proof of Concept (PoC).** A
