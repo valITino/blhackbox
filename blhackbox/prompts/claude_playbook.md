@@ -60,16 +60,18 @@ payload for report generation.
 ## Phase 1 — Recon
 
 **Objective:** Build a comprehensive map of the target's external attack surface
-before sending a single probe packet.
+before sending a single probe packet. This phase uses **passive techniques only** —
+no packets are sent to the target itself.
 
-| Task |
-|------|
-| Subdomain enumeration (passive) |
-| DNS resolution & zone data |
-| OSINT — emails, names, metadata |
-| Certificate transparency lookups |
-| WHOIS & registrar info |
-| AI-driven target intelligence |
+| Task | Details |
+|------|---------|
+| **Subdomain enumeration** | Passive subdomain discovery through multiple sources. Run at least two different tools for maximum coverage, then deduplicate into a master subdomain list. Categorize subdomains by function (dev, staging, api, admin, mail, cdn). |
+| **DNS intelligence** | Full DNS record enumeration — A, AAAA, MX, TXT, NS, SOA, SRV records. Check for zone transfer opportunities. DNS brute-forcing for additional record discovery. MX records reveal mail infrastructure; TXT records reveal SPF/DKIM/DMARC and third-party integrations. |
+| **Domain registration** | WHOIS lookups for registrar, registration/expiration dates, nameserver infrastructure, registrant organization, and ownership chain. |
+| **OSINT harvesting** | Harvest emails, employee names, and additional subdomains from public sources. Extract metadata from any publicly downloadable documents. |
+| **Certificate transparency** | CT log lookups to discover additional subdomains and certificate history. |
+| **Infrastructure mapping** | From gathered data, identify IP address ranges, hosting providers, CDN/WAF presence (from CNAME records), cloud provider indicators (AWS, Azure, GCP patterns), and third-party service integrations. |
+| **AI-driven intelligence** | OSINT and intelligence analysis agents for automated target profiling. |
 
 **Store every raw output** in a dict keyed by tool name, e.g.:
 
@@ -86,16 +88,21 @@ have returned.
 ## Phase 2 — Scanning
 
 **Objective:** Identify live hosts, open ports, running services, and known
-vulnerabilities across the attack surface discovered in Phase 1.
+vulnerabilities across the attack surface discovered in Phase 1. This is the
+first active phase — packets will be sent to the target.
 
-| Task |
-|------|
-| Port scanning & service detection |
-| Exploit module search |
-| Auxiliary vulnerability scanning |
-| Network traffic capture during scanning |
-| AI-driven network & vulnerability scanning |
+| Task | Details |
+|------|---------|
+| **High-speed port sweep** | Full port range (1-65535) scanning at high speed to quickly identify all open ports across discovered hosts. |
+| **Service detection** | Comprehensive service detection with version fingerprinting and OS identification on all open ports. Collect service banners. |
+| **WAF/CDN detection** | Detect web application firewalls and CDN presence on web-facing services. This affects exploitation strategy in Phase 3. |
+| **NSE vulnerability scripts** | Targeted vulnerability detection scripts on discovered services — SSH, HTTP, SMB, DNS, FTP, SMTP. |
+| **Exploit module search** | Search for exploit modules matching discovered service names, versions, and CVEs. Build an exploit landscape for Phase 3. |
+| **Auxiliary vulnerability scanning** | Supplemental service-specific vulnerability scanners and safe exploit-check scripts. |
+| **Network traffic capture** | Begin capturing traffic during active scanning. This provides evidence and may reveal credentials in cleartext protocols. |
+| **AI-driven scanning** | Network scan and vulnerability scan agents for comprehensive automated assessment. |
 
+For each discovered subdomain with web services, perform service detection.
 Append every raw output to the same `raw_outputs` dict.
 
 ---
@@ -108,14 +115,18 @@ and extract data proving real-world impact.
 
 ### 3A: Enumeration & Vulnerability Discovery
 
-| Task |
-|------|
-| Web server vulnerability scanning |
-| Directory and content discovery |
-| Technology fingerprinting |
-| HTTP parameter discovery |
-| XSS and injection testing |
-| CMS-specific scanning (if applicable) |
+| Task | Details |
+|------|---------|
+| **Technology fingerprinting** | Identify web frameworks, CMS platforms, server software, and versions for every web-facing service. This determines which specific tests to run. |
+| **Web vulnerability scanning** | Comprehensive web server vulnerability checks including known CVEs. |
+| **Directory & content discovery** | Brute-force directories and files with common wordlists and extensions (php, html, js, txt, json, xml, bak, old). Look for: admin panels, login pages, API endpoints, config files, backup files, `.git`, `.env`, debug endpoints. |
+| **HTTP parameter discovery** | Hidden parameter fuzzing on discovered endpoints. Every parameter is a potential injection point. |
+| **XSS scanning** | XSS detection and parameter analysis — reflected, stored, and DOM-based. |
+| **SQL injection testing** | Automated injection testing (blind, error-based, time-based) on all discovered parameters. |
+| **CMS-specific scanning** | If WordPress, Drupal, Joomla, or other CMS detected, run CMS-specific vulnerability and plugin enumeration. |
+| **API endpoint enumeration** | If APIs are discovered, enumerate endpoints, methods, and test for OWASP API Top 10 (BOLA/IDOR, broken auth, broken function-level authorization, SSRF, security misconfiguration, shadow APIs). |
+| **Security header & SSL/TLS analysis** | Check for missing security headers (CSP, HSTS, X-Frame-Options, X-Content-Type-Options), weak cipher suites, outdated TLS protocols, certificate issues, CORS misconfiguration, cookie security flags. |
+| **Web & bug bounty reconnaissance** | Automated web recon and bug bounty agents for comprehensive discovery. |
 
 ### 3B: Active Exploitation (MANDATORY)
 
@@ -135,6 +146,8 @@ exploitation and document the results:
 | **File Upload** | Upload a test file (e.g., `.txt` with unique content). Confirm it's accessible. If code execution is possible via upload, demonstrate with a proof command. |
 | **XXE** | Extract file contents or demonstrate SSRF via XML injection. Show the returned data. |
 | **CSRF** | Craft the forged request. Show it executes a state-changing action. Document the before/after state. |
+| **SSTI (Server-Side Template Injection)** | Inject template expressions, show evaluated output proving server-side code execution. Escalate to RCE if possible. |
+| **NoSQL Injection** | Test MongoDB operators in JSON body fields. Extract or manipulate documents to prove impact. Show returned data. |
 | **Privilege Escalation** | Access admin functions as a regular user. Show the admin response data. |
 | **Exposed Secrets** | Capture and display API keys, tokens, credentials, connection strings found in source, configs, or responses. |
 | **Information Disclosure** | Show the exact sensitive data exposed — stack traces, internal IPs, source code, debug output, directory listings with file contents. |
@@ -145,12 +158,19 @@ For every successful exploit:
 
 1. **Show what was obtained** — extracted database rows, file contents, credentials,
    tokens, session data, admin access proof
-2. **Attempt lateral movement** — if credentials were found, test them against other
-   services (SSH, FTP, admin panels, databases)
-3. **Map the blast radius** — what else can be reached from this access?
-4. **Capture traffic** — extract credentials and session tokens from packet captures
+2. **Attempt lateral movement** — if credentials were found, test them against ALL
+   other discovered services (SSH, FTP, admin panels, databases, APIs, Redis,
+   MongoDB, MSSQL, PostgreSQL). Document every successful reuse and map the total
+   blast radius of each credential set.
+3. **Map the blast radius** — what else can be reached from this access? Enumerate
+   everything reachable from the compromised position.
+4. **Capture traffic** — extract credentials, API keys, tokens, and session cookies
+   from packet captures. Reconstruct full HTTP conversations and inspect
+   request/response pairs for leaked data.
 5. **Screenshot everything** — authenticated sessions, admin panels, data exposure,
-   error pages, successful exploitation
+   error pages, successful exploitation. Use element-level screenshots for specific
+   DOM elements (XSS payloads, error messages, exposed data). Annotate screenshots
+   with labels and highlight boxes marking vulnerability locations.
 
 ### 3D: Evidence Collection
 
@@ -311,6 +331,96 @@ Provide prioritized, actionable remediation guidance:
 
 ---
 
+## Engagement Documentation & Report Storage
+
+At the end of every engagement, produce **three separate documents** and store
+them in the correct location. This ensures all deliverables persist on the
+host machine via Docker volume mounts and are organized for client delivery.
+
+### Report Output Directory
+
+| Environment | Report Path | Session Data Path | Screenshots Path |
+|-------------|-------------|-------------------|------------------|
+| **Docker container** (Claude Code) | `/root/reports/` | `/root/results/` | `/tmp/screenshots` (read-only) |
+| **Host machine** (via mount) | `./output/reports/` | `./output/sessions/` | `./output/screenshots/` |
+| **Local** (no Docker) | `reports/` | `results/` | N/A |
+
+Inside the reports directory, create a date-stamped engagement folder for each
+engagement. All three documents go into this folder alongside the main report:
+
+```
+output/reports/
+  [TARGET]-DDMMYYYY/
+    report-[TARGET]-DDMMYYYY.md          ← Final pentest report
+    engagement-log-[TARGET]-DDMMYYYY.md  ← Process & decision log
+    issues-log-[TARGET]-DDMMYYYY.md      ← Errors, warnings, problems
+```
+
+> **In the Docker container**, write to `/root/reports/[TARGET]-DDMMYYYY/`.
+> The host will see the files at `./output/reports/[TARGET]-DDMMYYYY/`
+> automatically via the volume mount.
+
+### Document 1: Final Pentest Report — `report-[TARGET]-DDMMYYYY.md`
+
+This is the client-facing deliverable — the full penetration test report as
+described in [Phase 5](#phase-5--report). Contains executive summary, findings
+with PoCs, attack chains, extracted data inventory, remediation roadmap, and
+appendix.
+
+### Document 2: Engagement Log — `engagement-log-[TARGET]-DDMMYYYY.md`
+
+A chronological record of the entire engagement process:
+
+- **Session metadata** — target, template used, session ID, start/end
+  timestamps, total duration
+- **Phase-by-phase execution log** — for every phase (1 through 5):
+  - Phase name and objective
+  - Each tool executed: tool name, parameters, execution status
+    (success / failure / timeout / partial), key output summary
+  - Findings discovered in this phase (title, severity, one-line summary)
+  - Decisions and rationale — why specific tools were chosen, why tests were
+    skipped, pivots made mid-phase
+- **Tool execution summary table** — every tool called, in execution order:
+  `Tool | Phase | Status | Duration | Notes`
+- **Coverage assessment** — what was tested, what was NOT tested, and why
+  (tool unavailable, out of scope, blocked by WAF, timed out, etc.)
+- **Attack surface delta** — what was known before vs. after each phase
+
+### Document 3: Issues & Errors Log — `issues-log-[TARGET]-DDMMYYYY.md`
+
+A complete record of every problem, anomaly, and concern encountered:
+
+- **Tool failures** — tool name, full error message, impact on testing coverage,
+  workaround applied (if any), retry attempts and outcomes
+- **Scan anomalies** — unexpected responses, connection timeouts, rate limiting
+  triggers, WAF/IDS blocks, geo-restrictions encountered
+- **Exploitation failures** — vulnerability identified but exploitation failed:
+  tool used, error encountered, possible reasons, impact on findings
+- **Warnings** — non-fatal issues that may affect result accuracy (partial scan
+  coverage, truncated outputs, degraded tool performance)
+- **Skipped tests** — test name, reason skipped (tool unavailable, prerequisite
+  not met, out of scope, blocked), impact on overall coverage
+- **False positives identified** — finding title, tool that flagged it, evidence
+  for why it is a false positive, final classification
+- **Data quality notes** — confidence levels per finding, areas where results may
+  be incomplete or require manual verification
+
+### Storage Checklist
+
+Before ending the engagement, verify:
+
+- [ ] All three documents are written to the correct engagement folder
+- [ ] The engagement folder uses the naming convention `[TARGET]-DDMMYYYY`
+- [ ] Target name is slugified (lowercase, hyphens, no special chars)
+- [ ] The `AggregatedPayload` session JSON is persisted in the sessions directory
+- [ ] Screenshots are saved and referenced by filename in the report
+
+> **Write all three documents at engagement end.** These form the complete audit
+> trail and are essential for engagement review, quality assurance, and client
+> delivery.
+
+---
+
 ## PoC Requirements
 
 **Every vulnerability and finding MUST include a Proof of Concept (PoC).** A
@@ -383,16 +493,25 @@ Use this to determine how far to take each finding:
 ```
 Vulnerability Found
 ├── Can it be exploited with available tools?
-│   ├── YES → Exploit it. Extract data. Document everything.
-│   │   ├── Did exploitation yield credentials?
-│   │   │   ├── YES → Test credentials against other services (lateral movement)
-│   │   │   └── NO → Document what was obtained
-│   │   ├── Did exploitation yield further access?
-│   │   │   ├── YES → Enumerate the new access. What data is reachable?
-│   │   │   └── NO → Document the access boundary
-│   │   └── Can findings be chained for greater impact?
-│   │       ├── YES → Execute the chain. Document each step.
-│   │       └── NO → Document as standalone finding
+│   ├── YES → Is the exploit destructive (data deletion, ransomware,
+│   │         disk wipe, DoS, or any irreversible damage to target data)?
+│   │   ├── YES (DESTRUCTIVE) → Do NOT execute the exploit live.
+│   │   │   Instead: create a detailed Proof-of-Concept write-up that
+│   │   │   documents exactly how the exploit would be carried out —
+│   │   │   the payload, the steps, the expected impact — without
+│   │   │   actually triggering it. Report the finding with full PoC
+│   │   │   documentation and mark it as "PoC-only — not executed to
+│   │   │   prevent irreversible data loss."
+│   │   └── NO (NON-DESTRUCTIVE) → Exploit it. Extract data. Document everything.
+│   │       ├── Did exploitation yield credentials?
+│   │       │   ├── YES → Test credentials against other services (lateral movement)
+│   │       │   └── NO → Document what was obtained
+│   │       ├── Did exploitation yield further access?
+│   │       │   ├── YES → Enumerate the new access. What data is reachable?
+│   │       │   └── NO → Document the access boundary
+│   │       └── Can findings be chained for greater impact?
+│   │           ├── YES → Execute the chain. Document each step.
+│   │           └── NO → Document as standalone finding
 │   └── NO → Document why exploitation failed. Is it a tool limitation
 │           or is the vulnerability not exploitable? Flag accordingly.
 └── Is it theoretical only (no tool can test it)?
@@ -421,15 +540,30 @@ For more specialized or detailed assessment workflows, use the prompt templates
 in `blhackbox/prompts/templates/`. Available via MCP (`list_templates` /
 `get_template`) or CLI (`blhackbox templates list`):
 
-| Template | Use Case |
-|----------|----------|
-| `full-pentest` | Complete 5-phase end-to-end penetration test with full exploitation |
-| `full-attack-chain` | Recon through exploitation with attack chain reporting and data extraction |
-| `quick-scan` | Fast high-level security scan — exploit critical findings on the spot |
-| `recon-deep` | Comprehensive reconnaissance and attack surface mapping |
-| `web-app-assessment` | Focused web application security testing with active exploitation |
-| `network-infrastructure` | Network-focused infrastructure assessment with service exploitation |
-| `osint-gathering` | Passive open-source intelligence collection |
-| `vuln-assessment` | Systematic vulnerability identification, validation, and exploitation |
-| `api-security` | API security testing with active exploitation (OWASP API Top 10) |
-| `bug-bounty` | Bug bounty hunting with PoC-driven exploitation reports |
+| Template | Use Case | Phases | Key Differentiator |
+|----------|----------|--------|--------------------|
+| `full-pentest` | Complete end-to-end penetration test | 6 phases: passive recon → active scanning → web enumeration → exploitation & data extraction → aggregation → report | Most thorough single-target template. Includes engagement log, issues log, and evidence index. |
+| `full-attack-chain` | Maximum-impact engagement with attack chain focus | 7 phases: recon → scanning → vuln ID → exploitation → chain construction → aggregation → report | Adds dedicated attack chain construction phase with 5 chain patterns (external-to-internal, web app compromise, service exploitation, data breach, full compromise). Supports scope/out-of-scope/engagement-type config. |
+| `quick-scan` | Fast triage of a new target | 4 steps: parallel discovery → quick analysis & exploitation → aggregation → quick report | Speed-first — runs discovery tools concurrently, but still exploits critical/high findings on the spot. Best for first-pass assessment. Recommends deeper templates for follow-up. |
+| `recon-deep` | Comprehensive attack surface mapping (recon only) | 6 steps: domain intel → subdomain enum → network mapping → tech fingerprinting → aggregation → report | Passive + active recon without exploitation. Produces a full subdomain inventory, service map, technology stack, and infrastructure footprint. Use before a full pentest to understand what you're attacking. |
+| `web-app-assessment` | Focused web application security | 9 steps: fingerprinting → directory discovery → vuln scanning → CMS testing → injection testing & exploitation → traffic analysis → header/SSL analysis → aggregation → report | Covers OWASP Top 10 in depth. Tests every form, parameter, and input. Supports authenticated testing (cookie/header/creds). Includes SSTI testing. |
+| `network-infrastructure` | Network-focused infrastructure assessment | 8 steps: host discovery → service enumeration → traffic analysis → vuln scanning → DNS intel → credential testing & exploitation → aggregation → report | Network-layer focus. Covers SMB enumeration, banner grabbing, protocol-specific scripts, credential brute-forcing across SSH/FTP/Telnet/databases/Redis/MongoDB. Supports CIDR ranges, custom ports, scan rates, and host exclusions. |
+| `osint-gathering` | Passive-only intelligence collection | 8 steps: domain intel → DNS intel → subdomain discovery → infra mapping → traffic sample analysis → exploit landscape → aggregation → report | **Passive only — no packets sent to target.** Gathers WHOIS, DNS, subdomains, emails, metadata, and technology indicators. Use when you need intelligence without touching the target. |
+| `vuln-assessment` | Systematic vulnerability validation | 9 steps: service discovery → vuln scanning → web deep-dive & exploitation → traffic analysis → config/hardening checks → SSL/TLS → credential testing → aggregation → report | Most methodical vulnerability workflow. Includes security header analysis, SSL/TLS assessment, CORS checks, cookie flags, and directory listing checks alongside exploitation. Maps findings to OWASP Top 10 and CWE. |
+| `api-security` | API-specific security testing | 9 steps: API discovery → endpoint enumeration → auth/authz testing → injection testing & exploitation → traffic analysis → OWASP API Top 10 testing → data exposure checks → aggregation → report | Targets REST and GraphQL APIs specifically. Covers OWASP API Security Top 10 (API1-API10), NoSQL injection, JWT attacks, BOLA/IDOR, rate limiting, shadow APIs. Supports Swagger/OpenAPI docs, API keys, and bearer tokens. |
+| `bug-bounty` | Bug bounty program participation | 8 steps: scope mapping → alive check → high-value target ID → vuln hunting → evidence capture → CMS/framework testing → aggregation → bug bounty report | Respects program scope and rules. Prioritizes high-bounty vuln classes. Reports in bug bounty format (not pentest format). Includes scope compliance log and program constraint tracking. |
+
+### When to Use Which Template
+
+| Scenario | Recommended Template | Why |
+|----------|---------------------|-----|
+| First time seeing a target — need a quick overview | `quick-scan` | Fast triage, concurrent scanning, still exploits critical findings |
+| Need to understand the attack surface before committing to a full test | `recon-deep` | Maps everything without exploitation — feeds into later templates |
+| Need intelligence without touching the target | `osint-gathering` | Purely passive — no active connections to target |
+| Full authorized pentest — standard engagement | `full-pentest` | End-to-end with full exploitation and engagement documentation |
+| Full pentest with emphasis on multi-step attack paths | `full-attack-chain` | Adds dedicated chain construction phase and scoped config |
+| Target is a web application | `web-app-assessment` | OWASP Top 10, injection testing, CMS-specific, authenticated testing |
+| Target is a REST or GraphQL API | `api-security` | OWASP API Top 10, JWT attacks, BOLA/IDOR, NoSQL injection |
+| Target is network infrastructure (IP range, internal network) | `network-infrastructure` | CIDR support, SMB/SSH/FTP enumeration, credential reuse mapping |
+| Need a thorough vulnerability inventory with hardening checks | `vuln-assessment` | Most methodical — includes SSL/TLS, headers, config checks alongside exploitation |
+| Bug bounty program | `bug-bounty` | Scope-aware, program-rule compliant, bounty-format reporting |

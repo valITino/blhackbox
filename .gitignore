@@ -30,7 +30,14 @@ env/
 .claude/verification-active.md
 
 # Output directory (host-mounted reports, screenshots, sessions)
-output/
+output/**
+!output/
+!output/reports/
+!output/reports/.gitkeep
+!output/sessions/
+!output/sessions/.gitkeep
+!output/screenshots/
+!output/screenshots/.gitkeep
 
 # Legacy results and reports (pre-v2.1)
 results/*.json
