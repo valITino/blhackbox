@@ -29,7 +29,10 @@ env/
 # Active verification document (rendered from verification.env — contains engagement details)
 .claude/verification-active.md
 
-# Results and reports
+# Output directory (host-mounted reports, screenshots, sessions)
+output/
+
+# Legacy results and reports (pre-v2.1)
 results/*.json
 results/*.pdf
 results/*.html
@@ -50,6 +53,9 @@ wordlists/*.csv
 
 # Docker
 .docker/
+
+# Planning docs (temp)
+plan.md
 
 # OS
 .DS_Store

@@ -18,6 +18,7 @@
 
 - [How It Works](#how-it-works)
 - [Architecture](#architecture)
+- [Output Files](#output-files)
 - [Components](#components)
 - [Prerequisites](#prerequisites)
 - [Installation](#installation)
@@ -105,6 +106,32 @@ aggregates all servers behind `localhost:8080/mcp`. See
 
 ---
 
+## Output Files
+
+All output files (reports, screenshots, session data) are stored in the `./output/`
+directory on your host machine via Docker bind mounts. You can access them directly
+from your file system — no need to `docker cp`.
+
+```
+output/
+├── reports/       ← Pentest reports (.md, .pdf)
+├── screenshots/   ← PoC evidence screenshots (.png)
+└── sessions/      ← Aggregated session JSON files
+```
+
+| Container Path | Host Path | What goes there |
+|---------------|-----------|-----------------|
+| `/root/reports/` | `./output/reports/` | Generated pentest reports (markdown, PDF) |
+| `/tmp/screenshots/` | `./output/screenshots/` | Screenshot MCP captures and annotations |
+| `/root/results/` | `./output/sessions/` | `AggregatedPayload` session JSONs |
+
+The `output/` directory is created automatically by `setup.sh`. If you installed
+manually, create it with: `mkdir -p output/reports output/screenshots output/sessions`
+
+> **Note:** The `output/` directory is git-ignored. Back up important reports separately.
+
+---
+
 ## Components
 
 | Container | What it does | Internal Port | Default Profile |
@@ -135,6 +162,40 @@ aggregates all servers behind `localhost:8080/mcp`. See
 
 ## Installation
 
+### Quick Start (Recommended)
+
+```bash
+git clone https://github.com/valITino/blhackbox.git
+cd blhackbox
+./setup.sh
+```
+
+The setup wizard will:
+1. Check prerequisites (Docker, Docker Compose, disk space)
+2. Let you choose optional components (Neo4j, MCP Gateway, Ollama)
+3. Prompt for your `ANTHROPIC_API_KEY` (required for Claude Code in Docker)
+4. Generate `.env` and create the `output/` directory
+5. Pull Docker images and start all services
+6. Wait for health checks to pass
+
+You can also pass flags for non-interactive use:
+
+```bash
+./setup.sh --api-key sk-ant-... --minimal          # Core stack only
+./setup.sh --api-key sk-ant-... --with-neo4j       # Core + Neo4j
+./setup.sh --help                                   # All options
+```
+
+Or use the Makefile shortcut:
+
+```bash
+make setup
+```
+
+### Manual Installation
+
+If you prefer to set up manually:
+
 ```bash
 # 1. Clone the repo
 git clone https://github.com/valITino/blhackbox.git
@@ -144,23 +205,25 @@ cd blhackbox
 cp .env.example .env
 # REQUIRED: Uncomment and set your Anthropic API key in .env:
 #   ANTHROPIC_API_KEY=sk-ant-...
-# Without this, the Claude Code container cannot start.
 
-# 3. Pull all pre-built Docker images
+# 3. Create output directories (reports, screenshots, sessions)
+mkdir -p output/reports output/screenshots output/sessions
+
+# 4. Pull all pre-built Docker images
 docker compose pull
 
-# 4. Start the core stack (4 containers)
+# 5. Start the core stack (4 containers)
 docker compose up -d
 ```
 
 **Set up authorization (required before running pentests):**
 
 ```bash
-# 5. Edit verification.env with your engagement details
+# 6. Edit verification.env with your engagement details
 nano verification.env
 # Set AUTHORIZATION_STATUS=ACTIVE after filling in all fields
 
-# 6. Render the active verification document
+# 7. Render the active verification document
 make inject-verification
 ```
 
@@ -616,6 +679,7 @@ blhackbox mcp
 ## Makefile Shortcuts
 
 ```bash
+make setup                 # Interactive setup wizard (prereqs, .env, pull, start, health)
 make help                  # Show all available targets
 make pull                  # Pull all pre-built images from Docker Hub
 make up                    # Start core stack (4 containers)
@@ -872,11 +936,16 @@ Then run `make inject-verification` and start your Claude Code session.
 
 ```
 blhackbox/
+├── setup.sh                         # Interactive setup wizard
 ├── .claude/
 │   ├── settings.json               # Claude Code hooks config
 │   ├── verification-active.md      # Rendered authorization doc (git-ignored)
 │   └── hooks/
 │       └── session-start.sh        # auto-setup for web sessions
+├── output/                          # Host-accessible outputs (git-ignored)
+│   ├── reports/                     # Generated pentest reports
+│   ├── screenshots/                 # PoC evidence captures
+│   └── sessions/                    # Aggregated session JSONs
 ├── verification.env                 # Pentest authorization config (edit before testing)
 ├── .mcp.json                        # MCP server config (Claude Code Web)
 ├── docker/

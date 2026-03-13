@@ -60,7 +60,11 @@ Claude Code ──┬──> Kali MCP (SSE, port 9001)
 (container)   │    70+ tools: nmap, sqlmap, hydra, msfconsole, msfvenom, etc.
               ├──> WireMCP (SSE, port 9003)
               ├──> Screenshot MCP (SSE, port 9004)
-              └──> Ollama MCP (SSE, port 9000)
+              │
+              │  After collecting raw outputs, Claude structures them directly:
+              │    get_payload_schema() → parse/dedup/correlate → aggregate_results()
+              │
+              └──> (optional) Ollama MCP (SSE, port 9000)
                         │
                         ├──► agent-ingestion:8001
                         ├──► agent-processing:8002
@@ -69,33 +73,45 @@ Claude Code ──┬──> Kali MCP (SSE, port 9001)
                                   ▼
                                Ollama (LLM backend)
 
-Portainer (Docker UI)    Neo4j (optional)
+output/          Host-mounted directory for reports, screenshots, sessions
+Portainer        Docker UI (https://localhost:9443)
+Neo4j            Cross-session memory (optional)
 ```
 
 **Claude Desktop / ChatGPT (host)** connect via the MCP Gateway:
 
 ```
 Claude Desktop ──> MCP Gateway (localhost:8080/mcp) ──┬──> Kali MCP
-(host app)                                            └──> Ollama MCP
+(host app)                                            ├──> WireMCP
+                                                      └──> Screenshot MCP
 ```
 
-> **Ollama is required.** All 3 agent containers call Ollama via the official
-> `ollama` Python package. Without it, the aggregation pipeline returns empty results.
+> **Ollama is optional since v2.1.** The MCP host (Claude) now handles data
+> aggregation directly. The Ollama pipeline is kept as an optional fallback
+> for local-only / offline processing. Enable with `--profile ollama`.
 
 ---
 
 ## Usage
 
-### Core Stack (9 containers)
+### Quick Start (Recommended)
+
+```bash
+git clone https://github.com/valITino/blhackbox.git
+cd blhackbox
+./setup.sh                 # interactive wizard: prereqs, .env, pull, start, health
+```
+
+### Manual — Core Stack (4 containers)
 
 ```bash
 git clone https://github.com/valITino/blhackbox.git
 cd blhackbox
 cp .env.example .env
 # REQUIRED: Uncomment and set ANTHROPIC_API_KEY=sk-ant-... in .env
-docker compose pull        # pull pre-built images (ollama builds locally)
-docker compose up -d       # start core stack
-make ollama-pull           # pull the Ollama model (REQUIRED — default: llama3.1:8b)
+mkdir -p output/reports output/screenshots output/sessions
+docker compose pull
+docker compose up -d
 ```
 
 ### With Claude Code (Recommended)
@@ -132,15 +148,15 @@ make health                # MCP server health check
 | `kali-mcp` | `crhacky/blhackbox:kali-mcp` | `9001` | default | Kali Linux security tools + Metasploit (70+) |
 | `wire-mcp` | `crhacky/blhackbox:wire-mcp` | `9003` | default | Wireshark/tshark (7 tools) |
 | `screenshot-mcp` | `crhacky/blhackbox:screenshot-mcp` | `9004` | default | Screenshot MCP (headless Chromium, 4 tools) |
-| `ollama-mcp` | `crhacky/blhackbox:ollama-mcp` | `9000` | default | Thin MCP orchestrator |
-| `agent-ingestion` | `crhacky/blhackbox:agent-ingestion` | `8001` | default | Agent 1: parse raw output |
-| `agent-processing` | `crhacky/blhackbox:agent-processing` | `8002` | default | Agent 2: deduplicate, compress |
-| `agent-synthesis` | `crhacky/blhackbox:agent-synthesis` | `8003` | default | Agent 3: assemble payload |
-| `ollama` | `crhacky/blhackbox:ollama` (built locally) | `11434` | default | LLM inference backend (llama3.1:8b) |
 | `portainer` | `portainer/portainer-ce:latest` | `9443` | default | Docker management UI (HTTPS) |
+| `claude-code` | `crhacky/blhackbox:claude-code` | - | `claude-code` | Claude Code CLI client (Docker) |
 | `mcp-gateway` | `docker/mcp-gateway:latest` | `8080` | `gateway` | Single MCP entry point (host clients) |
 | `neo4j` | `neo4j:5` | `7474` `7687` | `neo4j` | Cross-session knowledge graph |
-| `claude-code` | `crhacky/blhackbox:claude-code` | - | `claude-code` | Claude Code CLI client (Docker) |
+| `ollama-mcp` | `crhacky/blhackbox:ollama-mcp` | `9000` | `ollama` | Thin MCP orchestrator (optional) |
+| `agent-ingestion` | `crhacky/blhackbox:agent-ingestion` | `8001` | `ollama` | Agent 1: parse raw output (optional) |
+| `agent-processing` | `crhacky/blhackbox:agent-processing` | `8002` | `ollama` | Agent 2: deduplicate, compress (optional) |
+| `agent-synthesis` | `crhacky/blhackbox:agent-synthesis` | `8003` | `ollama` | Agent 3: assemble payload (optional) |
+| `ollama` | `crhacky/blhackbox:ollama` (built locally) | `11434` | `ollama` | LLM inference backend (optional) |
 
 ---
 
@@ -270,12 +286,19 @@ Named volumes for persistent data:
 
 | Volume | Service | Purpose |
 |---|---|---|
-| `ollama_models` | ollama | Ollama model storage |
-| `neo4j_data` | neo4j | Neo4j graph database |
-| `neo4j_logs` | neo4j | Neo4j logs |
+| `ollama_models` | ollama | Ollama model storage (optional) |
+| `neo4j_data` | neo4j | Neo4j graph database (optional) |
+| `neo4j_logs` | neo4j | Neo4j logs (optional) |
 | `portainer_data` | portainer | Portainer configuration |
-| `results` | - | Scan output and reports |
 | `wordlists` | - | Fuzzing wordlists |
+
+Host bind mounts for output (accessible on your local filesystem):
+
+| Host Path | Container Path | Purpose |
+|---|---|---|
+| `./output/reports/` | `/root/reports/` | Generated pentest reports (.md, .pdf) |
+| `./output/screenshots/` | `/tmp/screenshots/` | PoC evidence screenshots (.png) |
+| `./output/sessions/` | `/root/results/` | Aggregated session JSON files |
 
 ---
 
@@ -300,22 +323,28 @@ Docker Scout vulnerability scanning runs on the ollama-mcp image.
 ## Useful Commands
 
 ```bash
+# Interactive setup wizard (recommended for first-time setup)
+make setup
+
 # Pull all pre-built images from Docker Hub
 docker compose pull
 
-# Start core stack (9 containers)
+# Start core stack (4 containers)
 docker compose up -d
 
-# Start with MCP Gateway for Claude Desktop (10 containers)
+# Start with MCP Gateway for Claude Desktop (5 containers)
 make up-gateway
 
-# Start with Neo4j (10 containers)
+# Start with Neo4j (5 containers)
 docker compose --profile neo4j up -d
+
+# Start with Ollama pipeline (9 containers, optional)
+docker compose --profile ollama up -d
 
 # Launch Claude Code in Docker
 make claude-code
 
-# Pull the Ollama model (REQUIRED)
+# Pull the Ollama model (only if using --profile ollama)
 make ollama-pull
 
 # Check health of all MCP servers
@@ -326,13 +355,9 @@ make status
 
 # View service logs
 make logs-kali
-make logs-agent-ingestion
-make logs-agent-processing
-make logs-agent-synthesis
+make logs-wireshark
+make logs-screenshot
 make gateway-logs
-
-# Restart all 3 agent containers
-make restart-agents
 
 # Stop and clean up
 make down
