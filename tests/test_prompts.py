@@ -7,7 +7,6 @@ import pytest
 from blhackbox.prompts import (
     TEMPLATES,
     list_templates,
-    load_agent_prompt,
     load_playbook,
     load_template,
 )
@@ -88,13 +87,6 @@ class TestListTemplates:
         assert "quick-scan" in names
         assert "bug-bounty" in names
 
-
-class TestLoadAgentPrompt:
-    """Test loading agent prompts."""
-
-    def test_unknown_agent_raises(self) -> None:
-        with pytest.raises(FileNotFoundError):
-            load_agent_prompt("nonexistent_agent")
 
 
 class TestLoadPlaybook:

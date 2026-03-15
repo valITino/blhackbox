@@ -780,7 +780,6 @@ blhackbox/
 ├── kali-mcp/                            Kali MCP server (70+ tools + Metasploit)
 ├── wire-mcp/                            WireMCP server (tshark, 7 tools)
 ├── screenshot-mcp/                      Screenshot MCP server (Playwright, 4 tools)
-├── metasploit-mcp/                      [DEPRECATED] Standalone MSF RPC server
 ├── blhackbox/
 │   ├── mcp/
 │   │   └── server.py                    blhackbox MCP server (stdio)

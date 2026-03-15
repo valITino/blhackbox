@@ -241,6 +241,9 @@ services:
       - ./output/screenshots:/tmp/screenshots:ro
       - ./output/reports:/root/reports
       - ./output/sessions:/root/results
+      # Mount skills and project instructions so Claude Code discovers them
+      - ./.claude/skills:/root/.claude/skills:ro
+      - ./CLAUDE.md:/root/CLAUDE.md:ro
     depends_on:
       kali-mcp:
         condition: service_healthy
