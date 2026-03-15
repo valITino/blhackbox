@@ -6,8 +6,6 @@ from pathlib import Path
 
 _PROMPTS_DIR = Path(__file__).parent
 _TEMPLATES_DIR = _PROMPTS_DIR / "templates"
-_AGENTS_DIR = _PROMPTS_DIR / "agents"
-
 # Template registry: slug -> filename
 TEMPLATES = {
     "full-pentest": "full-pentest.md",
@@ -70,20 +68,6 @@ def list_templates() -> list[dict[str, str]]:
         templates.append({"name": slug, "file": filename, "title": title})
     return templates
 
-
-def load_agent_prompt(agent_name: str) -> str:
-    """Load a system prompt for an agent container.
-
-    Args:
-        agent_name: Agent name (e.g. ``"ingestionagent"``).
-
-    Returns:
-        The prompt content as a string.
-    """
-    path = _AGENTS_DIR / f"{agent_name}.md"
-    if not path.exists():
-        raise FileNotFoundError(f"Agent prompt not found: {path}")
-    return path.read_text(encoding="utf-8")
 
 
 def load_playbook() -> str:

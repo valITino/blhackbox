@@ -43,7 +43,9 @@
 | | |
 |---|---|
 | **Getting Started** | [How It Works](#how-it-works) · [Architecture](#architecture) · [Prerequisites](#prerequisites) · [Installation](#installation) |
+| **Skills** | [Skills Overview](#skills--slash-commands) · [Available Skills](#available-skills) · [How Skills Work](#how-skills-work) |
 | **Tutorials** | [Claude Code (Docker)](#tutorial-1-claude-code-docker--recommended) · [Claude Code (Web)](#tutorial-2-claude-code-web) · [Claude Desktop](#tutorial-3-claude-desktop-host--gateway) · [ChatGPT / OpenAI](#tutorial-4-chatgpt--openai-host--gateway) |
+| **Advanced** | [Advanced Usage & FAQ](#advanced-usage--faq) |
 | **Reference** | [Components](#components) · [Output Files](#output-files) · [CLI Reference](#cli-reference) · [Makefile Shortcuts](#makefile-shortcuts) · [Docker Hub Images](#docker-hub-images) |
 | **Operations** | [Prompt Flow](#how-prompts-flow-through-the-system) · [MCP Gateway](#do-i-need-the-mcp-gateway) · [Portainer Setup](#portainer-setup) · [Neo4j](#neo4j-optional) · [Troubleshooting](#troubleshooting) |
 | **Security** | [Authorization & Verification](#authorization--verification) · [Security Notes](#security-notes) |
@@ -106,6 +108,62 @@ PORTAINER (https://localhost:9443) — web UI for all containers
 ```
 
 For host-based clients (Claude Desktop, ChatGPT), an **optional MCP Gateway** aggregates all servers behind `localhost:8080/mcp`. See [Do I Need the MCP Gateway?](#do-i-need-the-mcp-gateway)
+
+---
+
+## Skills / Slash Commands
+
+Skills are native Claude Code commands that launch autonomous pentesting workflows. Instead of copy-pasting templates or editing placeholders, just type a slash command with your target.
+
+### Available Skills
+
+| Skill | Description | Example |
+|:--|:--|:--|
+| `/full-pentest` | Complete end-to-end penetration test | `/full-pentest example.com` |
+| `/full-attack-chain` | Maximum-impact testing with attack chain construction | `/full-attack-chain 10.0.0.0/24` |
+| `/quick-scan` | Fast triage — exploits critical findings on the spot | `/quick-scan 192.168.1.100` |
+| `/recon-deep` | Comprehensive attack surface mapping | `/recon-deep example.com` |
+| `/web-app-assessment` | Focused web application security testing | `/web-app-assessment https://app.example.com` |
+| `/network-infrastructure` | Network-level assessment with credential testing | `/network-infrastructure 10.0.0.0/24` |
+| `/osint-gathering` | Passive-only intelligence collection | `/osint-gathering example.com` |
+| `/vuln-assessment` | Systematic vulnerability identification and exploitation | `/vuln-assessment example.com` |
+| `/api-security` | REST/GraphQL API testing (OWASP API Top 10) | `/api-security https://api.example.com` |
+| `/bug-bounty` | Bug bounty hunting with exploitation-driven PoC reports | `/bug-bounty target.com` |
+
+### How Skills Work
+
+Skills live in `.claude/skills/<name>/SKILL.md`. Claude Code discovers them automatically.
+
+**Simple skills** (single target) — pass the target directly:
+
+```
+/quick-scan example.com
+```
+
+**Multi-input skills** (bug-bounty, full-attack-chain, api-security, web-app-assessment) — Claude asks for additional details interactively:
+
+```
+/bug-bounty example.com
+```
+
+Claude will then ask:
+> I need the bug bounty program details to stay in scope:
+> 1. Program scope — What domains/assets are in scope?
+> 2. Out-of-scope exclusions — What targets or areas are excluded?
+> 3. Program rules — Any specific rules or restrictions?
+
+This replaces the old manual placeholder editing (`[TARGET]`, `[SCOPE]`, etc.) with a conversational UX.
+
+### Skills vs MCP Templates
+
+| | Skills (`/slash-command`) | MCP Templates (`get_template`) |
+|---|---|---|
+| **Client** | Claude Code only | Any MCP client (Claude Desktop, ChatGPT) |
+| **Input** | `$ARGUMENTS` + interactive prompts | `[TARGET]` placeholder replacement |
+| **Invocation** | `/full-pentest example.com` | `get_template("full-pentest", target="example.com")` |
+| **Docker** | Mounted into claude-code container | Served via blhackbox MCP server |
+
+Both paths coexist. Skills are the preferred UX for Claude Code users. MCP templates remain available for Claude Desktop and ChatGPT via the gateway.
 
 ---
 
@@ -247,38 +305,7 @@ Or manually:
 docker compose --profile claude-code run --rm claude-code
 ```
 
-The entrypoint script checks each service and shows a status dashboard:
-
-```
-  ╔══════════════════════════════════════════════╗
-  ║          blhackbox v2.0 — Claude Code       ║
-  ║        MCP-based Pentesting Framework       ║
-  ╚══════════════════════════════════════════════╝
-
-  Checking service connectivity...
-
-  MCP Servers
-    Kali MCP               [ OK ]
-    WireMCP                [ OK ]
-    Screenshot MCP         [ OK ]
-
-  ──────────────────────────────────────────────
-  All 3 services connected.
-
-  MCP servers (connected via SSE):
-    kali            Kali Linux security tools + Metasploit (70+ tools)
-    wireshark       WireMCP — tshark packet capture & analysis
-    screenshot      Screenshot MCP — headless Chromium evidence capture
-
-  Data aggregation:
-    You (Claude) handle parsing, deduplication, and synthesis directly.
-    Use get_payload_schema + aggregate_results to validate & persist.
-
-  Quick start:
-    /mcp              Check MCP server status
-    Scan example.com for open ports and web vulnerabilities
-  ──────────────────────────────────────────────
-```
+The entrypoint script checks each service and shows a status dashboard with available skills.
 
 You are now inside an interactive Claude Code session.
 
@@ -292,17 +319,27 @@ You should see `kali`, `wireshark`, and `screenshot`, each with their available 
 
 ### Step 4 — Run your first pentest
 
+Use a skill (slash command) with your target:
+
 ```
-Scan example.com for open ports and web vulnerabilities
+/quick-scan example.com
+```
+
+Or for a full engagement:
+
+```
+/full-pentest example.com
 ```
 
 Claude Code will autonomously:
 
-1. Call Kali tools (nmap, subfinder, nikto, etc.)
-2. Search for exploits using Metasploit (`msf_search`)
-3. Collect raw outputs from all tools
+1. Call Kali tools (nmap, subfinder, nikto, sqlmap, msfconsole, etc.)
+2. Capture network traffic and extract credentials via WireMCP
+3. Take screenshot evidence via Screenshot MCP
 4. Structure, deduplicate, and correlate findings into an `AggregatedPayload`
 5. Validate via `aggregate_results()` and write a structured pentest report
+
+See [Available Skills](#available-skills) for all 10 pentesting workflows.
 
 ### Monitoring (separate terminal)
 
@@ -328,10 +365,13 @@ Claude Code on [claude.ai/code](https://claude.ai/code) works as a web-based cod
 ### Steps
 
 1. Go to [claude.ai/code](https://claude.ai/code) and open this repository
-2. Type `/mcp` to verify — you should see `blhackbox` with 6 tools
-3. Type your prompt: `Scan example.com for open ports and web vulnerabilities`
+2. The session-start hook auto-installs dependencies and injects verification
+3. Type `/mcp` to verify — you should see `blhackbox` with its tools
+4. Use a skill: `/quick-scan example.com`
 
-> **Note:** The web session uses the blhackbox stdio MCP server directly (not the Docker stack). For the full Docker stack with Kali tools and Metasploit, use [Tutorial 1](#tutorial-1-claude-code-docker--recommended).
+Skills (`.claude/skills/`) are automatically available in web sessions since they're checked into the repo.
+
+> **Note:** The web session uses the blhackbox stdio MCP server (not the Docker stack). For the full Docker stack with Kali tools, Metasploit, WireMCP, and Screenshot MCP, use [Tutorial 1](#tutorial-1-claude-code-docker--recommended).
 
 ---
 
@@ -399,6 +439,155 @@ Point your MCP-capable OpenAI client at:
 | Transport | Streamable HTTP |
 
 The gateway is AI-agnostic — it serves the same tools to any MCP client.
+
+---
+
+## Advanced Usage & FAQ
+
+### How do I run a full pentest from start to finish?
+
+```
+/full-pentest example.com
+```
+
+This single command triggers a 6-phase autonomous workflow: passive recon, active scanning, web enumeration, exploitation with data extraction, data aggregation into `AggregatedPayload`, and professional report generation. Claude handles everything — tool selection, evidence collection, PoC creation, and the final report.
+
+### How do I run a bug bounty hunt with scope restrictions?
+
+```
+/bug-bounty target.com
+```
+
+Claude will ask you interactively for the program scope, out-of-scope exclusions, and program rules before starting. It filters all discovered assets against your scope and only tests in-scope targets.
+
+### How do I test an API with authentication?
+
+```
+/api-security https://api.example.com/v1
+```
+
+Claude will ask if you have API documentation (Swagger/OpenAPI URL), an API key, or auth tokens. Provide what you have — Claude adapts the assessment accordingly, testing both authenticated and unauthenticated paths.
+
+### How do I chain a recon into a full pentest?
+
+Run recon first, then follow up with the full pentest using the same target:
+
+```
+/recon-deep example.com
+```
+
+Review the recon report, then:
+
+```
+/full-pentest example.com
+```
+
+The full pentest will independently rediscover the attack surface and go deeper into exploitation. If you have Neo4j enabled (`--profile neo4j`), findings from both sessions are stored in the knowledge graph for cross-session correlation.
+
+### How do I test a web app with credentials?
+
+```
+/web-app-assessment https://app.example.com
+```
+
+Claude will ask: "Do you have credentials or session tokens for authenticated testing?" Provide your cookie, auth header, or username/password. Claude tests both authenticated and unauthenticated areas.
+
+### How do I quickly triage a new target?
+
+```
+/quick-scan 192.168.1.100
+```
+
+Quick scan runs parallel discovery (ports, subdomains, technologies, WAF detection) and immediately exploits any critical or high-severity findings it discovers. It finishes with a concise report and recommends which deeper assessment to run next.
+
+### Can I use natural language instead of skills?
+
+Yes. Skills are shortcuts, not requirements. You can always type free-form prompts:
+
+```
+Scan example.com for open ports, test for SQL injection on any web services found,
+and write a report with PoC evidence for every finding.
+```
+
+Claude will use the MCP tools directly. Skills just give Claude a structured playbook to follow.
+
+### How do I create my own custom skill?
+
+Create a directory in `.claude/skills/` with a `SKILL.md` file:
+
+```
+.claude/skills/my-custom-scan/
+└── SKILL.md
+```
+
+The `SKILL.md` file has YAML frontmatter and markdown instructions:
+
+```yaml
+---
+name: my-custom-scan
+description: Custom scan focusing on specific vulnerability class
+---
+
+# My Custom Scan
+
+The target is: **$ARGUMENTS**
+
+If no target was provided, ask the user for one.
+
+## Steps
+1. ...your custom methodology...
+```
+
+Claude Code will discover it automatically as `/my-custom-scan`.
+
+### How do subdirectory CLAUDE.md files work?
+
+The repo has directory-scoped `CLAUDE.md` files that enforce local development rules:
+
+| File | Rules |
+|:--|:--|
+| `blhackbox/mcp/CLAUDE.md` | MCP tool validation, verification document handling |
+| `blhackbox/models/CLAUDE.md` | `AggregatedPayload` schema contract, PoC fields mandatory |
+| `blhackbox/backends/CLAUDE.md` | `shell=False` enforcement, tool allowlisting |
+| `blhackbox/reporting/CLAUDE.md` | Report path conventions, WeasyPrint compatibility |
+
+These load on-demand when Claude Code touches files in those directories. They don't bloat context for unrelated work.
+
+### Where do reports go?
+
+All output is stored in `./output/` on your host (bind-mounted from Docker):
+
+```
+output/
+├── reports/       ← Pentest reports (.md, .pdf) organized by date
+├── screenshots/   ← PoC evidence screenshots (.png)
+└── sessions/      ← AggregatedPayload session JSONs
+```
+
+Reports follow the naming convention: `output/reports/reports-DDMMYYYY/report-<target>-DDMMYYYY.md`
+
+### How do I set up authorization for a lab/CTF?
+
+Minimal self-authorized setup in `verification.env`:
+
+```bash
+AUTHORIZATION_STATUS=ACTIVE
+ENGAGEMENT_ID=LAB-2026-001
+AUTHORIZATION_DATE=2026-03-15
+EXPIRATION_DATE=2026-12-31
+AUTHORIZING_ORGANIZATION=My Lab
+TESTER_NAME=Your Name
+TARGET_1=192.168.1.0/24
+TARGET_1_TYPE=network
+TESTING_START=2026-03-15 00:00
+TESTING_END=2026-12-31 23:59
+SIGNATORY_NAME=Your Name
+SIGNATURE_DATE=2026-03-15
+```
+
+Then: `make inject-verification`
+
+See [Authorization & Verification](#authorization--verification) for the full setup.
 
 ---
 
@@ -717,32 +906,7 @@ If any check fails, the script exits with an error explaining what to fix.
 | `blhackbox/prompts/inject_verification.py` | Renders the template into the active document |
 | `.claude/verification-active.md` | Rendered active authorization (git-ignored) |
 
-### Example: self-authorized lab testing
-
-For testing your own assets (lab, CTF, etc.):
-
-```bash
-# In verification.env:
-AUTHORIZATION_STATUS=ACTIVE
-ENGAGEMENT_ID=LAB-2026-001
-AUTHORIZATION_DATE=2026-03-09
-EXPIRATION_DATE=2026-12-31
-AUTHORIZING_ORGANIZATION=My Lab
-TESTER_NAME=Your Name
-TESTER_EMAIL=you@example.com
-TARGET_1=192.168.1.0/24
-TARGET_1_TYPE=network
-TARGET_1_NOTES=Home lab network
-TESTING_START=2026-03-09 00:00
-TESTING_END=2026-12-31 23:59
-SIGNATORY_NAME=Your Name
-SIGNATORY_TITLE=Asset Owner
-SIGNATORY_ORGANIZATION=My Lab
-SIGNATURE_DATE=2026-03-09
-DIGITAL_SIGNATURE=SELF-AUTHORIZED
-```
-
-Then run `make inject-verification` and start your Claude Code session.
+For a minimal self-authorized lab setup, see [How do I set up authorization for a lab/CTF?](#how-do-i-set-up-authorization-for-a-labctf) in the Advanced FAQ.
 
 ---
 
@@ -760,11 +924,23 @@ Then run `make inject-verification` and start your Claude Code session.
 ```
 blhackbox/
 ├── setup.sh                             Interactive setup wizard
+├── CLAUDE.md                            Project-wide development rules
 ├── .claude/
 │   ├── settings.json                    Claude Code hooks config
 │   ├── verification-active.md           Rendered authorization (git-ignored)
-│   └── hooks/
-│       └── session-start.sh             Auto-setup for web sessions
+│   ├── hooks/
+│   │   └── session-start.sh             Auto-setup for web sessions
+│   └── skills/                          Pentesting skill slash commands
+│       ├── full-pentest/SKILL.md        /full-pentest
+│       ├── full-attack-chain/SKILL.md   /full-attack-chain
+│       ├── quick-scan/SKILL.md          /quick-scan
+│       ├── recon-deep/SKILL.md          /recon-deep
+│       ├── web-app-assessment/SKILL.md  /web-app-assessment
+│       ├── network-infrastructure/SKILL.md /network-infrastructure
+│       ├── osint-gathering/SKILL.md     /osint-gathering
+│       ├── vuln-assessment/SKILL.md     /vuln-assessment
+│       ├── api-security/SKILL.md        /api-security
+│       └── bug-bounty/SKILL.md          /bug-bounty
 ├── output/                              Host-accessible outputs (git-ignored)
 │   ├── reports/                         Generated pentest reports
 │   ├── screenshots/                     PoC evidence captures
@@ -780,32 +956,32 @@ blhackbox/
 ├── kali-mcp/                            Kali MCP server (70+ tools + Metasploit)
 ├── wire-mcp/                            WireMCP server (tshark, 7 tools)
 ├── screenshot-mcp/                      Screenshot MCP server (Playwright, 4 tools)
-├── metasploit-mcp/                      [DEPRECATED] Standalone MSF RPC server
 ├── blhackbox/
 │   ├── mcp/
-│   │   └── server.py                    blhackbox MCP server (stdio)
+│   │   ├── server.py                    blhackbox MCP server (stdio)
+│   │   └── CLAUDE.md                    MCP development rules
 │   ├── models/
 │   │   ├── aggregated_payload.py        AggregatedPayload Pydantic model
-│   │   ├── base.py
-│   │   └── graph.py
+│   │   ├── base.py, graph.py
+│   │   └── CLAUDE.md                    Schema contract rules
+│   ├── backends/
+│   │   ├── local.py                     CLI tool execution backend
+│   │   └── CLAUDE.md                    Backend safety rules (shell=False)
 │   ├── prompts/
+│   │   ├── templates/                   10 pentest template .md files
 │   │   ├── claude_playbook.md           Pentest playbook for MCP host
 │   │   ├── verification.md              Authorization template
 │   │   └── inject_verification.py       Renders template → active document
-│   ├── core/
-│   │   ├── knowledge_graph.py
-│   │   ├── graph_exporter.py
-│   │   └── runner.py
-│   ├── clients/
 │   ├── reporting/
-│   │   ├── html_generator.py
-│   │   └── pdf_generator.py
-│   ├── modules/
-│   ├── utils/
-│   ├── data/
-│   ├── main.py
-│   ├── config.py
-│   └── exceptions.py
+│   │   ├── html_generator.py, pdf_generator.py, md_generator.py
+│   │   └── CLAUDE.md                    Reporting path conventions
+│   ├── core/                            Knowledge graph, exporters
+│   ├── modules/                         Custom analysis modules
+│   ├── utils/                           Logging, tool catalog
+│   ├── data/                            tools_catalog.json
+│   ├── main.py                          CLI interface
+│   ├── config.py                        Centralized settings
+│   └── exceptions.py                    Custom exception hierarchy
 ├── blhackbox-mcp-catalog.yaml           MCP Gateway catalog (optional)
 ├── docker-compose.yml
 ├── .env.example

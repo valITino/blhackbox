@@ -127,6 +127,51 @@ make health         # MCP server health check
 
 ---
 
+## Skills in Docker
+
+The Claude Code container has full access to blhackbox skills — autonomous pentesting workflows invoked as slash commands.
+
+### Quick start with skills
+
+```bash
+make claude-code                  # launch Claude Code in Docker
+```
+
+Then inside the session:
+
+```
+/quick-scan example.com           # fast triage scan
+/full-pentest 10.0.0.1            # complete penetration test
+/bug-bounty target.com            # bug bounty hunt (asks for scope interactively)
+/api-security https://api.ex.com  # API security assessment
+```
+
+### How skills are mounted
+
+Skills are available in the container via two mechanisms:
+
+1. **Baked in** — `COPY .claude/skills /root/.claude/skills` in the Dockerfile ensures skills exist even when running the image standalone
+2. **Volume mount** — `docker-compose.yml` mounts `./.claude/skills:/root/.claude/skills:ro` so edits to skills on the host are reflected immediately without rebuilding
+
+### Available skills
+
+| Skill | What it does |
+|:--|:--|
+| `/full-pentest` | Complete end-to-end penetration test (6 phases) |
+| `/full-attack-chain` | Maximum-impact testing with attack chain construction |
+| `/quick-scan` | Fast triage — exploits critical/high findings on the spot |
+| `/recon-deep` | Comprehensive attack surface mapping (no exploitation) |
+| `/web-app-assessment` | Focused web application security testing (OWASP Top 10) |
+| `/network-infrastructure` | Network-level assessment with credential testing |
+| `/osint-gathering` | Passive-only intelligence collection |
+| `/vuln-assessment` | Systematic vulnerability identification and exploitation |
+| `/api-security` | REST/GraphQL API testing (OWASP API Top 10) |
+| `/bug-bounty` | Bug bounty hunting with exploitation-driven PoC reports |
+
+> **Note:** Skills are a Claude Code feature. Claude Desktop and ChatGPT use MCP templates via the gateway instead (`get_template` / `list_templates` tools).
+
+---
+
 ## Compose Services
 
 | Service | Image | Port | Profile | Role |
@@ -238,7 +283,10 @@ Requires `--profile gateway` (`make up-gateway`).
 | **Base** | `node:22-slim` |
 | **Entrypoint** | `claude-code-entrypoint.sh` (health checks + launch) |
 | **MCP config** | Direct SSE to each server (no gateway dependency) |
+| **Skills** | 10 pentesting skills mounted from `.claude/skills/` |
 | **Requires** | `ANTHROPIC_API_KEY` in `.env` |
+
+The Claude Code container includes the full skills system. Skills (`.claude/skills/`) and project instructions (`CLAUDE.md`) are baked into the image at build time and overridden by volume mounts at runtime for live updates.
 
 ---
 
@@ -274,6 +322,8 @@ Portainer CE provides a web dashboard for all blhackbox containers.
 | `./output/reports/` | `/root/reports/` | Generated pentest reports (.md, .pdf) |
 | `./output/screenshots/` | `/tmp/screenshots/` | PoC evidence screenshots (.png) |
 | `./output/sessions/` | `/root/results/` | Aggregated session JSON files |
+| `./.claude/skills/` | `/root/.claude/skills/` | Pentesting skills (read-only, claude-code only) |
+| `./CLAUDE.md` | `/root/CLAUDE.md` | Project instructions (read-only, claude-code only) |
 
 ---
 

@@ -40,6 +40,13 @@ RUN echo '{ \
   } \
 }' > .mcp.json
 
+# Copy project instructions and skills so Claude Code can discover them.
+# Volume mounts in docker-compose.yml override these at runtime with the
+# latest versions, but the baked-in copies ensure skills are available
+# even when running the image standalone.
+COPY CLAUDE.md /root/CLAUDE.md
+COPY .claude/skills /root/.claude/skills
+
 # Startup script: checks each MCP server, shows status, launches Claude.
 COPY docker/claude-code-entrypoint.sh /usr/local/bin/claude-code-entrypoint.sh
 RUN chmod +x /usr/local/bin/claude-code-entrypoint.sh

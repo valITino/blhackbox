@@ -1,4 +1,0 @@
-# Metasploit MCP Server dependencies
-mcp>=1.23.0
-httpx>=0.28.1
-msgpack>=1.0.0
