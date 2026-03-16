@@ -69,6 +69,7 @@ nuke: ## Full cleanup: containers + volumes + ALL images (frees max disk space)
 	docker volume rm blhackbox_neo4j_data 2>/dev/null || true
 	docker volume rm blhackbox_neo4j_logs 2>/dev/null || true
 	docker volume rm blhackbox_wordlists 2>/dev/null || true
+	docker volume rm blhackbox_shared-output 2>/dev/null || true
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 	rm -rf dist/ build/ *.egg-info
 	@echo ""
