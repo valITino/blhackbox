@@ -61,8 +61,9 @@ def _check_expiration(env: dict[str, str]) -> str | None:
     if not exp:
         return None
     try:
-        exp_date = datetime.strptime(exp, "%Y-%m-%d").replace(tzinfo=UTC)
-        if exp_date < datetime.now(UTC):
+        exp_date = datetime.strptime(exp, "%Y-%m-%d").date()
+        today = datetime.now(UTC).date()
+        if exp_date < today:
             return f"Authorization expired on {exp}."
     except ValueError:
         return f"Invalid EXPIRATION_DATE format: {exp!r} (expected YYYY-MM-DD)."
