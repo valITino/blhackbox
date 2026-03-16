@@ -194,9 +194,18 @@ output/
 
 | Container Path | Host Path | Contents |
 |:--|:--|:--|
-| `/root/reports/` | `./output/reports/` | Generated pentest reports (Markdown, PDF) |
-| `/tmp/screenshots/` | `./output/screenshots/` | Screenshot MCP captures and annotations |
-| `/root/results/` | `./output/sessions/` | `AggregatedPayload` session JSONs |
+| `output/reports/` | `./output/reports/` | Generated pentest reports (Markdown, PDF) |
+| `output/screenshots/` | `./output/screenshots/` | Screenshot MCP captures and annotations (read-only in Claude Code) |
+| `output/sessions/` | `./output/sessions/` | `AggregatedPayload` session JSONs |
+
+> **Path convention:** Inside the Claude Code container, use `output/reports/`, `output/sessions/`, etc. (relative to the working directory). These are symlinked to the bind-mounted paths (`/root/reports/`, `/root/results/`, `/tmp/screenshots/`) so files appear on the host automatically. Direct paths like `/root/reports/` also work.
+
+Additionally, a shared Docker volume (`shared-output`) connects Kali MCP and Claude Code:
+
+| Container | Mount Path | Access | Purpose |
+|:--|:--|:--:|:--|
+| Kali MCP | `/root/output/` | read-write | Tool output files (recon data, payloads) |
+| Claude Code | `/root/kali-data/` | read-only | Access Kali's recon artifacts |
 
 The `output/` directory is created automatically by `setup.sh`. For manual installs: `mkdir -p output/reports output/screenshots output/sessions`
 
