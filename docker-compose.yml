@@ -34,6 +34,7 @@ volumes:
   neo4j_logs:
   portainer_data:
   wordlists:
+  shared-output:    # Cross-container working data (Kali recon files, etc.)
 
 services:
 
@@ -102,6 +103,8 @@ services:
       KALI_MAX_TIMEOUT: "${KALI_MAX_TIMEOUT:-600}"
       # Metasploit timeout for msfconsole commands
       MSF_TIMEOUT: "${MSF_TIMEOUT:-300}"
+    volumes:
+      - shared-output:/root/output
     ports:
       - "${KALI_MCP_PORT:-9001}:9001"
     healthcheck:
@@ -241,6 +244,8 @@ services:
       - ./output/screenshots:/tmp/screenshots:ro
       - ./output/reports:/root/reports
       - ./output/sessions:/root/results
+      # Shared working data from Kali MCP (recon files, tool artifacts)
+      - shared-output:/root/kali-data:ro
       # Mount skills and project instructions so Claude Code discovers them
       - ./.claude/skills:/root/.claude/skills:ro
       - ./CLAUDE.md:/root/CLAUDE.md:ro

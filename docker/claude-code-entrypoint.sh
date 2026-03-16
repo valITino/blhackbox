@@ -70,6 +70,16 @@ wait_for_service() {
     return 1
 }
 
+# ── Output directory symlinks ──────────────────────────────────────
+# Skill templates reference "output/reports/", "output/sessions/", etc.
+# which resolve to /root/output/reports/ (WORKDIR is /root).
+# Bind mounts are at /root/reports, /root/results, /tmp/screenshots.
+# Create symlinks so both path conventions reach the bind mounts.
+mkdir -p /root/output
+ln -sfn /root/reports       /root/output/reports
+ln -sfn /root/results       /root/output/sessions
+ln -sfn /tmp/screenshots    /root/output/screenshots
+
 # ── Main ────────────────────────────────────────────────────────────
 
 print_banner
@@ -146,6 +156,8 @@ echo -e "  ${BOLD}Output files${NC} ${DIM}(mounted to host ./output/)${NC}${BOLD
 echo -e "    ${DIM}/root/reports/       → ./output/reports/      pentest reports${NC}"
 echo -e "    ${DIM}/tmp/screenshots/    → ./output/screenshots/  PoC evidence${NC}"
 echo -e "    ${DIM}/root/results/       → ./output/sessions/     session JSONs${NC}"
+echo -e "    ${DIM}/root/kali-data/     → shared Kali MCP output (recon files)${NC}"
+echo -e "    ${DIM}output/reports/      → symlinked to /root/reports/${NC}"
 echo ""
 echo -e "  ${BOLD}Quick start:${NC}"
 echo -e "    ${CYAN}/mcp${NC}                       ${DIM}Check MCP server status${NC}"
