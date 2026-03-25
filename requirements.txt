@@ -16,6 +16,11 @@ matplotlib==3.10.0
 # MCP (FastMCP for automatic tool schema generation)
 mcp>=1.23.0
 
+# Pygments — transitive dep of rich; pinned to pick up CVE-2026-4539 fix
+# when available.  CVE is low-severity local ReDoS in AdlLexer (CVSS 3.3),
+# no upstream patch exists yet.  See: https://nvd.nist.gov/vuln/detail/CVE-2026-4539
+pygments>=2.19.2
+
 # Utilities
 tenacity==9.0.0
 python-dotenv==1.0.1
