@@ -276,6 +276,8 @@ For implementation reference, these are the critical Go source files in PentAGI'
 
 5. **29 tools across 8 categories** — `EnvironmentToolType` (terminal, file), `SearchNetworkToolType` (Google, DDG, Tavily, Perplexity, Traversaal, browser), `SearchVectorDbToolType` (memory/code/guide/answer search), `AgentToolType` (delegation to sub-agents), `StoreAgentResultToolType`, and `BarrierToolType` (done, ask_user).
 
+6. **Two-node production deployment** — PentAGI recommends isolating worker execution on a separate server with Docker-in-Docker over TLS, separate network boundaries, and dedicated port ranges for out-of-band attacks. This prevents untrusted exploit code from executing on the primary system. BLHACKBOX runs everything on a single Docker host — worth considering for production deployments.
+
 ---
 
 ## 6. Summary
