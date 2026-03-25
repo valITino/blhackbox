@@ -111,3 +111,15 @@ Write the following files to `output/reports/`:
 - Use only publicly available information sources
 - Record every tool output for post-processing
 - Flag potential subdomain takeover opportunities
+
+## MCP Tool Quick Reference
+
+### Kali MCP — Passive OSINT Tools
+- `subfinder -d <domain>` — Passive subdomain enumeration
+- `amass enum -passive -d <domain>` — Comprehensive passive enumeration
+- `whois <domain>` — Domain registration and ownership
+- `dig <domain> ANY` / `dig <domain> AXFR` — DNS records and zone transfer attempts
+- `theharvester -d <domain> -b all` — Email, subdomain, and name harvesting
+- `fierce --domain <domain>` — DNS reconnaissance
+
+> **Note:** This is a passive-only skill. No active scanning, no exploitation, no screenshots. For active testing, use `/full-pentest`, `/vuln-assessment`, or `/exploit-dev`.

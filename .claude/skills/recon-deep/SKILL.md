@@ -100,3 +100,19 @@ Write the following files to `output/reports/` alongside the recon report.
 - Run passive tools first, then active scanning
 - Record every tool output for post-processing
 - Log and continue on tool errors
+
+## MCP Tool Quick Reference
+
+### Kali MCP — Passive Reconnaissance
+- `subfinder -d <domain>` — Subdomain discovery via passive sources
+- `amass enum -passive -d <domain>` — Comprehensive passive subdomain enumeration
+- `dig <domain> ANY` — DNS record enumeration
+- `whois <domain>` — Domain registration data
+- `theharvester -d <domain> -b all` — OSINT email/subdomain harvesting
+
+### WireMCP — DNS Traffic Analysis (if passive DNS capture available)
+- `capture_packets(interface="eth0", duration=30, filter="port 53")` — Capture DNS queries during enumeration
+- `get_statistics(file_path="<pcap>")` — Protocol distribution showing DNS patterns
+- `follow_stream(file_path="<pcap>", stream_number=0)` — Inspect DNS conversations
+
+> **Note:** This is a reconnaissance-only skill. No exploitation, no screenshots. For exploitation, use `/full-pentest` or `/exploit-dev`.
