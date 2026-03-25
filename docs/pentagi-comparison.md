@@ -105,7 +105,7 @@ Without calling its barrier function, an agent's loop continues (up to `maxRetri
 | **State management** | PostgreSQL + pgvector + Neo4j + Redis | JSON session files + optional Neo4j |
 | **Execution sandbox** | Ephemeral Docker containers per flow (debian or kali-linux) | Persistent Docker containers (Kali MCP, Wire MCP) |
 | **Protocol** | Custom REST/GraphQL API | MCP standard |
-| **LLM framework** | Custom Go agent loop on vxcontrol/langchaingo fork | Native Claude Code / MCP protocol |
+| **LLM framework** | Custom Go-native agent framework (NOT LangChain — only uses langchaingo for `llms.Tool` type defs) | Native Claude Code / MCP protocol |
 | **Retry logic** | `maxRetries=3` per agent chain, 5s delay between retries | No systematic retry mechanism |
 
 ---
@@ -144,7 +144,7 @@ BLHACKBOX stores sessions as flat JSON files — not searchable by similarity.
 2. New MCP tool: `store_engagement_memory(session_id: str, finding_type: str, content: str)` — auto-embeds via API
 3. Auto-embed tool outputs and findings after each `aggregate_results` call (tag with session_id, target, tool_source)
 4. On new engagements, skill templates query similar past findings to inform strategy
-5. Use dual thresholds like PentAGI: 0.45 for broad recall, 0.75 for high-confidence matches
+5. Use per-type thresholds like PentAGI: 0.45 general memory, 0.7 code samples, 0.75 search answers, 0.8 pentest guides
 
 Could be added as a new Docker service (`memory-mcp`) using PostgreSQL + pgvector, or integrated into the existing blhackbox MCP server.
 
@@ -264,13 +264,27 @@ For implementation reference, these are the critical Go source files in PentAGI'
 
 ---
 
-## 5. Summary
+## 5. Key Architectural Insights
+
+1. **PentAGI is NOT LangChain/LangGraph** — It uses a custom Go-native agent framework. Only imports `langchaingo` for `llms.Tool` type definitions. All orchestration, retries, and delegation are hand-written Go.
+
+2. **Tool isolation is the security model** — The Primary Agent cannot execute commands; it can only delegate. The Pentester cannot write code; it must ask the Coder. This prevents any single agent from having unrestricted capabilities. In BLHACKBOX, Claude sees all tools simultaneously — which works because Claude is good at tool selection, but offers no enforcement.
+
+3. **Memory is the learning mechanism** — Every agent is instructed to "search long-term memory first" before attempting new work, and to "store results in long-term memory" after completing tasks. 12 specific tools auto-persist their outputs. This makes the system progressively more effective.
+
+4. **The Coder writes code that the Pentester uses** — The delegation flow is: Primary Agent → Pentester → Coder (when custom exploit code is needed). The Coder does NOT directly execute pentests.
+
+5. **29 tools across 8 categories** — `EnvironmentToolType` (terminal, file), `SearchNetworkToolType` (Google, DDG, Tavily, Perplexity, Traversaal, browser), `SearchVectorDbToolType` (memory/code/guide/answer search), `AgentToolType` (delegation to sub-agents), `StoreAgentResultToolType`, and `BarrierToolType` (done, ask_user).
+
+---
+
+## 6. Summary
 
 PentAGI's multi-agent architecture provides deeper autonomous reasoning through specialization and cross-session learning. BLHACKBOX's MCP-native architecture provides broader tool access, simpler deployment, and better evidence rigor.
 
 The three highest-ROI improvements to close the gap:
 1. **Exploit development skill** — matches PentAGI's Coder agent
-2. **Vector memory system** — matches PentAGI's pgvector-based learning
-3. **Loop detection guardrails** — matches PentAGI's Reflector agent
+2. **Vector memory system** — matches PentAGI's pgvector-based learning (4 threshold tiers)
+3. **Loop detection guardrails** — matches PentAGI's Reflector agent + barrier function pattern
 
-These additions would capture PentAGI's key differentiators while preserving BLHACKBOX's architectural advantages.
+These additions would capture PentAGI's key differentiators while preserving BLHACKBOX's architectural advantages (70+ tools, MCP standard, 3-container simplicity, mandatory PoC rigor).
