@@ -167,6 +167,7 @@ Skills are available in the container via two mechanisms:
 | `/vuln-assessment` | Systematic vulnerability identification and exploitation |
 | `/api-security` | REST/GraphQL API testing (OWASP API Top 10) |
 | `/bug-bounty` | Bug bounty hunting with exploitation-driven PoC reports |
+| `/exploit-dev` | Custom exploit development — write, test, iterate on exploit code |
 
 > **Note:** Skills are a Claude Code feature. Claude Desktop and ChatGPT use MCP templates via the gateway instead (`get_template` / `list_templates` tools).
 
@@ -283,7 +284,7 @@ Requires `--profile gateway` (`make up-gateway`).
 | **Base** | `node:22-slim` |
 | **Entrypoint** | `claude-code-entrypoint.sh` (health checks + launch) |
 | **MCP config** | Direct SSE to each server (no gateway dependency) |
-| **Skills** | 10 pentesting skills mounted from `.claude/skills/` |
+| **Skills** | 11 pentesting skills mounted from `.claude/skills/` |
 | **Requires** | `ANTHROPIC_API_KEY` in `.env` |
 
 The Claude Code container includes the full skills system. Skills (`.claude/skills/`) and project instructions (`CLAUDE.md`) are baked into the image at build time and overridden by volume mounts at runtime for live updates.

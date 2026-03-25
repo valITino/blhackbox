@@ -578,8 +578,8 @@ async def _do_aggregate_results(args: dict[str, Any]) -> str:
 
         async with KnowledgeGraphClient() as kg:
             graph_stats = await _populate_knowledge_graph(kg, payload)
-    except Exception:
-        logger.debug("Neo4j storage skipped (not available or failed)")
+    except Exception as exc:
+        logger.info("Neo4j graph population skipped: %s", exc)
 
     vuln_count = len(payload.findings.vulnerabilities)
     host_count = len(payload.findings.hosts)
@@ -602,8 +602,8 @@ async def _do_aggregate_results(args: dict[str, Any]) -> str:
 
 
 async def _populate_knowledge_graph(
-    kg: Any,
-    payload: Any,
+    kg: "KnowledgeGraphClient",
+    payload: "AggregatedPayload",
 ) -> dict[str, int]:
     """Auto-populate Neo4j knowledge graph from AggregatedPayload.
 
@@ -636,7 +636,9 @@ async def _populate_knowledge_graph(
         if host.hostname and host.hostname != ip:
             await kg.link_domain_to_ip(host.hostname, ip)
         for port in host.ports:
-            port_node = await kg.merge_port(ip, port.port, port.protocol)
+            if port.port < 1 or port.port > 65535:
+                continue
+            await kg.merge_port(ip, port.port, port.protocol)
             if port.service:
                 await kg.merge_service(
                     ip, port.port, port.service, port.version
@@ -647,15 +649,15 @@ async def _populate_knowledge_graph(
     # 3. Merge standalone services (from findings.services)
     svc_count = 0
     for svc in payload.findings.services:
-        if svc.host and svc.port:
+        if svc.host and svc.port and 1 <= svc.port <= 65535:
             await kg.merge_service(svc.host, svc.port, svc.name, svc.version)
             svc_count += 1
     stats["services"] = svc_count
 
     # 4. Merge vulnerabilities and link to hosts
     vuln_count = 0
-    for vuln in payload.findings.vulnerabilities:
-        identifier = vuln.id or f"VULN-{vuln.title[:40]}"
+    for idx, vuln in enumerate(payload.findings.vulnerabilities):
+        identifier = vuln.id or f"VULN-{idx}-{vuln.title[:40]}" or f"VULN-{idx}-untitled"
         await kg.merge_vulnerability(
             target_value=vuln.host or payload.target,
             identifier=identifier,
@@ -668,7 +670,8 @@ async def _populate_knowledge_graph(
     # 5. Merge subdomains
     sub_count = 0
     for subdomain in payload.findings.subdomains:
-        if subdomain:
+        subdomain = subdomain.strip() if subdomain else ""
+        if subdomain and "." in subdomain:
             await kg.link_subdomain(subdomain, payload.target)
             sub_count += 1
     stats["subdomains"] = sub_count
