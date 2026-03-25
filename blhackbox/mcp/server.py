@@ -602,8 +602,8 @@ async def _do_aggregate_results(args: dict[str, Any]) -> str:
 
 
 async def _populate_knowledge_graph(
-    kg: "KnowledgeGraphClient",
-    payload: "AggregatedPayload",
+    kg: Any,
+    payload: Any,
 ) -> dict[str, int]:
     """Auto-populate Neo4j knowledge graph from AggregatedPayload.
 
