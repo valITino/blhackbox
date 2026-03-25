@@ -18,6 +18,7 @@ TEMPLATES = {
     "vuln-assessment": "vuln-assessment.md",
     "api-security": "api-security.md",
     "bug-bounty": "bug-bounty.md",
+    "exploit-dev": "exploit-dev.md",
 }
 
 

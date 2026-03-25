@@ -56,4 +56,7 @@ jobs:
         run: pip install pip-audit
 
       - name: Audit Python dependencies
-        run: pip-audit -r requirements.txt
+        # CVE-2026-4539: low-severity local ReDoS in pygments AdlLexer (CVSS 3.3).
+        # No upstream fix available yet. Remove --ignore-vuln when pygments patches.
+        # https://nvd.nist.gov/vuln/detail/CVE-2026-4539
+        run: pip-audit -r requirements.txt --ignore-vuln CVE-2026-4539

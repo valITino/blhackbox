@@ -124,3 +124,22 @@ Write to `output/reports/`:
 - **A report that says "SQLi found" gets N/A. "SQLi exploited, extracted user table" gets a bounty.**
 - PoC must be independently reproducible by the program's security team
 - Populate `poc_steps`, `poc_payload`, and `evidence` fields in every `VulnerabilityEntry`
+
+
+## MCP Tool Quick Reference
+
+### Kali MCP — Exploit Search
+- `searchsploit <service> <version>` — Search ExploitDB for known exploits
+- `msfconsole -qx "search <service>; exit"` — Search Metasploit modules
+- For complex exploitation requiring custom code, use the `/exploit-dev` skill
+
+### WireMCP — Traffic Analysis
+- `capture_packets(interface="eth0", duration=30, filter="host <TARGET>")` — Capture during exploitation
+- `extract_credentials(file_path="<pcap>")` — Find cleartext credentials in traffic
+- `follow_stream(file_path="<pcap>", stream_number=0)` — Inspect TCP conversations
+- `get_statistics(file_path="<pcap>")` — Protocol distribution overview
+
+### Screenshot MCP — Evidence Capture
+- `take_screenshot(url="http://<TARGET>/<page>")` — Full page screenshot for PoC
+- `take_element_screenshot(url="<url>", selector="<css>")` — Capture specific DOM elements (XSS payloads, error messages)
+- `annotate_screenshot(screenshot_path="<path>", annotations='[{"type":"text","x":10,"y":10,"text":"VULN: <desc>","color":"red","size":18}]')` — Label evidence

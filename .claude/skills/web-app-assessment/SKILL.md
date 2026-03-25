@@ -31,6 +31,7 @@ Then ask if authenticated testing is needed:
 > **Before you start:**
 > 1. Ensure all MCP servers are healthy — run `make health`
 > 2. Verify authorization is active — run `make inject-verification`
+> 3. Query each MCP server's tool listing to discover available capabilities
 
 ---
 
@@ -68,10 +69,10 @@ If CMS detected, run CMS-specific vulnerability and plugin enumeration.
 
 For each discovered form, parameter, or input point — **test AND exploit**:
 
-1. **SQL injection** — Test and exploit. For confirmed: enumerate databases, **extract sample data**
-2. **XSS** — Fire payload, **capture and screenshot the rendered payload**
-3. **Command injection** — **Execute proof commands, show output**
-4. **LFI/RFI** — **Display extracted file contents**
+1. **SQL injection** — Test and exploit. For confirmed: enumerate databases, **extract sample data** (max 5 rows)
+2. **XSS** — Fire payload, `take_screenshot(url="<page>")` + `take_element_screenshot(selector="<xss-target>")` to capture rendered payload
+3. **Command injection** — **Execute proof commands** (`id`, `whoami`, `uname -a`), show output
+4. **LFI/RFI** — **Display extracted file contents** (`/etc/passwd`, `.env`, config files)
 5. **SSTI** — **Show evaluated expression output**
 6. **SSRF** — **Show internal service responses**
 7. **Auth bypass** — **Access protected resources, show response body**
@@ -108,3 +109,22 @@ Write to `output/reports/`:
 - **Every finding MUST have a PoC with exploitation evidence and extracted data**
 - Findings without PoC must be downgraded to "info" severity
 - Populate `poc_steps`, `poc_payload`, and `evidence` fields in every `VulnerabilityEntry`
+
+
+## MCP Tool Quick Reference
+
+### Kali MCP — Exploit Search
+- `searchsploit <service> <version>` — Search ExploitDB for known exploits
+- `msfconsole -qx "search <service>; exit"` — Search Metasploit modules
+- For complex exploitation requiring custom code, use the `/exploit-dev` skill
+
+### WireMCP — Traffic Analysis
+- `capture_packets(interface="eth0", duration=30, filter="host <TARGET>")` — Capture during exploitation
+- `extract_credentials(file_path="<pcap>")` — Find cleartext credentials in traffic
+- `follow_stream(file_path="<pcap>", stream_number=0)` — Inspect TCP conversations
+- `get_statistics(file_path="<pcap>")` — Protocol distribution overview
+
+### Screenshot MCP — Evidence Capture
+- `take_screenshot(url="http://<TARGET>/<page>")` — Full page screenshot for PoC
+- `take_element_screenshot(url="<url>", selector="<css>")` — Capture specific DOM elements (XSS payloads, error messages)
+- `annotate_screenshot(screenshot_path="<path>", annotations='[{"type":"text","x":10,"y":10,"text":"VULN: <desc>","color":"red","size":18}]')` — Label evidence

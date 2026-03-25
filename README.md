@@ -85,7 +85,7 @@ CLAUDE CODE (Docker container on blhackbox_net)
   │
   ├── kali (SSE :9001) ──────────────▶  KALI MCP SERVER
   │                                      70+ tools: nmap, nikto, gobuster, sqlmap,
-  │                                      hydra, msfconsole, msfvenom, john, hashcat…
+  │                                      hydra, msfconsole, msfvenom, searchsploit…
   │
   ├── wireshark (SSE :9003) ─────────▶  WIREMCP SERVER
   │                                      7 tools: packet capture, pcap analysis,
@@ -129,6 +129,7 @@ Skills are native Claude Code commands that launch autonomous pentesting workflo
 | `/vuln-assessment` | Systematic vulnerability identification and exploitation | `/vuln-assessment example.com` |
 | `/api-security` | REST/GraphQL API testing (OWASP API Top 10) | `/api-security https://api.example.com` |
 | `/bug-bounty` | Bug bounty hunting with exploitation-driven PoC reports | `/bug-bounty target.com` |
+| `/exploit-dev` | Custom exploit development — write, test, iterate on exploit code | `/exploit-dev CVE-2021-44228 on 10.0.0.5` |
 
 ### How Skills Work
 
@@ -171,7 +172,7 @@ Both paths coexist. Skills are the preferred UX for Claude Code users. MCP templ
 
 | Container | Description | Port | Profile |
 |:--|:--|:--:|:--:|
-| **Kali MCP** | Kali Linux security tools + Metasploit — 70+ tools (nmap, sqlmap, hydra, msfconsole, msfvenom, etc.) | `9001` | default |
+| **Kali MCP** | Kali Linux security tools + Metasploit — 70+ tools (nmap, sqlmap, hydra, msfconsole, msfvenom, searchsploit, etc.) | `9001` | default |
 | **WireMCP** | Wireshark / tshark — 7 packet capture and analysis tools | `9003` | default |
 | **Screenshot MCP** | Headless Chromium — 4 screenshot and annotation tools | `9004` | default |
 | **Portainer** | Web UI for managing all containers | `9443` | default |
@@ -294,6 +295,48 @@ You should see 4 healthy containers: `blhackbox-kali-mcp`, `blhackbox-wire-mcp`,
 
 ---
 
+## Advanced Features
+
+### Exploit Development (`/exploit-dev`)
+
+A dedicated workflow for writing custom exploit code — inspired by PentAGI's Coder agent. Instead of just running scanners, Claude enters "developer mode" to write, test, and iterate on exploit code inside the Kali container.
+
+```
+/exploit-dev CVE-2021-44228 on 10.0.0.5:8080
+```
+
+The workflow: research the vulnerability → search ExploitDB and Metasploit → design the exploit → write Python/bash code → test in the Kali container → iterate on failures → capture evidence. See `.claude/skills/exploit-dev/SKILL.md`.
+
+### ExploitDB Search (`search_exploits` / `get_exploit_code`)
+
+Kali MCP now includes dedicated tools for searching ExploitDB via `searchsploit`:
+
+- **`search_exploits`** — Search ExploitDB for known exploits, shellcode, and papers. Returns structured JSON with titles, paths, platforms, and dates.
+- **`get_exploit_code`** — Read the full source code of an ExploitDB exploit. Useful for understanding and adapting public exploits.
+
+These complement `msf_search` (Metasploit modules) for comprehensive exploit coverage.
+
+### Loop Detection & Agent Supervision
+
+A `PreToolUse` hook (`.claude/hooks/loop-detector.sh`) tracks MCP tool calls per session and detects when the AI gets stuck in a loop — inspired by PentAGI's Reflector agent.
+
+- **Warns** when the same tool is called 3 times with identical arguments
+- **Blocks** at 4 identical calls with instructions to reassess
+- **Session checkpoints** at 50 and 80 total MCP calls to prompt aggregation
+
+### Automatic Knowledge Graph Population
+
+When Neo4j is enabled (`--profile neo4j`), `aggregate_results` now automatically creates graph nodes for every host, service, vulnerability, subdomain, and endpoint from the `AggregatedPayload`. Previously, only a flat session node was stored.
+
+The graph enables cross-session queries like:
+```cypher
+MATCH (d:Domain)-[:RESOLVES_TO]->(ip)-[:HAS_PORT]->(p)-[:RUNS_SERVICE]->(s)
+WHERE d.name = 'example.com'
+RETURN ip, p, s
+```
+
+---
+
 ## Tutorial 1: Claude Code (Docker) — Recommended
 
 Claude Code runs entirely inside a Docker container on the same network as all blhackbox services. It connects **directly** to each MCP server via SSE — no MCP Gateway, no host install, no Node.js.
@@ -348,7 +391,7 @@ Claude Code will autonomously:
 4. Structure, deduplicate, and correlate findings into an `AggregatedPayload`
 5. Validate via `aggregate_results()` and write a structured pentest report
 
-See [Available Skills](#available-skills) for all 10 pentesting workflows.
+See [Available Skills](#available-skills) for all 11 pentesting workflows.
 
 ### Monitoring (separate terminal)
 
@@ -938,7 +981,8 @@ blhackbox/
 │   ├── settings.json                    Claude Code hooks config
 │   ├── verification-active.md           Rendered authorization (git-ignored)
 │   ├── hooks/
-│   │   └── session-start.sh             Auto-setup for web sessions
+│   │   ├── session-start.sh             Auto-setup for web sessions
+│   │   └── loop-detector.sh             MCP tool loop detection (Reflector pattern)
 │   └── skills/                          Pentesting skill slash commands
 │       ├── full-pentest/SKILL.md        /full-pentest
 │       ├── full-attack-chain/SKILL.md   /full-attack-chain
@@ -949,7 +993,8 @@ blhackbox/
 │       ├── osint-gathering/SKILL.md     /osint-gathering
 │       ├── vuln-assessment/SKILL.md     /vuln-assessment
 │       ├── api-security/SKILL.md        /api-security
-│       └── bug-bounty/SKILL.md          /bug-bounty
+│       ├── bug-bounty/SKILL.md          /bug-bounty
+│       └── exploit-dev/SKILL.md         /exploit-dev
 ├── output/                              Host-accessible outputs (git-ignored)
 │   ├── reports/                         Generated pentest reports
 │   ├── screenshots/                     PoC evidence captures
@@ -977,7 +1022,7 @@ blhackbox/
 │   │   ├── local.py                     CLI tool execution backend
 │   │   └── CLAUDE.md                    Backend safety rules (shell=False)
 │   ├── prompts/
-│   │   ├── templates/                   10 pentest template .md files
+│   │   ├── templates/                   11 pentest template .md files
 │   │   ├── claude_playbook.md           Pentest playbook for MCP host
 │   │   ├── verification.md              Authorization template
 │   │   └── inject_verification.py       Renders template → active document

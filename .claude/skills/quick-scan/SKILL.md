@@ -26,6 +26,7 @@ If no target was provided, ask the user:
 > **Before you start:**
 > 1. Ensure all MCP servers are healthy — run `make health`
 > 2. Verify authorization is active — run `make inject-verification`
+> 3. Query each MCP server's tool listing to discover available capabilities
 
 ---
 
@@ -40,20 +41,22 @@ Run these steps concurrently where possible for speed:
 3. **WAF detection** — Check for web application firewalls
 4. **Subdomain enumeration** — Discover subdomains through passive sources
 5. **Domain registration** — WHOIS lookups for registrar and ownership data
-6. **Exploit search** — Identify known exploit modules for discovered services
-7. **Traffic capture** — Capture network traffic during scanning for analysis
+6. **Exploit search** — Search ExploitDB (`searchsploit <service>`) and Metasploit (`msfconsole -qx "search <service>"`) for known exploits matching discovered services
+7. **Traffic capture** — `capture_packets(interface="eth0", duration=60, filter="host <TARGET>")` to capture traffic during scanning
 8. **AI intelligence** — Automated target analysis and network scanning
 
 ### Step 2: Quick Analysis & Exploitation
 
-1. **Credential extraction** — Analyze captured traffic for credential findings
-2. **Traffic statistics** — Quick protocol distribution overview
-3. **Exploit validation** — Validate any high-severity findings
+1. **Credential extraction** — `extract_credentials(file_path="<pcap>")` to find plaintext creds in captured traffic
+2. **Traffic statistics** — `get_statistics(file_path="<pcap>")` for protocol distribution
+3. **Exploit validation** — Validate any high-severity findings; if exploitable, proceed to exploitation
 4. **Quick exploitation** — For any critical/high finding discovered:
    - **Exploit it immediately** — SQL injection? Extract sample data. Default creds? Log in.
      RCE? Execute proof command. LFI? Read a file.
+   - **Screenshot the evidence** — `take_screenshot(url="http://<TARGET>/<exploited-path>")` for web-based vulns
    - **Show what was obtained** — even in quick mode, demonstrate impact
    - **Test found credentials** against other discovered services
+   - **For complex exploits** — consider using `/exploit-dev` for custom exploit development
 
 ### Step 3: Data Aggregation (REQUIRED)
 
@@ -127,3 +130,22 @@ Record of every problem encountered:
 - **If you find a critical vuln, exploit it** — extract data, show impact, even in quick mode
 - Include raw evidence and extracted data for any confirmed finding
 - Populate `evidence` field in every `VulnerabilityEntry`
+
+
+## MCP Tool Quick Reference
+
+### Kali MCP — Exploit Search
+- `searchsploit <service> <version>` — Search ExploitDB for known exploits
+- `msfconsole -qx "search <service>; exit"` — Search Metasploit modules
+- For complex exploitation requiring custom code, use the `/exploit-dev` skill
+
+### WireMCP — Traffic Analysis
+- `capture_packets(interface="eth0", duration=30, filter="host <TARGET>")` — Capture during exploitation
+- `extract_credentials(file_path="<pcap>")` — Find cleartext credentials in traffic
+- `follow_stream(file_path="<pcap>", stream_number=0)` — Inspect TCP conversations
+- `get_statistics(file_path="<pcap>")` — Protocol distribution overview
+
+### Screenshot MCP — Evidence Capture
+- `take_screenshot(url="http://<TARGET>/<page>")` — Full page screenshot for PoC
+- `take_element_screenshot(url="<url>", selector="<css>")` — Capture specific DOM elements (XSS payloads, error messages)
+- `annotate_screenshot(screenshot_path="<path>", annotations='[{"type":"text","x":10,"y":10,"text":"VULN: <desc>","color":"red","size":18}]')` — Label evidence

@@ -30,6 +30,7 @@ Optionally ask:
 > **Before you start:**
 > 1. Ensure all MCP servers are healthy — run `make health`
 > 2. Verify authorization is active — run `make inject-verification`
+> 3. Query each MCP server's tool listing to discover available capabilities
 
 ---
 
@@ -40,18 +41,29 @@ Optionally ask:
 ### Step 3: Web Vulnerability Deep Dive
 ### Step 3B: Exploitation & Data Extraction
 
-For every vulnerability discovered — **actively exploit it**:
-1. SQL injection — enumerate databases, **extract sample data** (max 5 rows)
-2. XSS — fire payload, **capture and screenshot**
-3. Command injection — **execute proof commands, show output**
-4. LFI/RFI — **display extracted file contents**
-5. SSRF — **show internal service responses**
-6. Auth bypass — **access protected resources, show response**
-7. IDOR — **show both users' data**
-8. Exploit framework — validate and exploit confirmed vulnerabilities
-9. Credential reuse — test all discovered credentials against all services
+For every vulnerability discovered, follow this decision flow:
+1. **Validate** — Confirm the vulnerability exists (safe check mode first)
+2. **If confirmed and tools available** — Exploit it:
+   - SQL injection → enumerate databases, **extract sample data** (max 5 rows per table)
+   - XSS → fire payload, `take_screenshot(url="<page-with-xss>")` to capture rendered payload
+   - Command injection → **execute proof commands** (`id`, `whoami`), show output
+   - LFI/RFI → **display extracted file contents** (`/etc/passwd`, config files)
+   - SSRF → **show internal service responses** (cloud metadata, internal APIs)
+   - Auth bypass → **access protected resources**, `take_screenshot()` the admin panel
+   - IDOR → **show both users' data** side by side
+3. **If exploitation requires custom code** — Use `/exploit-dev` workflow
+4. **If WAF blocks exploitation** — Try encoding bypass, note blocking in error log
+5. **If tool fails** — Log the failure and try alternative tool
+6. Exploit framework — validate and exploit confirmed vulnerabilities via Metasploit
+7. Credential reuse — test all discovered credentials against all services
 
 ### Step 4: Network Traffic Analysis
+
+1. `capture_packets(interface="eth0", duration=30, filter="host <TARGET>")` during exploitation
+2. `extract_credentials(file_path="<pcap>")` to find cleartext credentials
+3. `follow_stream(file_path="<pcap>", stream_number=0)` to inspect exploit communication
+4. `get_statistics(file_path="<pcap>")` for protocol distribution
+
 ### Step 5: Configuration & Hardening Checks
 ### Step 6: SSL/TLS Assessment
 ### Step 7: Credential Testing
@@ -83,3 +95,22 @@ Write to `output/reports/`:
 - Map findings to OWASP Top 10 and CWE categories
 - **Every finding MUST have a PoC with exploitation evidence and extracted data**
 - Populate `poc_steps`, `poc_payload`, and `evidence` fields in every `VulnerabilityEntry`
+
+
+## MCP Tool Quick Reference
+
+### Kali MCP — Exploit Search
+- `searchsploit <service> <version>` — Search ExploitDB for known exploits
+- `msfconsole -qx "search <service>; exit"` — Search Metasploit modules
+- For complex exploitation requiring custom code, use the `/exploit-dev` skill
+
+### WireMCP — Traffic Analysis
+- `capture_packets(interface="eth0", duration=30, filter="host <TARGET>")` — Capture during exploitation
+- `extract_credentials(file_path="<pcap>")` — Find cleartext credentials in traffic
+- `follow_stream(file_path="<pcap>", stream_number=0)` — Inspect TCP conversations
+- `get_statistics(file_path="<pcap>")` — Protocol distribution overview
+
+### Screenshot MCP — Evidence Capture
+- `take_screenshot(url="http://<TARGET>/<page>")` — Full page screenshot for PoC
+- `take_element_screenshot(url="<url>", selector="<css>")` — Capture specific DOM elements (XSS payloads, error messages)
+- `annotate_screenshot(screenshot_path="<path>", annotations='[{"type":"text","x":10,"y":10,"text":"VULN: <desc>","color":"red","size":18}]')` — Label evidence
