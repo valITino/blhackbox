@@ -571,31 +571,19 @@ async def _do_aggregate_results(args: dict[str, Any]) -> str:
         encoding="utf-8",
     )
 
-    # Optional Neo4j storage (best-effort)
+    # Optional Neo4j storage — auto-populate full knowledge graph (best-effort)
+    graph_stats: dict[str, int] = {}
     try:
         from blhackbox.core.knowledge_graph import KnowledgeGraphClient
 
         async with KnowledgeGraphClient() as kg:
-            await kg.run_query(
-                """
-                MERGE (s:AggregatedSession {session_id: $session_id})
-                SET s.target = $target,
-                    s.scan_timestamp = $scan_timestamp,
-                    s.tools_run = $tools_run
-                """,
-                {
-                    "session_id": payload.session_id,
-                    "target": payload.target,
-                    "scan_timestamp": payload.scan_timestamp.isoformat(),
-                    "tools_run": payload.metadata.tools_run,
-                },
-            )
+            graph_stats = await _populate_knowledge_graph(kg, payload)
     except Exception:
         logger.debug("Neo4j storage skipped (not available or failed)")
 
     vuln_count = len(payload.findings.vulnerabilities)
     host_count = len(payload.findings.hosts)
-    return json.dumps({
+    result: dict[str, Any] = {
         "status": "ok",
         "session_id": payload.session_id,
         "session_file": str(session_file),
@@ -607,7 +595,105 @@ async def _do_aggregate_results(args: dict[str, Any]) -> str:
             "risk_level": payload.executive_summary.risk_level,
         },
         "hint": f"Use generate_report with session_id='{session_file}' to create the report.",
-    })
+    }
+    if graph_stats:
+        result["knowledge_graph"] = graph_stats
+    return json.dumps(result)
+
+
+async def _populate_knowledge_graph(
+    kg: Any,
+    payload: Any,
+) -> dict[str, int]:
+    """Auto-populate Neo4j knowledge graph from AggregatedPayload.
+
+    Creates nodes for hosts, services, vulnerabilities, endpoints, and
+    subdomains, plus relationships between them.  Returns a dict of
+    node-type counts that were merged into the graph.
+
+    Inspired by PentAGI's Graphiti auto-extraction — but leveraging the
+    structured AggregatedPayload we already have instead of LLM-based
+    entity extraction.
+    """
+    stats: dict[str, int] = {}
+
+    # 1. Merge the session node and link to target
+    await kg.merge_aggregated_session(
+        session_id=payload.session_id,
+        target_value=payload.target,
+        scan_timestamp=payload.scan_timestamp.isoformat(),
+        tools_run=payload.metadata.tools_run,
+    )
+    stats["sessions"] = 1
+
+    # 2. Merge hosts and their ports/services
+    host_count = 0
+    for host in payload.findings.hosts:
+        ip = host.ip or host.hostname
+        if not ip:
+            continue
+        await kg.merge_ip(ip)
+        if host.hostname and host.hostname != ip:
+            await kg.link_domain_to_ip(host.hostname, ip)
+        for port in host.ports:
+            port_node = await kg.merge_port(ip, port.port, port.protocol)
+            if port.service:
+                await kg.merge_service(
+                    ip, port.port, port.service, port.version
+                )
+        host_count += 1
+    stats["hosts"] = host_count
+
+    # 3. Merge standalone services (from findings.services)
+    svc_count = 0
+    for svc in payload.findings.services:
+        if svc.host and svc.port:
+            await kg.merge_service(svc.host, svc.port, svc.name, svc.version)
+            svc_count += 1
+    stats["services"] = svc_count
+
+    # 4. Merge vulnerabilities and link to hosts
+    vuln_count = 0
+    for vuln in payload.findings.vulnerabilities:
+        identifier = vuln.id or f"VULN-{vuln.title[:40]}"
+        await kg.merge_vulnerability(
+            target_value=vuln.host or payload.target,
+            identifier=identifier,
+            severity=vuln.severity,
+            title=vuln.title,
+        )
+        vuln_count += 1
+    stats["vulnerabilities"] = vuln_count
+
+    # 5. Merge subdomains
+    sub_count = 0
+    for subdomain in payload.findings.subdomains:
+        if subdomain:
+            await kg.link_subdomain(subdomain, payload.target)
+            sub_count += 1
+    stats["subdomains"] = sub_count
+
+    # 6. Merge endpoints as findings
+    ep_count = 0
+    for ep in payload.findings.endpoints:
+        if ep.url:
+            finding_id = f"EP-{ep.method}-{ep.url[:80]}"
+            await kg.merge_finding(
+                target_value=payload.target,
+                finding_id=finding_id,
+                tool="endpoint_discovery",
+                title=f"{ep.method} {ep.url}",
+                severity="info",
+                description=f"Status {ep.status_code}" if ep.status_code else "",
+            )
+            ep_count += 1
+    stats["endpoints"] = ep_count
+
+    logger.info(
+        "Knowledge graph populated: %s",
+        ", ".join(f"{k}={v}" for k, v in stats.items()),
+    )
+    return stats
 
 
 async def _do_get_payload_schema() -> str:

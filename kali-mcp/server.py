@@ -64,6 +64,8 @@ ALLOWED_TOOLS = set(
         "smbclient,enum4linux-ng,responder,netexec,"
         # --- Metasploit Framework ---
         "msfconsole,msfvenom,msfdb,"
+        # --- Exploit Database ---
+        "searchsploit,"
         # --- Wireless ---
         "aircrack-ng,airodump-ng,aireplay-ng,wifite,bettercap,"
         # --- Forensics / Binary ---
@@ -770,6 +772,202 @@ async def msf_status() -> str:
 
     status["status"] = "ready"
     return json.dumps(status, indent=2)
+
+
+# ---------------------------------------------------------------------------
+# MCP Tools — Exploit Database Search (searchsploit)
+# ---------------------------------------------------------------------------
+# Dedicated tool for searching ExploitDB via searchsploit.  Provides
+# structured results instead of raw terminal output, making it easier
+# for AI agents to identify and use relevant exploits.
+# Inspired by PentAGI's Sploitus integration.
+# ---------------------------------------------------------------------------
+
+
+def _searchsploit_installed() -> bool:
+    """Check if searchsploit is available."""
+    return shutil.which("searchsploit") is not None
+
+
+@mcp.tool()
+async def search_exploits(
+    query: str,
+    exact: bool = False,
+    exploit_type: str = "",
+    json_output: bool = True,
+) -> str:
+    """Search ExploitDB for known exploits, shellcode, and papers.
+
+    Uses searchsploit (local ExploitDB mirror) to find exploits matching
+    a service name, version, CVE, or keyword.  Returns structured results
+    with exploit titles, paths, and types.
+
+    Combine with msf_search for comprehensive exploit coverage:
+      - search_exploits: finds ExploitDB entries (PoC scripts, papers)
+      - msf_search: finds Metasploit modules (ready-to-run exploits)
+
+    Args:
+        query: Search term (e.g. 'Apache 2.4.49', 'CVE-2021-44228', 'wordpress 5.0').
+        exact: If True, use exact match instead of fuzzy search.
+        exploit_type: Filter by type: 'exploits', 'shellcodes', 'papers', or '' for all.
+        json_output: Return structured JSON (default True). If False, returns raw text.
+    """
+    if not _searchsploit_installed():
+        return json.dumps({
+            "error": True,
+            "tool": "search_exploits",
+            "reason": "searchsploit_not_installed",
+            "message": (
+                "searchsploit is not installed. "
+                "Install with: apt-get install -y exploitdb"
+            ),
+            "hint": "Use msf_search as an alternative for Metasploit modules.",
+        })
+
+    # Build searchsploit command
+    cmd_parts = ["searchsploit"]
+    if json_output:
+        cmd_parts.append("--json")
+    if exact:
+        cmd_parts.append("--exact")
+    if exploit_type:
+        cmd_parts.append(f"--type={exploit_type}")
+    # Sanitize query — split into individual terms
+    for term in shlex.split(query):
+        cmd_parts.append(term)
+
+    logger.info("searchsploit: %s", cmd_parts)
+
+    result = await _run_command(
+        cmd_parts,
+        tool_name="search_exploits",
+        timeout=30,
+    )
+
+    stdout = result.get("stdout", "")
+    exit_code = result.get("exit_code", -1)
+
+    if json_output and stdout.strip():
+        try:
+            parsed = json.loads(stdout)
+            exploits = parsed.get("RESULTS_EXPLOIT", [])
+            shellcodes = parsed.get("RESULTS_SHELLCODE", [])
+
+            # Simplify the output for AI consumption
+            simplified: list[dict[str, str]] = []
+            for exp in exploits:
+                simplified.append({
+                    "title": exp.get("Title", ""),
+                    "path": exp.get("Path", ""),
+                    "type": "exploit",
+                    "platform": exp.get("Platform", ""),
+                    "date": exp.get("Date Published", ""),
+                })
+            for sc in shellcodes:
+                simplified.append({
+                    "title": sc.get("Title", ""),
+                    "path": sc.get("Path", ""),
+                    "type": "shellcode",
+                    "platform": sc.get("Platform", ""),
+                    "date": sc.get("Date Published", ""),
+                })
+
+            return json.dumps({
+                "tool": "search_exploits",
+                "query": query,
+                "results": simplified,
+                "count": len(simplified),
+                "exit_code": exit_code,
+            }, indent=2)
+        except json.JSONDecodeError:
+            pass
+
+    # Fallback: return raw output
+    return json.dumps({
+        "tool": "search_exploits",
+        "query": query,
+        "raw_output": stdout[:5000],
+        "exit_code": exit_code,
+    }, indent=2)
+
+
+@mcp.tool()
+async def get_exploit_code(
+    exploit_path: str,
+) -> str:
+    """Read the source code of an ExploitDB exploit by its path.
+
+    Use search_exploits first to find the exploit path, then this tool
+    to read the actual exploit code.  Useful for understanding how an
+    exploit works before adapting it to your target.
+
+    Args:
+        exploit_path: Path from searchsploit results (e.g. 'exploits/linux/remote/50383.py').
+    """
+    if not _searchsploit_installed():
+        return json.dumps({
+            "error": True,
+            "tool": "get_exploit_code",
+            "reason": "searchsploit_not_installed",
+        })
+
+    # searchsploit stores exploits relative to its database path
+    # Use searchsploit -p to get the full path
+    basename = exploit_path.split("/")[-1] if "/" in exploit_path else exploit_path
+    cmd_parts = ["searchsploit", "-p", basename]
+
+    result = await _run_command(
+        cmd_parts,
+        tool_name="get_exploit_code",
+        timeout=10,
+    )
+
+    stdout = result.get("stdout", "")
+
+    # Extract the full path from searchsploit -p output
+    full_path = ""
+    for line in stdout.splitlines():
+        line = line.strip()
+        if line.startswith("Exploit:") or line.startswith("Shellcode:"):
+            full_path = line.split(":", 1)[1].strip()
+            break
+        if line.startswith("/"):
+            full_path = line
+            break
+
+    if not full_path:
+        # Try the path directly
+        full_path = f"/usr/share/exploitdb/{exploit_path}"
+
+    # Read the exploit file
+    try:
+        import aiofiles
+
+        async with aiofiles.open(full_path, "r", encoding="utf-8", errors="replace") as f:
+            code = await f.read()
+    except ImportError:
+        # Fallback without aiofiles
+        try:
+            with open(full_path, "r", encoding="utf-8", errors="replace") as f:
+                code = f.read()
+        except FileNotFoundError:
+            return json.dumps({
+                "error": f"Exploit file not found: {full_path}",
+                "hint": "Run search_exploits first, then use the 'path' field from results.",
+            })
+    except FileNotFoundError:
+        return json.dumps({
+            "error": f"Exploit file not found: {full_path}",
+            "hint": "Run search_exploits first, then use the 'path' field from results.",
+        })
+
+    return json.dumps({
+        "tool": "get_exploit_code",
+        "path": full_path,
+        "code": code[:20000],  # Cap at 20KB
+        "size_bytes": len(code),
+        "truncated": len(code) > 20000,
+    }, indent=2)
 
 
 # ---------------------------------------------------------------------------
