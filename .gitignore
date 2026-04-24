@@ -29,6 +29,9 @@ env/
 # Active verification document (rendered from verification.env — contains engagement details)
 .claude/verification-active.md
 
+# Loop skill session tracking (local only)
+.claude/loop-tracker/
+
 # Output directory (host-mounted reports, screenshots, sessions)
 output/**
 !output/
