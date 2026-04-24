@@ -41,7 +41,7 @@ dependencies = [
     "mcp>=1.23.0",
     # Utilities
     "tenacity==9.0.0",
-    "python-dotenv==1.0.1",
+    "python-dotenv==1.2.2",
     "aiofiles==24.1.0",
 ]
 
