@@ -53,4 +53,5 @@ def test_hexstrike_dockerfile_clones_upstream_repo() -> None:
         Path(__file__).parent.parent / "docker" / "hexstrike-mcp.Dockerfile"
     ).read_text(encoding="utf-8")
     assert "hexstrike-ai_gamma" in dockerfile
+    assert "ARG HEXSTRIKE_REF=master" in dockerfile
     assert "COPY hexstrike-mcp/server.py /app/server.py" in dockerfile
