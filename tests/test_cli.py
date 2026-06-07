@@ -60,3 +60,10 @@ class TestCatalogCommand:
         assert "network" in result.output
         assert "web" in result.output
         assert "dns" in result.output
+
+    def test_catalog_search_json(self) -> None:
+        runner = CliRunner()
+        result = runner.invoke(cli, ["catalog", "--search", "xss", "--json"])
+        assert result.exit_code == 0
+        assert "dalfox" in result.output
+        assert "backend" in result.output

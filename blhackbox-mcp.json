@@ -3,23 +3,43 @@
     "kali": {
       "type": "sse",
       "url": "http://localhost:9001/sse",
-      "description": "Kali Linux security tools + Metasploit Framework — 70+ tools including msfconsole, msfvenom, nmap, sqlmap, hydra, etc. Connects via SSE to docker compose service on port 9001."
+      "description": "Kali Linux security tools + Metasploit Framework \u2014 70+ tools including msfconsole, msfvenom, nmap, sqlmap, hydra, etc. Connects via SSE to docker compose service on port 9001."
     },
     "wireshark": {
       "command": "docker",
-      "args": ["run", "-i", "--rm", "--network", "blhackbox-net", "--privileged", "blhackbox-wire-mcp"],
-      "description": "WireMCP Server — Wireshark/tshark for packet capture and network analysis (7 tools)"
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "--network",
+        "blhackbox-net",
+        "--privileged",
+        "blhackbox-wire-mcp"
+      ],
+      "description": "WireMCP Server \u2014 Wireshark/tshark for packet capture and network analysis (7 tools)"
     },
     "screenshot": {
       "type": "sse",
       "url": "http://localhost:9004/sse",
-      "description": "Screenshot MCP Server — headless Chromium screenshots for bug bounty PoC evidence capture (4 tools)"
+      "description": "Screenshot MCP Server \u2014 headless Chromium screenshots for bug bounty PoC evidence capture (4 tools)"
     },
     "blhackbox": {
       "command": "blhackbox",
-      "args": ["mcp"],
+      "args": [
+        "mcp"
+      ],
       "env": {},
-      "description": "blhackbox core MCP server — recon, tool execution, graph queries, report generation"
+      "description": "blhackbox core MCP server \u2014 recon, tool execution, graph queries, report generation"
+    },
+    "hexstrike": {
+      "type": "sse",
+      "url": "http://localhost:9006/sse",
+      "description": "HexStrike MCP Server \u2014 full upstream HexStrike Gamma MCP service connected to the HexStrike API container."
+    },
+    "boaz": {
+      "type": "sse",
+      "url": "http://localhost:9005/sse",
+      "description": "BOAZ MCP Server \u2014 upstream BOAZ-MCP Gamma server exposed over SSE."
     }
   }
 }

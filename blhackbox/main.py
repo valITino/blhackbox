@@ -12,6 +12,7 @@ import blhackbox
 from blhackbox.config import settings
 from blhackbox.utils.catalog import (
     load_tools_catalog,
+    search_tools_catalog,
 )
 from blhackbox.utils.logger import (
     console as rich_console,
@@ -63,15 +64,37 @@ def version() -> None:
 
 
 @cli.command()
-def catalog() -> None:
-    """Display the available tools catalogue."""
+@click.option("--search", "search_query", help="Filter catalogue by keyword/tag.")
+@click.option("--category", help="Filter by category, e.g. web or network.")
+@click.option("--phase", type=click.Choice(["passive", "active"]), help="Filter by phase.")
+@click.option("--json", "as_json", is_flag=True, help="Emit catalogue entries as JSON.")
+def catalog(
+    search_query: str | None,
+    category: str | None,
+    phase: str | None,
+    as_json: bool,
+) -> None:
+    """Display or search the available tools catalogue."""
     tools = load_tools_catalog()
+    if search_query or category or phase:
+        tools = search_tools_catalog(
+            tools,
+            search_query or "",
+            limit=50,
+            category=category,
+            phase=phase,
+        )
+
+    if as_json:
+        rich_console.print(json.dumps(tools, indent=2))
+        return
 
     table = Table(title="Tool Catalogue")
     table.add_column("Category", style="cyan")
     table.add_column("Tool", style="green")
     table.add_column("Description", style="white")
     table.add_column("Phase", style="yellow")
+    table.add_column("Backend", style="magenta")
 
     for entry in tools:
         table.add_row(
@@ -79,6 +102,7 @@ def catalog() -> None:
             entry.get("tool_name", ""),
             entry.get("description", ""),
             entry.get("phase", ""),
+            entry.get("backend", ""),
         )
 
     rich_console.print(table)

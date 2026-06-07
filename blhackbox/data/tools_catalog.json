@@ -3,204 +3,734 @@
     "category": "dns",
     "tool_name": "subfinder",
     "description": "Subdomain discovery via passive sources",
-    "phase": "passive"
+    "phase": "passive",
+    "backend": "kali-mcp",
+    "tags": [
+      "dns",
+      "subdomain",
+      "passive",
+      "bug-bounty"
+    ],
+    "example_params": {
+      "target": "example.com"
+    }
   },
   {
     "category": "dns",
     "tool_name": "amass",
     "description": "In-depth subdomain enumeration",
-    "phase": "passive"
+    "phase": "passive",
+    "backend": "kali-mcp",
+    "tags": [
+      "dns",
+      "subdomain",
+      "osint",
+      "passive"
+    ],
+    "example_params": {
+      "target": "example.com"
+    }
   },
   {
     "category": "dns",
     "tool_name": "fierce",
     "description": "DNS reconnaissance and enumeration",
-    "phase": "passive"
+    "phase": "passive",
+    "backend": "kali-mcp",
+    "tags": [
+      "dns",
+      "subdomain",
+      "zone-transfer"
+    ],
+    "example_params": {
+      "target": "example.com"
+    }
   },
   {
     "category": "dns",
     "tool_name": "dnsenum",
     "description": "DNS enumeration and zone transfer testing",
-    "phase": "passive"
+    "phase": "passive",
+    "backend": "kali-mcp",
+    "tags": [
+      "dns",
+      "enumeration",
+      "zone-transfer"
+    ],
+    "example_params": {
+      "target": "example.com"
+    }
   },
   {
     "category": "dns",
     "tool_name": "dnsrecon",
     "description": "DNS enumeration and record brute-forcing",
-    "phase": "passive"
+    "phase": "passive",
+    "backend": "kali-mcp",
+    "tags": [
+      "dns",
+      "records",
+      "bruteforce"
+    ],
+    "example_params": {
+      "target": "example.com"
+    }
   },
   {
     "category": "dns",
     "tool_name": "theharvester",
     "description": "OSINT email and subdomain harvesting",
-    "phase": "passive"
+    "phase": "passive",
+    "backend": "kali-mcp",
+    "tags": [
+      "osint",
+      "email",
+      "subdomain",
+      "passive"
+    ],
+    "example_params": {
+      "target": "example.com"
+    }
   },
   {
     "category": "intelligence",
     "tool_name": "analyze-target",
     "description": "AI-driven comprehensive target analysis",
-    "phase": "passive"
+    "phase": "passive",
+    "backend": "blhackbox",
+    "tags": [
+      "planning",
+      "analysis",
+      "decision-engine"
+    ],
+    "example_params": {
+      "target": "example.com",
+      "assessment_type": "comprehensive"
+    }
   },
   {
     "category": "network",
     "tool_name": "nmap",
     "description": "Port scanning and service detection",
-    "phase": "active"
+    "phase": "active",
+    "backend": "kali-mcp",
+    "tags": [
+      "network",
+      "ports",
+      "services",
+      "versions"
+    ],
+    "example_params": {
+      "target": "192.0.2.10",
+      "ports": "1-1000"
+    }
   },
   {
     "category": "network",
     "tool_name": "rustscan",
     "description": "Fast port scanner with adaptive timing",
-    "phase": "active"
+    "phase": "active",
+    "backend": "kali-mcp",
+    "tags": [
+      "network",
+      "ports",
+      "fast-scan"
+    ],
+    "example_params": {
+      "target": "192.0.2.10"
+    }
   },
   {
     "category": "network",
     "tool_name": "masscan",
     "description": "High-speed port scanner for large ranges",
-    "phase": "active"
+    "phase": "active",
+    "backend": "kali-mcp",
+    "tags": [
+      "network",
+      "ports",
+      "large-scope",
+      "rate-limited"
+    ],
+    "example_params": {
+      "target": "192.0.2.0/24",
+      "ports": "80,443",
+      "rate": 1000
+    }
   },
   {
     "category": "network",
     "tool_name": "hping3",
     "description": "TCP/IP packet assembler and analyzer",
-    "phase": "active"
+    "phase": "active",
+    "backend": "kali-mcp",
+    "tags": [
+      "network",
+      "packet-crafting",
+      "firewall-testing"
+    ],
+    "example_params": {
+      "target": "192.0.2.10"
+    }
   },
   {
     "category": "web",
     "tool_name": "httpx",
     "description": "HTTP probe and technology detection",
-    "phase": "active"
+    "phase": "active",
+    "backend": "kali-mcp",
+    "tags": [
+      "web",
+      "probe",
+      "technology",
+      "http"
+    ],
+    "example_params": {
+      "target": "https://example.com"
+    }
   },
   {
     "category": "web",
     "tool_name": "nuclei",
     "description": "Template-based vulnerability scanner",
-    "phase": "active"
+    "phase": "active",
+    "backend": "kali-mcp",
+    "tags": [
+      "web",
+      "vulnerability",
+      "templates",
+      "cves"
+    ],
+    "example_params": {
+      "target": "https://example.com"
+    }
   },
   {
     "category": "web",
     "tool_name": "ffuf",
     "description": "Web fuzzer for directories and parameters",
-    "phase": "active"
+    "phase": "active",
+    "backend": "kali-mcp",
+    "tags": [
+      "web",
+      "fuzzing",
+      "directories",
+      "parameters"
+    ],
+    "example_params": {
+      "target": "https://example.com/FUZZ",
+      "wordlist": "/usr/share/seclists/Discovery/Web-Content/common.txt"
+    }
   },
   {
     "category": "web",
     "tool_name": "gobuster",
     "description": "Directory and file brute-forcing",
-    "phase": "active"
+    "phase": "active",
+    "backend": "kali-mcp",
+    "tags": [
+      "web",
+      "directories",
+      "bruteforce"
+    ],
+    "example_params": {
+      "target": "https://example.com",
+      "wordlist": "/usr/share/seclists/Discovery/Web-Content/common.txt"
+    }
   },
   {
     "category": "web",
     "tool_name": "nikto",
     "description": "Web server vulnerability scanner",
-    "phase": "active"
+    "phase": "active",
+    "backend": "kali-mcp",
+    "tags": [
+      "web",
+      "vulnerability",
+      "server"
+    ],
+    "example_params": {
+      "target": "https://example.com"
+    }
   },
   {
     "category": "web",
     "tool_name": "dirsearch",
     "description": "Web path discovery with extensions",
-    "phase": "active"
+    "phase": "active",
+    "backend": "kali-mcp",
+    "tags": [
+      "web",
+      "directories",
+      "extensions"
+    ],
+    "example_params": {
+      "target": "https://example.com"
+    }
   },
   {
     "category": "web",
     "tool_name": "feroxbuster",
     "description": "Recursive content discovery tool",
-    "phase": "active"
+    "phase": "active",
+    "backend": "kali-mcp",
+    "tags": [
+      "web",
+      "recursive",
+      "directories"
+    ],
+    "example_params": {
+      "target": "https://example.com"
+    }
   },
   {
     "category": "web",
     "tool_name": "katana",
     "description": "Web crawler for endpoint discovery",
-    "phase": "active"
+    "phase": "active",
+    "backend": "kali-mcp",
+    "tags": [
+      "web",
+      "crawler",
+      "endpoints",
+      "javascript"
+    ],
+    "example_params": {
+      "target": "https://example.com"
+    }
   },
   {
     "category": "web",
     "tool_name": "wafw00f",
     "description": "Web application firewall detection",
-    "phase": "active"
+    "phase": "active",
+    "backend": "kali-mcp",
+    "tags": [
+      "web",
+      "waf",
+      "fingerprint"
+    ],
+    "example_params": {
+      "target": "https://example.com"
+    }
   },
   {
     "category": "web",
     "tool_name": "arjun",
     "description": "HTTP parameter discovery suite",
-    "phase": "active"
+    "phase": "active",
+    "backend": "kali-mcp",
+    "tags": [
+      "web",
+      "api",
+      "parameters"
+    ],
+    "example_params": {
+      "target": "https://example.com/api"
+    }
   },
   {
     "category": "web",
     "tool_name": "dalfox",
     "description": "XSS scanning and parameter analysis",
-    "phase": "active"
+    "phase": "active",
+    "backend": "kali-mcp",
+    "tags": [
+      "web",
+      "xss",
+      "parameters"
+    ],
+    "example_params": {
+      "target": "https://example.com/search?q=FUZZ"
+    }
   },
   {
     "category": "exploitation",
     "tool_name": "sqlmap",
     "description": "Automated SQL injection testing",
-    "phase": "active"
+    "phase": "active",
+    "backend": "kali-mcp",
+    "tags": [
+      "web",
+      "sqli",
+      "exploitation"
+    ],
+    "example_params": {
+      "target": "https://example.com/item?id=1"
+    }
   },
   {
     "category": "exploitation",
     "tool_name": "hydra",
     "description": "Network credential brute-forcing",
-    "phase": "active"
+    "phase": "active",
+    "backend": "kali-mcp",
+    "tags": [
+      "password",
+      "bruteforce",
+      "authentication"
+    ],
+    "example_params": {
+      "target": "192.0.2.10",
+      "service": "ssh"
+    }
   },
   {
     "category": "exploitation",
     "tool_name": "medusa",
     "description": "Parallel network login brute-forcer",
-    "phase": "active"
+    "phase": "active",
+    "backend": "kali-mcp",
+    "tags": [
+      "password",
+      "bruteforce",
+      "authentication"
+    ],
+    "example_params": {
+      "target": "192.0.2.10",
+      "service": "ssh"
+    }
   },
   {
     "category": "exploitation",
     "tool_name": "john",
     "description": "Password hash cracking (John the Ripper)",
-    "phase": "active"
+    "phase": "active",
+    "backend": "kali-mcp",
+    "tags": [
+      "password",
+      "hash-cracking"
+    ],
+    "example_params": {
+      "hash_file": "hashes.txt"
+    }
   },
   {
     "category": "exploitation",
     "tool_name": "hashcat",
     "description": "GPU-accelerated password hash cracking",
-    "phase": "active"
+    "phase": "active",
+    "backend": "kali-mcp",
+    "tags": [
+      "password",
+      "hash-cracking",
+      "gpu"
+    ],
+    "example_params": {
+      "hash_file": "hashes.txt",
+      "mode": "0"
+    }
   },
   {
     "category": "exploitation",
     "tool_name": "crackmapexec",
     "description": "Network infrastructure penetration testing suite",
-    "phase": "active"
+    "phase": "active",
+    "backend": "kali-mcp",
+    "tags": [
+      "windows",
+      "smb",
+      "active-directory",
+      "authentication"
+    ],
+    "example_params": {
+      "target": "192.0.2.0/24"
+    }
   },
   {
     "category": "exploitation",
     "tool_name": "metasploit",
     "description": "Metasploit Framework for exploit execution, post-exploitation, and session management",
-    "phase": "active"
+    "phase": "active",
+    "backend": "kali-mcp",
+    "tags": [
+      "exploitation",
+      "framework",
+      "post-exploitation"
+    ],
+    "example_params": {
+      "module": "auxiliary/scanner/ssh/ssh_version",
+      "target": "192.0.2.10"
+    }
   },
   {
     "category": "traffic_analysis",
     "tool_name": "tshark",
     "description": "Network traffic capture and analysis (Wireshark CLI)",
-    "phase": "active"
+    "phase": "active",
+    "backend": "wire-mcp",
+    "tags": [
+      "traffic",
+      "pcap",
+      "wireshark"
+    ],
+    "example_params": {
+      "interface": "eth0",
+      "duration": 30
+    }
   },
   {
     "category": "forensics",
     "tool_name": "binwalk",
     "description": "Firmware and binary analysis tool",
-    "phase": "active"
+    "phase": "active",
+    "backend": "kali-mcp",
+    "tags": [
+      "forensics",
+      "firmware",
+      "binary"
+    ],
+    "example_params": {
+      "file": "firmware.bin"
+    }
   },
   {
     "category": "forensics",
     "tool_name": "foremost",
     "description": "File carving and recovery tool",
-    "phase": "active"
+    "phase": "active",
+    "backend": "kali-mcp",
+    "tags": [
+      "forensics",
+      "file-carving"
+    ],
+    "example_params": {
+      "file": "disk.img"
+    }
   },
   {
     "category": "forensics",
     "tool_name": "exiftool",
     "description": "Metadata extraction from files and images",
-    "phase": "active"
+    "phase": "active",
+    "backend": "kali-mcp",
+    "tags": [
+      "forensics",
+      "metadata",
+      "osint"
+    ],
+    "example_params": {
+      "file": "image.jpg"
+    }
   },
   {
     "category": "forensics",
     "tool_name": "steghide",
     "description": "Steganography detection and extraction",
-    "phase": "active"
+    "phase": "active",
+    "backend": "kali-mcp",
+    "tags": [
+      "forensics",
+      "stego"
+    ],
+    "example_params": {
+      "file": "image.jpg"
+    }
+  },
+  {
+    "category": "dns",
+    "tool_name": "whois",
+    "description": "Domain registration and network ownership lookup",
+    "phase": "passive",
+    "backend": "kali-mcp",
+    "tags": [
+      "dns",
+      "osint",
+      "registration"
+    ],
+    "example_params": {
+      "target": "example.com"
+    }
+  },
+  {
+    "category": "network",
+    "tool_name": "arp-scan",
+    "description": "Local network ARP host discovery",
+    "phase": "active",
+    "backend": "kali-mcp",
+    "tags": [
+      "network",
+      "discovery",
+      "lan"
+    ],
+    "example_params": {
+      "target": "192.0.2.0/24"
+    }
+  },
+  {
+    "category": "network",
+    "tool_name": "traceroute",
+    "description": "Network path and routing discovery",
+    "phase": "active",
+    "backend": "kali-mcp",
+    "tags": [
+      "network",
+      "route",
+      "diagnostics"
+    ],
+    "example_params": {
+      "target": "example.com"
+    }
+  },
+  {
+    "category": "web",
+    "tool_name": "whatweb",
+    "description": "Web technology fingerprinting",
+    "phase": "active",
+    "backend": "kali-mcp",
+    "tags": [
+      "web",
+      "technology",
+      "fingerprint"
+    ],
+    "example_params": {
+      "target": "https://example.com"
+    }
+  },
+  {
+    "category": "web",
+    "tool_name": "wpscan",
+    "description": "WordPress security scanner and plugin/theme enumerator",
+    "phase": "active",
+    "backend": "kali-mcp",
+    "tags": [
+      "web",
+      "wordpress",
+      "cms",
+      "vulnerability"
+    ],
+    "example_params": {
+      "target": "https://example.com"
+    }
+  },
+  {
+    "category": "web",
+    "tool_name": "paramspider",
+    "description": "Historical URL and parameter discovery",
+    "phase": "passive",
+    "backend": "kali-mcp",
+    "tags": [
+      "web",
+      "parameters",
+      "wayback",
+      "passive"
+    ],
+    "example_params": {
+      "target": "example.com"
+    }
+  },
+  {
+    "category": "exploitation",
+    "tool_name": "netexec",
+    "description": "Network service enumeration and authorized credential validation",
+    "phase": "active",
+    "backend": "kali-mcp",
+    "tags": [
+      "windows",
+      "smb",
+      "authentication",
+      "active-directory"
+    ],
+    "example_params": {
+      "target": "192.0.2.0/24"
+    }
+  },
+  {
+    "category": "exploitation",
+    "tool_name": "enum4linux-ng",
+    "description": "SMB and Windows domain enumeration",
+    "phase": "active",
+    "backend": "kali-mcp",
+    "tags": [
+      "windows",
+      "smb",
+      "enumeration"
+    ],
+    "example_params": {
+      "target": "192.0.2.10"
+    }
+  },
+  {
+    "category": "exploitation",
+    "tool_name": "evil-winrm",
+    "description": "Authorized WinRM shell for validated credentials",
+    "phase": "active",
+    "backend": "kali-mcp",
+    "tags": [
+      "windows",
+      "winrm",
+      "post-exploitation"
+    ],
+    "example_params": {
+      "target": "192.0.2.10"
+    }
+  },
+  {
+    "category": "exploitation",
+    "tool_name": "msfvenom",
+    "description": "Metasploit payload generation for authorized lab testing",
+    "phase": "active",
+    "backend": "kali-mcp",
+    "tags": [
+      "payload",
+      "metasploit",
+      "lab-only"
+    ],
+    "example_params": {
+      "payload": "windows/x64/meterpreter/reverse_tcp",
+      "lhost": "192.0.2.1",
+      "lport": 4444
+    }
+  },
+  {
+    "category": "traffic_analysis",
+    "tool_name": "capture_packets",
+    "description": "Capture packets through WireMCP/tshark for evidence and protocol analysis",
+    "phase": "active",
+    "backend": "wire-mcp",
+    "tags": [
+      "traffic",
+      "pcap",
+      "capture",
+      "evidence"
+    ],
+    "example_params": {
+      "interface": "eth0",
+      "duration": 30
+    }
+  },
+  {
+    "category": "evidence",
+    "tool_name": "take_screenshot",
+    "description": "Capture browser evidence through Screenshot MCP",
+    "phase": "active",
+    "backend": "screenshot-mcp",
+    "tags": [
+      "screenshot",
+      "evidence",
+      "poc",
+      "browser"
+    ],
+    "example_params": {
+      "url": "https://example.com",
+      "full_page": true
+    }
+  },
+  {
+    "category": "evidence",
+    "tool_name": "annotate_screenshot",
+    "description": "Annotate screenshot evidence with labels and highlight boxes",
+    "phase": "active",
+    "backend": "screenshot-mcp",
+    "tags": [
+      "screenshot",
+      "evidence",
+      "reporting",
+      "poc"
+    ],
+    "example_params": {
+      "screenshot_path": "output/screenshots/example.png",
+      "annotations": "[]"
+    }
   }
 ]

@@ -1,0 +1,78 @@
+"""SSE entrypoint for the upstream HexStrike AI Gamma MCP server.
+
+This file does not reimplement HexStrike tools. It loads the unmodified upstream
+`hexstrike_mcp.py` module from a cloned `hexstrike-ai_gamma` checkout and runs
+its FastMCP server over SSE so it behaves like the other blhackbox Docker MCP
+services.
+"""
+
+from __future__ import annotations
+
+import os
+import sys
+from pathlib import Path
+
+import uvicorn
+from starlette.applications import Starlette
+from starlette.requests import Request
+from starlette.responses import JSONResponse
+from starlette.routing import Route
+
+DEFAULT_HEXSTRIKE_PATH = Path(os.environ.get("HEXSTRIKE_PATH", "/opt/hexstrike-ai"))
+DEFAULT_HEXSTRIKE_URL = os.environ.get("HEXSTRIKE_URL", "http://hexstrike-ai:8888")
+DEFAULT_TIMEOUT = int(os.environ.get("HEXSTRIKE_REQUEST_TIMEOUT", "300"))
+DEFAULT_HOST = os.environ.get("HEXSTRIKE_MCP_HOST", "0.0.0.0")
+DEFAULT_PORT = int(os.environ.get("HEXSTRIKE_MCP_PORT", "9006"))
+
+
+def _add_upstream_to_path(upstream_path: Path = DEFAULT_HEXSTRIKE_PATH) -> None:
+    """Make the cloned upstream hexstrike-ai_gamma checkout importable."""
+    resolved = upstream_path.expanduser().resolve()
+    if str(resolved) not in sys.path:
+        sys.path.insert(0, str(resolved))
+
+
+def _load_upstream_fastmcp(
+    upstream_path: Path = DEFAULT_HEXSTRIKE_PATH,
+    server_url: str = DEFAULT_HEXSTRIKE_URL,
+    timeout: int = DEFAULT_TIMEOUT,
+):
+    """Instantiate the upstream HexStrike FastMCP server without changing it."""
+    _add_upstream_to_path(upstream_path)
+    from hexstrike_mcp import HexStrikeClient, setup_mcp_server
+
+    client = HexStrikeClient(server_url, timeout)
+    return setup_mcp_server(client)
+
+
+def create_app(
+    upstream_path: Path = DEFAULT_HEXSTRIKE_PATH,
+    server_url: str = DEFAULT_HEXSTRIKE_URL,
+    timeout: int = DEFAULT_TIMEOUT,
+) -> Starlette:
+    """Create a Starlette app around the upstream HexStrike FastMCP server."""
+    fastmcp = _load_upstream_fastmcp(upstream_path, server_url, timeout)
+    app = fastmcp.sse_app()
+
+    async def health(_: Request) -> JSONResponse:
+        return JSONResponse(
+            {
+                "status": "ok",
+                "service": "hexstrike-bridge-mcp",
+                "upstream": "hexstrike-ai_gamma",
+                "hexstrike_url": server_url,
+                "transport": "sse",
+            }
+        )
+
+    app.routes.append(Route("/health", endpoint=health, methods=["GET"]))
+    return app
+
+
+def main() -> None:
+    """Run HexStrike AI Gamma MCP over SSE."""
+    uvicorn.run(create_app(), host=DEFAULT_HOST, port=DEFAULT_PORT)
+
+
+if __name__ == "__main__":
+    main()

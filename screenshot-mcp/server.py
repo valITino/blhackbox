@@ -19,8 +19,7 @@ import base64
 import json
 import logging
 import os
-import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -94,7 +93,7 @@ def _clamp(value: int, lo: int, hi: int) -> int:
 
 def _build_output_path(url: str, suffix: str = "") -> Path:
     """Generate a unique output path based on URL and timestamp."""
-    ts = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+    ts = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
     from urllib.parse import urlparse
 
     parsed = urlparse(url)
@@ -201,7 +200,7 @@ async def take_screenshot(
                 "height": height,
                 "full_page": full_page,
                 "file_size_bytes": len(screenshot_bytes),
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
                 "base64_png": b64[:200] + "..." if len(b64) > 200 else b64,
                 "base64_length": len(b64),
             })
@@ -214,7 +213,10 @@ async def take_screenshot(
 
             if "ERR_NAME_NOT_RESOLVED" in error_msg:
                 error_type = "dns_resolution_failed"
-                hint = "The hostname could not be resolved. Check the URL spelling or DNS configuration."
+                hint = (
+                    "The hostname could not be resolved. Check the URL spelling "
+                    "or DNS configuration."
+                )
             elif "ERR_CONNECTION_REFUSED" in error_msg:
                 error_type = "connection_refused"
                 hint = (
@@ -227,7 +229,10 @@ async def take_screenshot(
                 hint = "The connection timed out. The server may be slow or unreachable."
             elif "ERR_SSL" in error_msg or "ERR_CERT" in error_msg:
                 error_type = "ssl_error"
-                hint = "SSL/TLS error. The page uses ignore_https_errors but the issue may be deeper."
+                hint = (
+                    "SSL/TLS error. The page uses ignore_https_errors but the "
+                    "issue may be deeper."
+                )
 
             result: dict[str, Any] = {"error": error_msg, "url": url, "error_type": error_type}
             if hint:
@@ -310,7 +315,7 @@ async def take_element_screenshot(
                 "selector": selector,
                 "bounding_box": bbox,
                 "file_size_bytes": len(screenshot_bytes),
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
                 "base64_png": b64[:200] + "..." if len(b64) > 200 else b64,
                 "base64_length": len(b64),
             })
@@ -368,7 +373,7 @@ async def list_screenshots(limit: int = 50) -> str:
             "path": str(path),
             "filename": path.name,
             "file_size_bytes": stat.st_size,
-            "created": datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).isoformat(),
+            "created": datetime.fromtimestamp(stat.st_mtime, tz=UTC).isoformat(),
         })
 
     return json.dumps({
@@ -393,7 +398,8 @@ async def annotate_screenshot(
         screenshot_path: Path to the source screenshot PNG file
         annotations: JSON array of annotation objects. Each object can be:
             - {"type": "text", "x": 10, "y": 10, "text": "XSS here!", "color": "red", "size": 20}
-            - {"type": "box", "x": 100, "y": 200, "width": 300, "height": 50, "color": "red", "thickness": 3}
+            - {"type": "box", "x": 100, "y": 200, "width": 300,
+              "height": 50, "color": "red", "thickness": 3}
         output_path: Path for the annotated output (optional, auto-generated if empty)
 
     Returns:
@@ -428,7 +434,10 @@ async def annotate_screenshot(
                 size = int(ann.get("size", 20))
 
                 try:
-                    font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", size)
+                    font = ImageFont.truetype(
+                        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+                        size,
+                    )
                 except OSError:
                     font = ImageFont.load_default()
 
@@ -458,7 +467,7 @@ async def annotate_screenshot(
             "source": str(src),
             "annotations_applied": len(annotation_list),
             "file_size_bytes": dest.stat().st_size,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         })
 
     except Exception as exc:

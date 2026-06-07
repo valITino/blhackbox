@@ -196,6 +196,7 @@ class KnowledgeGraphClient:
         await self.merge_node(finding_node)
 
         # Link to domain or IP
+        parent: IPAddressNode | DomainNode
         if _looks_like_ip(target_value):
             parent = IPAddressNode(address=target_value)
         else:
@@ -218,13 +219,14 @@ class KnowledgeGraphClient:
         )
         await self.merge_node(vuln)
 
+        vuln_parent: IPAddressNode | DomainNode
         if _looks_like_ip(target_value):
-            parent = IPAddressNode(address=target_value)
+            vuln_parent = IPAddressNode(address=target_value)
         else:
-            parent = DomainNode(name=target_value)
-        await self.merge_node(parent)
+            vuln_parent = DomainNode(name=target_value)
+        await self.merge_node(vuln_parent)
         await self.create_relationship(
-            parent, RelationshipType.HAS_FINDING, vuln
+            vuln_parent, RelationshipType.HAS_FINDING, vuln
         )
         return vuln
 
@@ -265,13 +267,14 @@ class KnowledgeGraphClient:
         await self.merge_node(node)
 
         # Link to domain or IP
+        session_parent: IPAddressNode | DomainNode
         if _looks_like_ip(target_value):
-            parent = IPAddressNode(address=target_value)
+            session_parent = IPAddressNode(address=target_value)
         else:
-            parent = DomainNode(name=target_value)
-        await self.merge_node(parent)
+            session_parent = DomainNode(name=target_value)
+        await self.merge_node(session_parent)
         await self.create_relationship(
-            parent, RelationshipType.HAS_AGGREGATED_SESSION, node
+            session_parent, RelationshipType.HAS_AGGREGATED_SESSION, node
         )
         return node
 
