@@ -63,5 +63,10 @@ def test_hexstrike_ai_dockerfile_uses_kali_python_packages() -> None:
     )
     assert "python3 -m venv --system-site-packages /opt/hexstrike-venv" in dockerfile
     assert "pip install --no-cache-dir -r requirements.txt" not in dockerfile
-    for package in ["python3-angr", "python3-pwntools", "mitmproxy"]:
+    # Heavy deps that exist in Kali's apt repos are installed via apt.
+    for package in ["python3-pwntools", "mitmproxy"]:
         assert package in dockerfile
+    # angr has no Kali/Debian apt package (python3-angr does not exist), so it
+    # is installed via pip into the venv instead of apt.
+    assert "python3-angr" not in dockerfile
+    assert "angr>=" in dockerfile
