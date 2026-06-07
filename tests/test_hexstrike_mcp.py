@@ -49,9 +49,19 @@ def test_hexstrike_adapter_uses_upstream_package(tmp_path: Path, monkeypatch) ->
 
 
 def test_hexstrike_dockerfile_clones_upstream_repo() -> None:
-    dockerfile = (
-        Path(__file__).parent.parent / "docker" / "hexstrike-mcp.Dockerfile"
-    ).read_text(encoding="utf-8")
+    dockerfile = (Path(__file__).parent.parent / "docker" / "hexstrike-mcp.Dockerfile").read_text(
+        encoding="utf-8"
+    )
     assert "hexstrike-ai_gamma" in dockerfile
     assert "ARG HEXSTRIKE_REF=master" in dockerfile
     assert "COPY hexstrike-mcp/server.py /app/server.py" in dockerfile
+
+
+def test_hexstrike_ai_dockerfile_uses_kali_python_packages() -> None:
+    dockerfile = (Path(__file__).parent.parent / "docker" / "hexstrike-ai.Dockerfile").read_text(
+        encoding="utf-8"
+    )
+    assert "python3 -m venv --system-site-packages /opt/hexstrike-venv" in dockerfile
+    assert "pip install --no-cache-dir -r requirements.txt" not in dockerfile
+    for package in ["python3-angr", "python3-pwntools", "mitmproxy"]:
+        assert package in dockerfile

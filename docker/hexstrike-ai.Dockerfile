@@ -16,6 +16,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
     python3-pip \
     python3-venv \
+    python3-flask \
+    python3-requests \
+    python3-psutil \
+    python3-bs4 \
+    python3-selenium \
+    python3-aiohttp \
+    python3-bcrypt \
+    python3-pwntools \
+    python3-angr \
+    mitmproxy \
     nmap \
     gobuster \
     dirb \
@@ -46,9 +56,11 @@ WORKDIR /opt
 RUN git clone --depth 1 --branch "${HEXSTRIKE_REF}" "${HEXSTRIKE_REPO}" hexstrike-ai
 
 WORKDIR /opt/hexstrike-ai
-RUN python3 -m venv /opt/hexstrike-venv && \
+RUN python3 -m venv --system-site-packages /opt/hexstrike-venv && \
     /opt/hexstrike-venv/bin/pip install --no-cache-dir --upgrade pip && \
-    /opt/hexstrike-venv/bin/pip install --no-cache-dir -r requirements.txt
+    /opt/hexstrike-venv/bin/pip install --no-cache-dir \
+        "fastmcp>=0.2.0,<1.0.0" \
+        "webdriver-manager>=4.0.0,<5.0.0"
 
 EXPOSE 8888
 
