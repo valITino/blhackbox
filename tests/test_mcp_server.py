@@ -30,7 +30,8 @@ class TestMCPToolDefinitions:
         names = {t.name for t in _TOOLS}
         expected = {
             "run_tool", "query_graph", "get_findings",
-            "list_tools", "generate_report", "list_templates",
+            "list_tools", "search_tools", "get_tool_details", "recommend_workflow",
+            "generate_report", "list_templates",
             "get_template", "take_screenshot", "take_element_screenshot",
             "list_screenshots", "annotate_screenshot",
             "aggregate_results", "get_payload_schema",
@@ -53,10 +54,25 @@ class TestMCPToolDefinitions:
 class TestMCPListTools:
     async def test_list_tools_returns_all(self) -> None:
         tools = await handle_list_tools()
-        assert len(tools) == 13
+        assert len(tools) == 16
         names = {t.name for t in tools}
         assert "run_tool" in names
         assert "list_templates" in names
         assert "get_template" in names
         assert "take_screenshot" in names
         assert "annotate_screenshot" in names
+
+class TestMCPDiscoveryTools:
+    def test_search_tools_schema(self) -> None:
+        tool = next(t for t in _TOOLS if t.name == "search_tools")
+        props = tool.inputSchema["properties"]
+        assert {"query", "limit", "phase", "category"}.issubset(props)
+        assert "max_risk" not in props
+
+    def test_get_tool_details_requires_tool(self) -> None:
+        tool = next(t for t in _TOOLS if t.name == "get_tool_details")
+        assert tool.inputSchema["required"] == ["tool"]
+
+    def test_recommend_workflow_requires_workflow(self) -> None:
+        tool = next(t for t in _TOOLS if t.name == "recommend_workflow")
+        assert tool.inputSchema["required"] == ["workflow"]

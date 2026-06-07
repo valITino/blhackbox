@@ -38,3 +38,19 @@ registry:
     remote:
       url: "http://screenshot-mcp:9004/sse"
       transport_type: sse
+
+  hexstrike-bridge-mcp:
+    description: "HexStrike Gamma MCP — upstream tool surface connected to the local HexStrike API container"
+    title: "HexStrike MCP Server"
+    type: "server"
+    remote:
+      url: "http://hexstrike-bridge-mcp:9006/sse"
+      transport_type: sse
+
+  boaz-mcp:
+    description: "BOAZ MCP — upstream BOAZ-MCP Gamma server exposed over SSE"
+    title: "BOAZ MCP Server"
+    type: "server"
+    remote:
+      url: "http://boaz-mcp:9005/sse"
+      transport_type: sse

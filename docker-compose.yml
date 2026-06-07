@@ -2,7 +2,7 @@
 #
 # Usage:
 #   docker compose pull                          Pull all pre-built images
-#   docker compose up -d                         Start core stack (4 containers)
+#   docker compose up -d                         Start default stack (Kali, WireMCP, Screenshot, HexStrike, BOAZ, Portainer)
 #   docker compose --profile gateway up -d       Start with MCP Gateway
 #   docker compose --profile claude-code up -d   Start with Claude Code container
 #   docker compose --profile neo4j up -d         Start with Neo4j
@@ -12,6 +12,11 @@
 #   kali-mcp         (FastMCP SSE, port 9001) — Kali Linux security tools (70+) + Metasploit Framework
 #   wire-mcp         (FastMCP SSE, port 9003) — Wireshark/tshark (7 tools)
 #   screenshot-mcp   (FastMCP SSE, port 9004) — Headless Chromium screenshots (4 tools)
+#
+# Integrated MCP services in the default stack:
+#   hexstrike-ai          (port 8888) — HexStrike Gamma API
+#   hexstrike-bridge-mcp  (port 9006) — full HexStrike Gamma MCP server
+#   boaz-mcp             (port 9005) — BOAZ MCP service
 #
 # The MCP host (Claude Code, Claude Desktop, ChatGPT) handles data
 # aggregation directly — it parses raw tool outputs, deduplicates, and
@@ -67,7 +72,7 @@ services:
       - --transport=streaming
       - --port=8080
       - --catalog=/catalog.yaml
-      - --servers=kali-mcp,wire-mcp,screenshot-mcp
+      - --servers=${MCP_GATEWAY_SERVERS:-kali-mcp,wire-mcp,screenshot-mcp,hexstrike-bridge-mcp,boaz-mcp}
       - --log-calls
     networks:
       - blhackbox_net
@@ -77,6 +82,10 @@ services:
       wire-mcp:
         condition: service_healthy
       screenshot-mcp:
+        condition: service_healthy
+      hexstrike-bridge-mcp:
+        condition: service_healthy
+      boaz-mcp:
         condition: service_healthy
 
   # -- KALI MCP SERVER -------------------------------------------------------
@@ -187,6 +196,93 @@ services:
     networks:
       - blhackbox_net
 
+  # -- HEXSTRIKE GAMMA API + FULL MCP SERVER ---------------------------------
+  # Runs with the default stack like the other MCP services. The API service
+  # capsules HexStrike Gamma; the MCP service exposes the upstream tool suite
+  # over SSE on port 9006.
+  hexstrike-ai:
+    image: crhacky/blhackbox:hexstrike-ai
+    build:
+      context: .
+      dockerfile: docker/hexstrike-ai.Dockerfile
+      args:
+        HEXSTRIKE_REPO: "${HEXSTRIKE_REPO:-https://github.com/valITino/hexstrike-ai_gamma.git}"
+        HEXSTRIKE_REF: "${HEXSTRIKE_REF:-main}"
+    container_name: blhackbox-hexstrike-ai
+    restart: unless-stopped
+    init: true
+    environment:
+      HEXSTRIKE_PORT: "8888"
+    ports:
+      - "${HEXSTRIKE_API_PORT:-8888}:8888"
+    volumes:
+      - ./output/hexstrike:/root/output
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:8888/health')\""]
+      interval: 30s
+      timeout: 15s
+      retries: 10
+      start_period: 60s
+    networks:
+      - blhackbox_net
+
+  hexstrike-bridge-mcp:
+    image: crhacky/blhackbox:hexstrike-mcp
+    build:
+      context: .
+      dockerfile: docker/hexstrike-mcp.Dockerfile
+    container_name: blhackbox-hexstrike-mcp
+    restart: unless-stopped
+    init: true
+    environment:
+      HEXSTRIKE_URL: "http://hexstrike-ai:8888"
+    ports:
+      - "${HEXSTRIKE_MCP_PORT:-9006}:9006"
+    depends_on:
+      hexstrike-ai:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:9006/health')\""]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 15s
+    networks:
+      - blhackbox_net
+
+  # -- BOAZ MCP SERVER --------------------------------------------------------
+  # Runs with the default stack like the other MCP services. The image carries
+  # the unmodified upstream BOAZ-MCP Gamma server plus a BOAZ_gamma checkout.
+  # blhackbox only adds the SSE entrypoint used by the container.
+  boaz-mcp:
+    image: crhacky/blhackbox:boaz-mcp
+    build:
+      context: .
+      dockerfile: docker/boaz-mcp.Dockerfile
+      args:
+        BOAZ_MCP_REPO: "${BOAZ_MCP_REPO:-https://github.com/valITino/BOAZ-MCP_gamma.git}"
+        BOAZ_MCP_REF: "${BOAZ_MCP_REF:-main}"
+        BOAZ_REPO: "${BOAZ_REPO:-https://github.com/valITino/BOAZ_gamma.git}"
+        BOAZ_REF: "${BOAZ_REF:-main}"
+    container_name: blhackbox-boaz-mcp
+    restart: unless-stopped
+    init: true
+    environment:
+      BOAZ_MCP_PATH: "${BOAZ_MCP_PATH:-/opt/BOAZ-MCP_gamma}"
+      BOAZ_PATH: "${BOAZ_PATH:-/opt/BOAZ_gamma}"
+    ports:
+      - "${BOAZ_MCP_PORT:-9005}:9005"
+    volumes:
+      - ./output/boaz-lab:/workspace/boaz-lab
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:9005/health')\""]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 15s
+    networks:
+      - blhackbox_net
+
   # -- NEO4J (OPTIONAL) ------------------------------------------------------
   # Enable with: docker compose --profile neo4j up -d
   # Provides cross-session persistence and relationship querying.
@@ -235,8 +331,8 @@ services:
     environment:
       ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY}"
       # Bypass egress proxies (e.g. GitHub Codespaces) for internal Docker traffic
-      no_proxy: "mcp-gateway,kali-mcp,wire-mcp,screenshot-mcp,localhost,127.0.0.1"
-      NO_PROXY: "mcp-gateway,kali-mcp,wire-mcp,screenshot-mcp,localhost,127.0.0.1"
+      no_proxy: "mcp-gateway,kali-mcp,wire-mcp,screenshot-mcp,hexstrike-ai,hexstrike-bridge-mcp,boaz-mcp,localhost,127.0.0.1"
+      NO_PROXY: "mcp-gateway,kali-mcp,wire-mcp,screenshot-mcp,hexstrike-ai,hexstrike-bridge-mcp,boaz-mcp,localhost,127.0.0.1"
     dns:
       - 8.8.8.8
       - 1.1.1.1
@@ -255,6 +351,10 @@ services:
       wire-mcp:
         condition: service_healthy
       screenshot-mcp:
+        condition: service_healthy
+      hexstrike-bridge-mcp:
+        condition: service_healthy
+      boaz-mcp:
         condition: service_healthy
     networks:
       - blhackbox_net

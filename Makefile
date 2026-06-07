@@ -6,6 +6,9 @@
        restart-kali \
        restart-wireshark restart-screenshot \
        push-all wordlists recon report \
+       check-mcp mcp-status tool-inventory security-scan \
+       logs-hexstrike logs-boaz \
+       hexstrike-bridge boaz-bridge \
        inject-verification
 
 COMPOSE := docker compose
@@ -21,10 +24,10 @@ help: ## Show this help
 pull: ## Pull all pre-built images from Docker Hub
 	$(COMPOSE) pull
 
-up: ## Start core stack (4 containers)
+up: ## Start default stack (Kali, WireMCP, Screenshot, HexStrike, BOAZ, Portainer)
 	$(COMPOSE) up -d
 
-down: ## Stop all services (all profiles)
+down: ## Stop all services (default + auxiliary profiles)
 	$(COMPOSE) --profile gateway --profile neo4j --profile claude-code down
 
 logs: ## Tail logs from all services
@@ -36,6 +39,12 @@ up-full: ## Start full stack: core + Neo4j (5 containers)
 
 up-gateway: ## Start core + MCP Gateway for Claude Desktop / ChatGPT (5 containers)
 	$(COMPOSE) --profile gateway up -d
+
+logs-hexstrike: ## Tail HexStrike API and MCP logs
+	$(COMPOSE) logs -f hexstrike-ai hexstrike-bridge-mcp
+
+logs-boaz: ## Tail BOAZ MCP logs
+	$(COMPOSE) logs -f boaz-mcp
 
 # ── Testing & Code Quality ─────────────────────────────────────
 test: ## Run tests locally
@@ -49,6 +58,30 @@ lint: ## Run linter
 
 format: ## Auto-format code
 	ruff format blhackbox/ tests/
+
+check-mcp: ## Static MCP validation (use LIVE=1 for running Docker endpoints)
+	@if [ "$(LIVE)" = "1" ]; then \
+		python scripts/check_mcp_servers.py --live; \
+	else \
+		python scripts/check_mcp_servers.py; \
+	fi
+
+mcp-status: ## Run MCP validation, inventory, and offline security checks
+	$(MAKE) check-mcp
+	$(MAKE) tool-inventory
+	$(MAKE) security-scan
+
+tool-inventory: ## Compare catalogue, MCP server tools, Dockerfile packages, and MCP configs
+	python scripts/tool_inventory.py
+
+security-scan: ## Run offline security scan fallback
+	python scripts/security_scan.py
+
+hexstrike-bridge: ## Run local HexStrike MCP helper server
+	python hexstrike-mcp/server.py
+
+boaz-bridge: ## Run local BOAZ MCP helper server
+	python boaz-mcp/server.py
 
 clean: ## Remove containers, volumes, networks, and build artifacts (keeps images)
 	$(COMPOSE) --profile gateway --profile neo4j --profile claude-code down -v --remove-orphans
@@ -107,6 +140,15 @@ health: ## Quick health check of all MCP servers
 		&& echo "\033[32m[OK]\033[0m" || echo "\033[31m[FAIL]\033[0m"
 	@printf "  %-22s " "Screenshot MCP (9004)"; \
 		docker exec blhackbox-screenshot-mcp python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:9004/health')" > /dev/null 2>&1 \
+		&& echo "\033[32m[OK]\033[0m" || echo "\033[31m[FAIL]\033[0m"
+	@printf "  %-22s " "HexStrike API (8888)"; \
+		docker exec blhackbox-hexstrike-ai python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:8888/health')" > /dev/null 2>&1 \
+		&& echo "\033[32m[OK]\033[0m" || echo "\033[31m[FAIL]\033[0m"
+	@printf "  %-22s " "HexStrike MCP (9006)"; \
+		docker exec blhackbox-hexstrike-mcp python -c "import urllib.request; urllib.request.urlopen('http://localhost:9006/sse')" > /dev/null 2>&1 \
+		&& echo "\033[32m[OK]\033[0m" || echo "\033[31m[FAIL]\033[0m"
+	@printf "  %-22s " "BOAZ MCP (9005)"; \
+		docker exec blhackbox-boaz-mcp python -c "import urllib.request; urllib.request.urlopen('http://localhost:9005/sse')" > /dev/null 2>&1 \
 		&& echo "\033[32m[OK]\033[0m" || echo "\033[31m[FAIL]\033[0m"
 	@printf "  %-22s " "MCP Gateway (8080)"; \
 		docker inspect --format='{{.State.Running}}' blhackbox-mcp-gateway 2>/dev/null | grep -q "true" \

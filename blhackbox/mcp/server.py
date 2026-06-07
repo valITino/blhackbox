@@ -9,6 +9,9 @@ Blhackbox MCP provides *orchestrated workflows*:
   - query_graph        → Cypher queries against the knowledge graph
   - get_findings       → retrieve structured findings for a target
   - list_tools         → discover available tools across all backends
+  - search_tools       → compact catalogue search and filtering
+  - get_tool_details   → exact tool metadata lookup
+  - recommend_workflow → ordered tool profile for a workflow
   - generate_report    → produce HTML/PDF reports from session data
   - list_templates     → discover available prompt templates
   - get_template       → retrieve a prompt template for autonomous pentesting
@@ -118,6 +121,78 @@ _TOOLS: list[Tool] = [
         inputSchema={
             "type": "object",
             "properties": {},
+        },
+    ),
+    Tool(
+        name="search_tools",
+        description=(
+            "Search the curated tool catalogue without loading every tool into "
+            "the MCP context. Supports query terms plus optional phase, "
+            "and category filters."
+        ),
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "Keywords such as xss, wordpress, ports, osint, pcap, api",
+                    "default": "",
+                },
+                "limit": {
+                    "type": "integer",
+                    "description": "Maximum results to return (1-50, default 10)",
+                    "default": 10,
+                },
+                "phase": {
+                    "type": "string",
+                    "enum": ["passive", "active"],
+                    "description": "Optional phase filter",
+                },
+                "category": {
+                    "type": "string",
+                    "description": (
+                        "Optional category filter (dns, web, network, "
+                        "exploitation, etc.)"
+                    ),
+                },
+            },
+        },
+    ),
+    Tool(
+        name="get_tool_details",
+        description=(
+            "Return full metadata for one curated tool, including backend, "
+            "phase, tags, and safe example parameters."
+        ),
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "tool": {
+                    "type": "string",
+                    "description": "Exact tool name, e.g. nmap, nuclei, take_screenshot",
+                },
+            },
+            "required": ["tool"],
+        },
+    ),
+    Tool(
+        name="recommend_workflow",
+        description=(
+            "Return an ordered, low-context tool profile for a workflow such as "
+            "quick-scan, recon-deep, web-app-assessment, api-security, "
+            "network-infrastructure, osint-gathering, forensics-triage, "
+            "bug-bounty-recon, wordpress-assessment, api-recon, "
+            "internal-network, or ctf-enumeration."
+        ),
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "workflow": {
+                    "type": "string",
+                    "description": "Workflow profile name",
+                },
+            },
+            "required": ["workflow"],
         },
     ),
     Tool(
@@ -373,6 +448,12 @@ async def _dispatch(name: str, args: dict[str, Any]) -> str:
         return await _do_get_findings(args)
     elif name == "list_tools":
         return await _do_list_tools()
+    elif name == "search_tools":
+        return await _do_search_tools(args)
+    elif name == "get_tool_details":
+        return await _do_get_tool_details(args)
+    elif name == "recommend_workflow":
+        return await _do_recommend_workflow(args)
     elif name == "generate_report":
         return await _do_generate_report(args)
     elif name == "list_templates":
@@ -435,6 +516,39 @@ async def _do_list_tools() -> str:
         {"backend": backend.name, "tools": tools},
         indent=2,
     )
+
+
+async def _do_search_tools(args: dict[str, Any]) -> str:
+    from blhackbox.utils.catalog import load_tools_catalog, search_tools_catalog
+
+    results = search_tools_catalog(
+        load_tools_catalog(),
+        args.get("query", ""),
+        limit=int(args.get("limit", 10)),
+        phase=args.get("phase"),
+        category=args.get("category"),
+    )
+    return json.dumps({"count": len(results), "tools": results}, indent=2)
+
+
+async def _do_get_tool_details(args: dict[str, Any]) -> str:
+    from blhackbox.utils.catalog import get_tool_details, load_tools_catalog
+
+    try:
+        details = get_tool_details(load_tools_catalog(), args["tool"])
+    except ValueError as exc:
+        return json.dumps({"error": str(exc)})
+    return json.dumps(details, indent=2)
+
+
+async def _do_recommend_workflow(args: dict[str, Any]) -> str:
+    from blhackbox.utils.catalog import load_tools_catalog, recommend_workflow_tools
+
+    try:
+        tools = recommend_workflow_tools(load_tools_catalog(), args["workflow"])
+    except ValueError as exc:
+        return json.dumps({"error": str(exc)})
+    return json.dumps({"workflow": args["workflow"], "tools": tools}, indent=2)
 
 
 async def _do_generate_report(args: dict[str, Any]) -> str:

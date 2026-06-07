@@ -42,6 +42,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     whatweb \
     wafw00f \
     wpscan \
+    nuclei \
     httpx-toolkit \
     arjun \
     paramspider \

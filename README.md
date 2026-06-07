@@ -180,6 +180,54 @@ Both paths coexist. Skills are the preferred UX for Claude Code users. MCP templ
 | **MCP Gateway** | Single entry point for host-based MCP clients | `8080` | `gateway` |
 | **Neo4j** | Cross-session knowledge graph | `7474` / `7687` | `neo4j` |
 
+### Tool Discovery and Workflow Profiles
+
+The core blhackbox MCP server now includes a low-context catalogue discovery layer inspired by larger MCP security platforms:
+
+| Tool | Purpose |
+|:--|:--|
+| `search_tools` | Search the curated catalogue by keyword, tag, category, and phase. |
+| `get_tool_details` | Return exact metadata for a tool, including backend, tags, and example parameters. |
+| `recommend_workflow` | Return an ordered tool profile for workflows like `quick-scan`, `recon-deep`, `web-app-assessment`, `api-security`, `network-infrastructure`, `osint-gathering`, `forensics-triage`, `bug-bounty-recon`, `wordpress-assessment`, `api-recon`, `internal-network`, and `ctf-enumeration`. |
+
+Operators can use the same catalogue from the CLI:
+
+```bash
+blhackbox catalog --search xss --json
+blhackbox catalog --category web --phase active
+```
+
+The catalogue is intentionally metadata-first rather than a direct fork of any single external project. It keeps blhackbox's Docker-separated MCP architecture while adopting the best ideas: searchable tools, backend routing metadata, and workflow-oriented recommendations.
+
+Additional validation helpers are available:
+
+```bash
+make mcp-status             # Run MCP validation + inventory + security scan
+make check-mcp              # Static core MCP/catalog checks
+make check-mcp LIVE=1       # Also check running Docker MCP endpoints
+make tool-inventory         # Compare catalogue, allowlists, Dockerfile packages, and MCP configs
+make security-scan          # Offline security scan fallback
+```
+
+
+The default stack also includes the HexStrike and BOAZ MCP integrations:
+
+| Profile | Services | Ports | Purpose |
+|:--|:--|:--:|:--|
+| default | `hexstrike-ai`, `hexstrike-bridge-mcp` | `8888`, `9006` | Run a capsulated HexStrike Gamma API and expose the upstream HexStrike MCP tool suite over SSE. |
+| default | `boaz-mcp` | `9005` | Run the upstream `BOAZ-MCP_gamma` server over SSE with `BOAZ_gamma` available at `/opt/BOAZ_gamma` and `./output/boaz-lab` mounted as workspace. |
+
+Start everything with the normal stack command:
+
+```bash
+make up
+make check-mcp LIVE=1
+```
+
+The normal Claude Code Docker path connects directly to the MCP services; no MCP Gateway is needed for that setup. Gateway users can still aggregate the same services through `blhackbox-mcp-catalog.yaml` if they intentionally enable the gateway profile.
+
+See [`docs/mcp-server-review.md`](docs/mcp-server-review.md), [`docs/external-integrations/hexstrike-ai-review.md`](docs/external-integrations/hexstrike-ai-review.md), [`docs/external-integrations/boaz-mcp-architecture.md`](docs/external-integrations/boaz-mcp-architecture.md), and [`docs/architecture/hexstrike-vs-blhackbox.md`](docs/architecture/hexstrike-vs-blhackbox.md) for the detailed review.
+
 ---
 
 ## Output Files
@@ -289,7 +337,7 @@ make status     # Container status
 make health     # MCP server health check
 ```
 
-You should see 4 healthy containers: `blhackbox-kali-mcp`, `blhackbox-wire-mcp`, `blhackbox-screenshot-mcp`, `blhackbox-portainer`.
+You should see the default containers healthy: `blhackbox-kali-mcp`, `blhackbox-wire-mcp`, `blhackbox-screenshot-mcp`, `blhackbox-hexstrike-ai`, `blhackbox-hexstrike-mcp`, `blhackbox-boaz-mcp`, and `blhackbox-portainer`.
 
 > **Tip:** Open Portainer at `https://localhost:9443` and create an admin account within 5 minutes. See [Portainer Setup](#portainer-setup).
 
@@ -847,6 +895,9 @@ All custom images are published to `crhacky/blhackbox`:
 | `crhacky/blhackbox:kali-mcp` | Kali Linux MCP Server (70+ tools + Metasploit Framework) |
 | `crhacky/blhackbox:wire-mcp` | WireMCP Server (tshark, 7 tools) |
 | `crhacky/blhackbox:screenshot-mcp` | Screenshot MCP Server (headless Chromium, 4 tools) |
+| `crhacky/blhackbox:hexstrike-ai` | HexStrike Gamma API container |
+| `crhacky/blhackbox:hexstrike-mcp` | Upstream HexStrike Gamma MCP server over SSE |
+| `crhacky/blhackbox:boaz-mcp` | Upstream BOAZ-MCP Gamma server over SSE |
 | `crhacky/blhackbox:claude-code` | Claude Code CLI client (direct SSE to MCP servers) |
 
 Official images pulled directly:

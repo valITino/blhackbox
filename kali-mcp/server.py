@@ -58,7 +58,7 @@ ALLOWED_TOOLS = set(
         "theharvester,theHarvester,host,"
         # --- Web Application ---
         "nikto,gobuster,dirb,dirsearch,ffuf,feroxbuster,whatweb,wafw00f,"
-        "wpscan,httpx,httpx-toolkit,katana,arjun,paramspider,dalfox,"
+        "wpscan,httpx,httpx-toolkit,katana,nuclei,arjun,paramspider,dalfox,"
         # --- Exploitation / Brute-force ---
         "sqlmap,hydra,medusa,john,hashcat,crackmapexec,evil-winrm,"
         "smbclient,enum4linux-ng,responder,netexec,"
@@ -490,12 +490,14 @@ async def msf_search(
     if module_type:
         query = f"type:{module_type} {search}"
 
-    cmd = f'msfconsole -qx "search {query}; exit"'
+    msf_command = f"search {query}; exit"
+    cmd = ["msfconsole", "-qx", msf_command]
     logger.info("Metasploit search: %s", cmd)
 
     result = await _run_command(
-        [], shell=True, shell_cmd=cmd,
-        tool_name="msf_search", timeout=MSF_TIMEOUT,
+        cmd,
+        tool_name="msf_search",
+        timeout=MSF_TIMEOUT,
     )
 
     # Parse search results into structured data
@@ -530,12 +532,14 @@ async def msf_module_info(
         return _not_installed_error("msf_module_info")
 
     # Use 'info' command and 'show options' for full details
-    cmd = f'msfconsole -qx "use {module_name}; info; show options; exit"'
+    msf_command = f"use {module_name}; info; show options; exit"
+    cmd = ["msfconsole", "-qx", msf_command]
     logger.info("Metasploit module info: %s", cmd)
 
     result = await _run_command(
-        [], shell=True, shell_cmd=cmd,
-        tool_name="msf_module_info", timeout=MSF_TIMEOUT,
+        cmd,
+        tool_name="msf_module_info",
+        timeout=MSF_TIMEOUT,
     )
 
     return json.dumps({
@@ -562,7 +566,8 @@ async def msf_run_module(
     post modules.
 
     Args:
-        module_name: Full module path (e.g. 'exploit/multi/handler', 'auxiliary/scanner/smb/smb_version').
+        module_name: Full module path (for example, 'exploit/multi/handler'
+            or 'auxiliary/scanner/smb/smb_version').
         options: Dict of module options (e.g. {"RHOSTS": "10.0.0.1", "RPORT": "443"}).
         payload: Optional payload module (e.g. 'windows/meterpreter/reverse_tcp').
         action: 'run', 'check', or 'exploit' (default 'run').
@@ -582,12 +587,14 @@ async def msf_run_module(
     parts.append("exit")
 
     msf_cmd = "; ".join(parts)
-    cmd = f'msfconsole -qx "{msf_cmd}"'
+    cmd = ["msfconsole", "-qx", msf_cmd]
     logger.info("Metasploit run: %s (target: %s)", cmd, target)
 
     result = await _run_command(
-        [], shell=True, shell_cmd=cmd,
-        tool_name="msf_run_module", target=target, timeout=timeout,
+        cmd,
+        tool_name="msf_run_module",
+        target=target,
+        timeout=timeout,
     )
 
     return json.dumps({
@@ -616,10 +623,12 @@ async def msf_payload_generate(
     output formats (raw, exe, elf, python, ruby, c, etc.).
 
     Args:
-        payload: Payload module (e.g. 'windows/meterpreter/reverse_tcp', 'linux/x64/shell_reverse_tcp').
+        payload: Payload module (for example, 'windows/meterpreter/reverse_tcp'
+            or 'linux/x64/shell_reverse_tcp').
         options: Payload options (e.g. {"LHOST": "10.0.0.1", "LPORT": "4444"}).
         format: Output format (raw, exe, elf, python, ruby, c, etc.).
-        output_file: Optional output file path. If empty, payload bytes are discarded and only metadata is returned.
+        output_file: Optional output file path. If empty, payload bytes are
+            discarded and only metadata is returned.
     """
     if not _msfvenom_installed():
         return _not_installed_error("msf_payload_generate")
@@ -679,12 +688,14 @@ async def msf_console_execute(
     if not _msf_installed():
         return _not_installed_error("msf_console_execute")
 
-    cmd = f'msfconsole -qx "{command}; exit"'
+    msf_command = f"{command}; exit"
+    cmd = ["msfconsole", "-qx", msf_command]
     logger.info("Metasploit console: %s", cmd)
 
     result = await _run_command(
-        [], shell=True, shell_cmd=cmd,
-        tool_name="msf_console_execute", timeout=timeout,
+        cmd,
+        tool_name="msf_console_execute",
+        timeout=timeout,
     )
 
     return json.dumps({
@@ -943,12 +954,12 @@ async def get_exploit_code(
     try:
         import aiofiles
 
-        async with aiofiles.open(full_path, "r", encoding="utf-8", errors="replace") as f:
+        async with aiofiles.open(full_path, encoding="utf-8", errors="replace") as f:
             code = await f.read()
     except ImportError:
         # Fallback without aiofiles
         try:
-            with open(full_path, "r", encoding="utf-8", errors="replace") as f:
+            with open(full_path, encoding="utf-8", errors="replace") as f:
                 code = f.read()
         except FileNotFoundError:
             return json.dumps({

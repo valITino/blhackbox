@@ -129,12 +129,12 @@ def _parse_nmap_ports(
         ports.append((port_num, proto, state, service))
 
     # Deduplicate
-    seen = set()
-    unique = []
+    seen: set[tuple[int, str]] = set()
+    unique: list[tuple[int, str, str, str]] = []
     for entry in ports:
-        key = (entry[0], entry[1])
-        if key not in seen:
-            seen.add(key)
+        dedup_key = (entry[0], entry[1])
+        if dedup_key not in seen:
+            seen.add(dedup_key)
             unique.append(entry)
 
     return unique

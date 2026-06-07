@@ -52,6 +52,18 @@ jobs:
             dockerfile: docker/claude-code.Dockerfile
             tag_prefix: "claude-code-"
             scout: false
+          - service: hexstrike-ai
+            dockerfile: docker/hexstrike-ai.Dockerfile
+            tag_prefix: "hexstrike-ai-"
+            scout: false
+          - service: hexstrike-mcp
+            dockerfile: docker/hexstrike-mcp.Dockerfile
+            tag_prefix: "hexstrike-mcp-"
+            scout: false
+          - service: boaz-mcp
+            dockerfile: docker/boaz-mcp.Dockerfile
+            tag_prefix: "boaz-mcp-"
+            scout: false
 
     steps:
       - name: Checkout repository

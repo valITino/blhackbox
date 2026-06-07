@@ -68,8 +68,8 @@ class TestScreenshotToolCount:
 
     async def test_list_tools_includes_screenshot_tools(self) -> None:
         tools = await handle_list_tools()
-        # 9 core tools + 4 screenshot tools = 13
-        assert len(tools) == 13
+        # 12 core/discovery tools + 4 screenshot tools = 16
+        assert len(tools) == 16
 
     async def test_list_tools_has_all_expected_names(self) -> None:
         tools = await handle_list_tools()
@@ -79,6 +79,9 @@ class TestScreenshotToolCount:
             "query_graph",
             "get_findings",
             "list_tools",
+            "search_tools",
+            "get_tool_details",
+            "recommend_workflow",
             "generate_report",
             "list_templates",
             "get_template",

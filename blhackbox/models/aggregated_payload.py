@@ -322,6 +322,11 @@ class AggregatedMetadata(BaseModel):
     )
     warning: str = ""
 
+    @property
+    def compression_ratio(self) -> float:
+        """Backward-compatible alias for the structured/raw expansion ratio."""
+        return self.expansion_ratio
+
 
 # ---------------------------------------------------------------------------
 # Top-level payload
