@@ -34,6 +34,7 @@ def test_integration_ports_are_documented_in_configs() -> None:
         assert port in compose
     assert "http://localhost:9006/health" in compose
     assert "http://localhost:9005/health" in compose
+    assert 'HEXSTRIKE_REF: "${HEXSTRIKE_REF:-master}"' in compose
     assert "hexstrike-bridge-mcp" in catalog
     assert "boaz-mcp" in catalog
     assert mcp_json["mcpServers"]["hexstrike"]["url"] == "http://localhost:9006/sse"

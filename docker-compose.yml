@@ -207,7 +207,7 @@ services:
       dockerfile: docker/hexstrike-ai.Dockerfile
       args:
         HEXSTRIKE_REPO: "${HEXSTRIKE_REPO:-https://github.com/valITino/hexstrike-ai_gamma.git}"
-        HEXSTRIKE_REF: "${HEXSTRIKE_REF:-main}"
+        HEXSTRIKE_REF: "${HEXSTRIKE_REF:-master}"
     container_name: blhackbox-hexstrike-ai
     restart: unless-stopped
     init: true

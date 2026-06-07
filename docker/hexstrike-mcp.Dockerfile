@@ -4,7 +4,7 @@
 FROM python:3.11-slim
 
 ARG HEXSTRIKE_REPO=https://github.com/valITino/hexstrike-ai_gamma.git
-ARG HEXSTRIKE_REF=main
+ARG HEXSTRIKE_REF=master
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \

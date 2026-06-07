@@ -41,8 +41,40 @@ Never test assets outside the confirmed scope.
 
 > **Before you start:**
 > 1. Confirm scope, out-of-scope, and program rules are set
-> 2. Ensure all MCP servers are healthy — run `make health`
+> 2. Ensure all MCP servers are healthy — run `make mcp-status`
 > 3. Verify authorization is active — run `make inject-verification`
+
+## Mandatory Tool & Methodology Readiness
+
+Do **not** start the skill's execution plan until this readiness pass is complete.
+This is Phase 0 for every blhackbox skill.
+
+1. **Inventory 100% of usable capabilities first.**
+   - Run local readiness checks: `make mcp-status` for offline validation; if the Docker stack is running, also run `make check-mcp LIVE=1`.
+   - Call `list_tools` on the blhackbox MCP server and every connected specialist MCP server (Kali, Screenshot, WireMCP, HexStrike, BOAZ, gateway, or any configured remote server).
+   - Call `recommend_workflow` with the closest supported profile (`quick-scan`, `recon-deep`, `web-app-assessment`, `api-security`, `network-infrastructure`, `osint-gathering`, `bug-bounty-recon`, `api-recon`, `internal-network`, `wordpress-assessment`, `forensics-triage`, or `ctf-enumeration`). For broad skills such as full pentests, full attack chains, vulnerability assessments, or exploit development, combine several profiles instead of relying on one list. Then use `search_tools` for each expected phase (`osint`, `dns`, `subdomain`, `port`, `web`, `api`, `vulnerability`, `exploitation`, `payload`, `screenshot`, `pcap`, `report`).
+   - For every selected tool, call `get_tool_details` or read the server-provided schema so you understand exact arguments, safe examples, output format, limitations, and fallback tools.
+   - Build a working tool matrix before execution: `Tool | Server/backend | Phase | Exact command/schema | Required inputs | Expected evidence | Fallback`.
+
+2. **Understand the called skill's command steps before running commands.**
+   - Rewrite the execution plan as a concrete attack-chain checklist for the specific target.
+   - Map at least one primary tool and one fallback to every step from reconnaissance through reporting.
+   - Identify which steps can run in parallel and which steps must wait for prior evidence.
+   - Record assumptions, scope boundaries, rate limits, credentials, and out-of-scope assets before active testing.
+
+3. **Select the correct security framework overlays.**
+   - Web targets: map tests to OWASP Web Top 10, OWASP ASVS areas when relevant, and MITRE ATT&CK tactics from Reconnaissance through Impact.
+   - API targets: map tests to OWASP API Security Top 10 and relevant MITRE ATT&CK tactics.
+   - Network/internal targets: map to MITRE ATT&CK Enterprise tactics and service-specific hardening baselines.
+   - Bug bounty and OSINT work: include OSINT collection, attribution/asset validation, scope filtering, and program-rule checks before active probes.
+   - Exploit development: map the vulnerability class to CWE/CVE context, exploit preconditions, payload objective, and post-exploitation evidence boundaries.
+
+4. **Execute as a complete chain, not isolated commands.**
+   - Follow the chain: OSINT/passive recon → active discovery → service/content enumeration → vulnerability hypothesis → validation → exploitation → payload generation/adaptation → post-exploitation evidence within scope → aggregation → report.
+   - Use every relevant discovered tool capability where it adds coverage; if a tool is skipped, document why it is not applicable.
+   - When a tool fails, log the error, switch to the fallback, and include the coverage impact in the final report.
+   - Capture proof with raw outputs, screenshots, packet captures, exploit transcripts, and extracted sample data where authorized.
+
 
 ---
 
