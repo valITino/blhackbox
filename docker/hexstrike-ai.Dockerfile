@@ -24,7 +24,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-aiohttp \
     python3-bcrypt \
     python3-pwntools \
-    python3-angr \
     mitmproxy \
     nmap \
     gobuster \
@@ -56,11 +55,14 @@ WORKDIR /opt
 RUN git clone --depth 1 --branch "${HEXSTRIKE_REF}" "${HEXSTRIKE_REPO}" hexstrike-ai
 
 WORKDIR /opt/hexstrike-ai
+# angr is not packaged for Kali/Debian apt, so install it via pip into the
+# venv instead (matching fastmcp/webdriver-manager, which are also pip-only).
 RUN python3 -m venv --system-site-packages /opt/hexstrike-venv && \
     /opt/hexstrike-venv/bin/pip install --no-cache-dir --upgrade pip && \
     /opt/hexstrike-venv/bin/pip install --no-cache-dir \
         "fastmcp>=0.2.0,<1.0.0" \
-        "webdriver-manager>=4.0.0,<5.0.0"
+        "webdriver-manager>=4.0.0,<5.0.0" \
+        "angr>=9.2.0,<10.0.0"
 
 EXPOSE 8888
 
