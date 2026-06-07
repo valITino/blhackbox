@@ -63,5 +63,5 @@ def test_hexstrike_ai_dockerfile_uses_kali_python_packages() -> None:
     )
     assert "python3 -m venv --system-site-packages /opt/hexstrike-venv" in dockerfile
     assert "pip install --no-cache-dir -r requirements.txt" not in dockerfile
-    for package in ["python3-angr", "python3-pwntools", "mitmproxy"]:
+    for package in ["python3-pwntools", "mitmproxy", "angr>=9.2.0,<10.0.0"]:
         assert package in dockerfile
