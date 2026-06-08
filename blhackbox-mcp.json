@@ -12,9 +12,9 @@
         "-i",
         "--rm",
         "--network",
-        "blhackbox-net",
+        "blhackbox_net",
         "--privileged",
-        "blhackbox-wire-mcp"
+        "crhacky/blhackbox:wire-mcp"
       ],
       "description": "WireMCP Server \u2014 Wireshark/tshark for packet capture and network analysis (7 tools)"
     },

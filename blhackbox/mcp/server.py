@@ -556,7 +556,7 @@ async def _do_generate_report(args: dict[str, Any]) -> str:
     from pathlib import Path
 
     from blhackbox.config import settings
-    from blhackbox.models.base import ScanSession
+    from blhackbox.reporting import build_reports
 
     session_id = args["session_id"]
     fmt = args.get("format", "both")
@@ -573,36 +573,18 @@ async def _do_generate_report(args: dict[str, Any]) -> str:
             return json.dumps({"error": f"Session '{safe_id}' not found"})
         session_path = matches[0]
 
-    session_data = ScanSession.model_validate_json(
-        session_path.read_text(encoding="utf-8")
-    )
+    try:
+        reports = build_reports(session_path, fmt)
+    except Exception as exc:
+        return json.dumps({"error": f"Report generation failed: {exc}"})
 
     if fmt == "both":
-        from blhackbox.reporting.md_generator import generate_md_report
-        from blhackbox.reporting.pdf_generator import generate_pdf_report
-
-        md_out = generate_md_report(session_data)
-        pdf_out = generate_pdf_report(session_data)
         return json.dumps({
-            "reports": [
-                {"path": str(md_out), "format": "md"},
-                {"path": str(pdf_out), "format": "pdf"},
-            ],
+            "reports": [{"path": str(path), "format": rfmt} for path, rfmt in reports],
         })
-    elif fmt == "md":
-        from blhackbox.reporting.md_generator import generate_md_report
 
-        out = generate_md_report(session_data)
-    elif fmt == "pdf":
-        from blhackbox.reporting.pdf_generator import generate_pdf_report
-
-        out = generate_pdf_report(session_data)
-    else:
-        from blhackbox.reporting.html_generator import generate_html_report
-
-        out = generate_html_report(session_data)
-
-    return json.dumps({"report_path": str(out), "format": fmt})
+    path, rfmt = reports[0]
+    return json.dumps({"report_path": str(path), "format": rfmt})
 
 
 async def _do_list_templates() -> str:

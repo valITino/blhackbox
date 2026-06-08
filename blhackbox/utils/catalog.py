@@ -202,7 +202,7 @@ _WORKFLOW_PROFILES: dict[str, list[str]] = {
     ],
     "api-security": ["httpx", "katana", "arjun", "ffuf", "nuclei", "sqlmap"],
     "osint-gathering": ["theharvester", "subfinder", "amass", "whois", "exiftool"],
-    "forensics-triage": ["exiftool", "binwalk", "foremost", "steghide", "strings"],
+    "forensics-triage": ["exiftool", "binwalk", "foremost", "steghide"],
     "bug-bounty-recon": [
         "subfinder",
         "amass",
@@ -215,7 +215,7 @@ _WORKFLOW_PROFILES: dict[str, list[str]] = {
     "wordpress-assessment": ["httpx", "whatweb", "wpscan", "ffuf", "nuclei", "nikto"],
     "api-recon": ["httpx", "katana", "arjun", "ffuf", "nuclei", "sqlmap"],
     "internal-network": ["arp-scan", "rustscan", "nmap", "enum4linux-ng", "netexec"],
-    "ctf-enumeration": ["nmap", "gobuster", "ffuf", "binwalk", "exiftool", "steghide", "strings"],
+    "ctf-enumeration": ["nmap", "gobuster", "ffuf", "binwalk", "exiftool", "steghide"],
 }
 
 

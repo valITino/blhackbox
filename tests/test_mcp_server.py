@@ -8,7 +8,17 @@ list_screenshots, annotate_screenshot).
 
 from __future__ import annotations
 
-from blhackbox.mcp.server import _TOOLS, handle_list_tools
+import json
+from pathlib import Path
+
+import pytest
+
+from blhackbox.mcp.server import (
+    _TOOLS,
+    _do_aggregate_results,
+    _do_generate_report,
+    handle_list_tools,
+)
 
 
 class TestMCPToolDefinitions:
@@ -76,3 +86,45 @@ class TestMCPDiscoveryTools:
     def test_recommend_workflow_requires_workflow(self) -> None:
         tool = next(t for t in _TOOLS if t.name == "recommend_workflow")
         assert tool.inputSchema["required"] == ["workflow"]
+
+
+class TestGenerateReportRoundTrip:
+    """End-to-end: aggregate_results persists an AggregatedPayload, and
+    generate_report must consume that same file successfully.
+    """
+
+    async def test_aggregate_then_generate_report(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from blhackbox.config import settings
+
+        monkeypatch.setattr(settings, "results_dir", tmp_path / "sessions")
+        monkeypatch.setattr(settings, "reports_dir", tmp_path / "reports")
+
+        agg = await _do_aggregate_results({
+            "payload": {
+                "session_id": "e2e-001",
+                "target": "example.com",
+                "findings": {
+                    "vulnerabilities": [
+                        {
+                            "id": "CVE-2021-44228",
+                            "title": "Log4Shell",
+                            "severity": "critical",
+                            "host": "example.com",
+                        }
+                    ]
+                },
+            }
+        })
+        agg_data = json.loads(agg)
+        assert agg_data["status"] == "ok", agg_data
+        session_file = agg_data["session_file"]
+        assert Path(session_file).exists()
+
+        rep = await _do_generate_report({"session_id": session_file, "format": "md"})
+        rep_data = json.loads(rep)
+        assert "report_path" in rep_data, rep_data
+        assert rep_data["format"] == "md"
+        assert Path(rep_data["report_path"]).exists()
+        assert "Log4Shell" in Path(rep_data["report_path"]).read_text()
