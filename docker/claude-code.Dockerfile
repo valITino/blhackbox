@@ -36,6 +36,14 @@ RUN echo '{ \
     "screenshot": { \
       "type": "sse", \
       "url": "http://screenshot-mcp:9004/sse" \
+    }, \
+    "boaz": { \
+      "type": "sse", \
+      "url": "http://boaz-mcp:9005/sse" \
+    }, \
+    "hexstrike": { \
+      "type": "sse", \
+      "url": "http://hexstrike-bridge-mcp:9006/sse" \
     } \
   } \
 }' > .mcp.json

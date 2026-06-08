@@ -8,7 +8,7 @@
 | `wire-mcp` | SSE | `9003` | Wireshark/tshark packet capture and pcap analysis | Capture, pcap read, conversations, statistics, credential extraction, stream following, interface listing |
 | `screenshot-mcp` | SSE | `9004` | Headless Chromium evidence capture | Page screenshots, element screenshots, screenshot listing, annotation |
 | `blhackbox` | stdio | n/a | Core orchestration, graph/reporting, templates, catalogue discovery | Tool execution, graph queries, reports, template retrieval, result aggregation, payload schema, catalogue search |
-| Docker MCP Gateway | streaming HTTP | `8080` | Optional host-client aggregation proxy | Proxies Kali, WireMCP, and Screenshot MCP through the Docker catalog |
+| Docker MCP Gateway | streaming HTTP | `8080` | Optional host-client aggregation proxy | Proxies Kali, WireMCP, Screenshot MCP, BOAZ MCP, and HexStrike MCP through the Docker catalog |
 | `boaz-mcp` | SSE | `9005` | Default BOAZ MCP service | Upstream BOAZ-MCP Gamma server exposed over SSE |
 | `hexstrike-bridge-mcp` | SSE | `9006` | Default HexStrike Gamma MCP service | Upstream HexStrike Gamma MCP server loaded unchanged and exposed over SSE, connected to `hexstrike-ai` |
 
@@ -19,14 +19,14 @@
    - `get_tool_details` returns exact metadata for a tool.
    - `recommend_workflow` returns an ordered tool profile for common assessment workflows.
 2. Expanded `tools_catalog.json` from a minimal list to richer metadata:
-   - `backend` so agents know whether a tool belongs to Kali MCP, WireMCP, Screenshot MCP, or the core server.
+   - `backend` so agents know whether a tool belongs to Kali MCP, WireMCP, Screenshot MCP, BOAZ MCP, HexStrike MCP, or the core server.
    - `risk` so plans can default to lower-risk discovery before active/high-risk testing.
    - `tags` for low-context semantic discovery.
    - `example_params` for safer tool invocation scaffolding.
 3. Added CLI search filters for operators:
    - `blhackbox catalog --search xss --json`
 4. Added a default BOAZ MCP service that runs the upstream BOAZ-MCP Gamma server with BOAZ_gamma available in the image.
-5. Documented integration guidance for HexStrike AI and BOAZ-MCP Gamma while keeping their upstream tool definitions intact.
+5. Wired HexStrike AI and BOAZ-MCP Gamma into the default direct-SSE Claude Code Docker path while keeping their upstream tool definitions intact.
 
 ## MCP health and correctness checks
 

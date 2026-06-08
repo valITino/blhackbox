@@ -21,7 +21,7 @@ It also exposes payload-generation functionality around BOAZ. BOAZ Gamma contain
 
 ## blhackbox integration decision
 
-blhackbox now integrates BOAZ as a default MCP service under `boaz-mcp/` by cloning the upstream `BOAZ-MCP_gamma` server unchanged and exposing it through a small SSE entrypoint.
+blhackbox now integrates BOAZ as a default MCP service under `boaz-mcp/` by cloning the upstream `BOAZ-MCP_gamma` server unchanged and exposing it through a small SSE entrypoint that Claude Code Docker connects to directly.
 
 The upstream service exposes its original tools through blhackbox:
 

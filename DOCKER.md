@@ -63,6 +63,12 @@ Claude Code ──┬──▶ Kali MCP (SSE :9001)
               ├──▶ Screenshot MCP (SSE :9004)
               │    4 tools: web screenshots, element capture, annotations
               │
+              ├──▶ BOAZ MCP (SSE :9005)
+              │    upstream BOAZ-MCP Gamma tools
+              │
+              ├──▶ HexStrike MCP (SSE :9006)
+              │    upstream HexStrike Gamma tool suite
+              │
               │  After collecting raw outputs, Claude structures them directly:
               │    get_payload_schema() → parse/dedup/correlate → aggregate_results()
               │
@@ -77,7 +83,9 @@ Neo4j            Cross-session memory (optional)
 ```
 Claude Desktop ──▶ MCP Gateway (localhost:8080/mcp) ──┬──▶ Kali MCP
 (host app)                                             ├──▶ WireMCP
-                                                       └──▶ Screenshot MCP
+                                                       ├──▶ Screenshot MCP
+                                                       ├──▶ BOAZ MCP
+                                                       └──▶ HexStrike MCP
 ```
 
 ---
@@ -203,8 +211,10 @@ The Claude Code container's `.mcp.json` connects directly to each server:
 {
   "mcpServers": {
     "kali":       { "type": "sse", "url": "http://kali-mcp:9001/sse" },
-    "wireshark":  { "type": "sse", "url": "http://wire-mcp:9003/sse" },
-    "screenshot": { "type": "sse", "url": "http://screenshot-mcp:9004/sse" }
+    "wireshark":  { "type": "sse", "url": "http://kali-mcp:9003/sse" },
+    "screenshot": { "type": "sse", "url": "http://screenshot-mcp:9004/sse" },
+    "boaz":       { "type": "sse", "url": "http://boaz-mcp:9005/sse" },
+    "hexstrike":  { "type": "sse", "url": "http://hexstrike-bridge-mcp:9006/sse" }
   }
 }
 ```

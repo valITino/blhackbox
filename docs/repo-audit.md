@@ -11,7 +11,7 @@ This audit covers the current repository structure, MCP servers, Docker/config f
 | MCP live validation | Static tests cannot prove Docker services are running. | Broken containers or SSE endpoints may pass unit tests. | Use `make check-mcp LIVE=1` after `docker compose up -d`; HexStrike and BOAZ are checked as default services. |
 | Tool/catalog drift | Catalogue, Kali allowlist, Dockerfile packages, and MCP configs can drift. | Agents may recommend tools that are unavailable or misrouted. | Use `scripts/tool_inventory.py`; later promote to CI. |
 | External binary installs | Dockerfile downloads release artifacts for tools not in apt. | Supply-chain/version drift. | Pin checksums/signatures where available. |
-| Integrated services | HexStrike/BOAZ now run in the default compose stack. | Default services can drift from MCP configs if not checked. | Keep `make mcp-status`, `scripts/tool_inventory.py`, and `docs/container-integration-review.md` updated with every service change. |
+| Integrated services | HexStrike/BOAZ now run in the default compose stack. | Default services can drift from host, gateway, or Claude Code Docker MCP configs if not checked. | Keep `make mcp-status`, `scripts/tool_inventory.py`, and `docs/container-integration-review.md` updated with every service change. |
 
 ## Medium-priority findings
 
