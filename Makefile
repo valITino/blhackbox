@@ -5,7 +5,7 @@
        logs-wireshark logs-screenshot \
        restart-kali \
        restart-wireshark restart-screenshot \
-       push-all wordlists recon report \
+       push-all wordlists report \
        check-mcp mcp-status tool-inventory security-scan \
        logs-hexstrike logs-boaz \
        hexstrike-bridge boaz-bridge \
@@ -24,7 +24,7 @@ help: ## Show this help
 pull: ## Pull all pre-built images from Docker Hub
 	$(COMPOSE) pull
 
-up: ## Start default stack (Kali, WireMCP, Screenshot, HexStrike, BOAZ, Portainer)
+up: ## Start default stack (7 containers: Kali, WireMCP, Screenshot, HexStrike API+MCP, BOAZ, Portainer)
 	$(COMPOSE) up -d
 
 down: ## Stop all services (default + auxiliary profiles)
@@ -34,10 +34,10 @@ logs: ## Tail logs from all services
 	$(COMPOSE) logs -f
 
 # ── Stack variations ─────────────────────────────────────────────
-up-full: ## Start full stack: core + Neo4j (5 containers)
+up-full: ## Start full stack: core + Neo4j (8 containers)
 	$(COMPOSE) --profile neo4j up -d
 
-up-gateway: ## Start core + MCP Gateway for Claude Desktop / ChatGPT (5 containers)
+up-gateway: ## Start core + MCP Gateway for Claude Desktop / ChatGPT (8 containers)
 	$(COMPOSE) --profile gateway up -d
 
 logs-hexstrike: ## Tail HexStrike API and MCP logs
@@ -207,9 +207,6 @@ wordlists: ## Download common wordlists
 		https://raw.githubusercontent.com/danielmiessler/SecLists/master/Discovery/Web-Content/raft-medium-directories.txt
 	@echo "Done. Wordlists saved to ./wordlists/"
 
-recon: ## Quick recon example (requires TARGET env var)
-	blhackbox recon --target $(TARGET)
-
 report: ## Generate report for a session (requires SESSION env var)
 	blhackbox report --session $(SESSION) --format pdf
 
@@ -223,7 +220,13 @@ push-all: ## Build and push all custom images to Docker Hub
 	docker build -f docker/wire-mcp.Dockerfile -t crhacky/blhackbox:wire-mcp .
 	docker build -f docker/screenshot-mcp.Dockerfile -t crhacky/blhackbox:screenshot-mcp .
 	docker build -f docker/claude-code.Dockerfile -t crhacky/blhackbox:claude-code .
+	docker build -f docker/hexstrike-ai.Dockerfile -t crhacky/blhackbox:hexstrike-ai .
+	docker build -f docker/hexstrike-mcp.Dockerfile -t crhacky/blhackbox:hexstrike-mcp .
+	docker build -f docker/boaz-mcp.Dockerfile -t crhacky/blhackbox:boaz-mcp .
 	docker push crhacky/blhackbox:kali-mcp
 	docker push crhacky/blhackbox:wire-mcp
 	docker push crhacky/blhackbox:screenshot-mcp
 	docker push crhacky/blhackbox:claude-code
+	docker push crhacky/blhackbox:hexstrike-ai
+	docker push crhacky/blhackbox:hexstrike-mcp
+	docker push crhacky/blhackbox:boaz-mcp

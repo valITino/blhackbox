@@ -265,7 +265,7 @@ The `output/` directory is created automatically by `setup.sh`. For manual insta
 ## Prerequisites
 
 - **Docker** and **Docker Compose** (Docker Engine on Linux, or Docker Desktop)
-- At least **8 GB RAM** recommended (4 containers in the core stack)
+- At least **8 GB RAM** recommended (7 containers in the default stack)
 - An **Anthropic API key** from [console.anthropic.com](https://console.anthropic.com) (required for Claude Code)
 
 ---
@@ -836,12 +836,11 @@ Common causes: port conflict on the host, insufficient memory.
 
 ```bash
 blhackbox version                                        # Show version and config
-blhackbox recon --target example.com                     # Run recon
-blhackbox recon --target example.com --attacks nmap,subfinder
-blhackbox recon --target example.com --full              # Full recon suite
+blhackbox catalog --search xss --json                    # Search the tool catalogue
 blhackbox run-tool -c network -t nmap -p '{"target":"example.com"}'  # Single tool
 blhackbox graph query "MATCH (n) RETURN n LIMIT 10"     # Neo4j query
 blhackbox graph summary -t example.com                   # Target summary
+blhackbox templates list                                 # List prompt templates
 blhackbox report -s SESSION_ID --format pdf              # Generate report
 blhackbox mcp                                            # Start MCP server
 ```
@@ -855,9 +854,9 @@ blhackbox mcp                                            # Start MCP server
 | `make setup` | Interactive setup wizard (prereqs, .env, pull, start, health) |
 | `make help` | Show all available targets |
 | `make pull` | Pull all pre-built images from Docker Hub |
-| `make up` | Start core stack (4 containers) |
-| `make up-full` | Start with Neo4j (5 containers) |
-| `make up-gateway` | Start with MCP Gateway for Claude Desktop (5 containers) |
+| `make up` | Start default stack (7 containers) |
+| `make up-full` | Start with Neo4j (8 containers) |
+| `make up-gateway` | Start with MCP Gateway for Claude Desktop (8 containers) |
 | `make down` | Stop all services |
 | `make claude-code` | Build and launch Claude Code in Docker |
 | `make status` | Container status table |

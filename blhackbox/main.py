@@ -231,7 +231,7 @@ async def _do_report(session_id: str, fmt: str, output: str | None, both: bool =
     import re
     from pathlib import Path
 
-    from blhackbox.models.base import ScanSession
+    from blhackbox.reporting import build_reports
 
     safe_session_id = re.sub(r"[^a-zA-Z0-9_\-]", "", session_id)
     if not safe_session_id:
@@ -257,31 +257,10 @@ async def _do_report(session_id: str, fmt: str, output: str | None, both: bool =
             raise SystemExit(1)
         session_path = matches[0]
 
-    session_data = ScanSession.model_validate_json(session_path.read_text())
-
-    if both:
-        from blhackbox.reporting.md_generator import generate_md_report
-        from blhackbox.reporting.pdf_generator import generate_pdf_report
-
-        md_out = generate_md_report(session_data)
-        rich_console.print(f"[success]Markdown report generated: {md_out}[/success]")
-        pdf_out = generate_pdf_report(session_data)
-        rich_console.print(f"[success]PDF report generated: {pdf_out}[/success]")
-    elif fmt == "md":
-        from blhackbox.reporting.md_generator import generate_md_report
-
-        out = generate_md_report(session_data, output)
-        rich_console.print(f"[success]Report generated: {out}[/success]")
-    elif fmt == "pdf":
-        from blhackbox.reporting.pdf_generator import generate_pdf_report
-
-        out = generate_pdf_report(session_data, output)
-        rich_console.print(f"[success]Report generated: {out}[/success]")
-    else:
-        from blhackbox.reporting.html_generator import generate_html_report
-
-        out = generate_html_report(session_data, output)
-        rich_console.print(f"[success]Report generated: {out}[/success]")
+    requested_fmt = "both" if both else fmt
+    reports = build_reports(session_path, requested_fmt, output)
+    for path, rfmt in reports:
+        rich_console.print(f"[success]{rfmt.upper()} report generated: {path}[/success]")
 
 
 # ---------------------------------------------------------------------------

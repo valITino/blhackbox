@@ -168,7 +168,7 @@ Write to `output/reports/`:
 ### WireMCP — Traffic Analysis
 - `capture_packets(interface="eth0", duration=30, filter="host <TARGET>")` — Capture during exploitation
 - `extract_credentials(file_path="<pcap>")` — Find cleartext credentials in traffic
-- `follow_stream(file_path="<pcap>", stream_number=0)` — Inspect TCP conversations
+- `follow_stream(file_path="<pcap>", stream_index=0)` — Inspect TCP conversations
 - `get_statistics(file_path="<pcap>")` — Protocol distribution overview
 
 ### Screenshot MCP — Evidence Capture

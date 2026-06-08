@@ -19,7 +19,7 @@ All custom images are published to a single Docker Hub repository, differentiate
 
 ## Images & Tags
 
-Four custom images are published to `crhacky/blhackbox` on Docker Hub:
+Seven custom images are published to `crhacky/blhackbox` on Docker Hub:
 
 | Service | Tag | Dockerfile | Base Image |
 |:--|:--|:--|:--|
@@ -27,6 +27,9 @@ Four custom images are published to `crhacky/blhackbox` on Docker Hub:
 | **WireMCP** | `crhacky/blhackbox:wire-mcp` | `docker/wire-mcp.Dockerfile` | `debian:bookworm-slim` |
 | **Screenshot MCP** | `crhacky/blhackbox:screenshot-mcp` | `docker/screenshot-mcp.Dockerfile` | `python:3.13-slim` |
 | **Claude Code** | `crhacky/blhackbox:claude-code` | `docker/claude-code.Dockerfile` | `node:22-slim` |
+| **HexStrike API** | `crhacky/blhackbox:hexstrike-ai` | `docker/hexstrike-ai.Dockerfile` | `kalilinux/kali-rolling` |
+| **HexStrike MCP** | `crhacky/blhackbox:hexstrike-mcp` | `docker/hexstrike-mcp.Dockerfile` | `python:3.11-slim` |
+| **BOAZ MCP** | `crhacky/blhackbox:boaz-mcp` | `docker/boaz-mcp.Dockerfile` | `python:3.11-slim` |
 
 Official images (pulled directly, no custom build):
 
@@ -89,7 +92,7 @@ cd blhackbox
 ./setup.sh    # interactive wizard: prereqs, .env, pull, start, health
 ```
 
-### Manual — Core Stack (4 containers)
+### Manual — Default Stack (7 containers)
 
 ```bash
 git clone https://github.com/valITino/blhackbox.git && cd blhackbox
@@ -180,6 +183,9 @@ Skills are available in the container via two mechanisms:
 | `kali-mcp` | `crhacky/blhackbox:kali-mcp` | `9001` | default | Kali Linux security tools + Metasploit (70+) |
 | `wire-mcp` | `crhacky/blhackbox:wire-mcp` | `9003` | default | Wireshark / tshark (7 tools) |
 | `screenshot-mcp` | `crhacky/blhackbox:screenshot-mcp` | `9004` | default | Screenshot MCP (headless Chromium, 4 tools) |
+| `hexstrike-ai` | `crhacky/blhackbox:hexstrike-ai` | `8888` | default | HexStrike Gamma API |
+| `hexstrike-bridge-mcp` | `crhacky/blhackbox:hexstrike-mcp` | `9006` | default | HexStrike Gamma MCP server (SSE) |
+| `boaz-mcp` | `crhacky/blhackbox:boaz-mcp` | `9005` | default | BOAZ-MCP Gamma server (SSE) |
 | `portainer` | `portainer/portainer-ce:latest` | `9443` | default | Docker management UI (HTTPS) |
 | `claude-code` | `crhacky/blhackbox:claude-code` | — | `claude-code` | Claude Code CLI client (Docker) |
 | `mcp-gateway` | `docker/mcp-gateway:latest` | `8080` | `gateway` | Single MCP entry point (host clients) |
@@ -330,17 +336,17 @@ Portainer CE provides a web dashboard for all blhackbox containers.
 
 ## CI/CD Pipeline
 
-Four custom images are built and pushed to Docker Hub via GitHub Actions:
+Seven custom images are built and pushed to Docker Hub via GitHub Actions:
 
 ```
 PR opened  ─────▶  CI (lint + test + pip-audit)
                         │
-PR merged  ─────▶  CI  ─────▶  Build & Push (4 images)  ─────▶  Docker Hub
+PR merged  ─────▶  CI  ─────▶  Build & Push (7 images)  ─────▶  Docker Hub
                                 (on CI success)
 
-Tag v*     ──────────────────▶  Build & Push (4 images)  ─────▶  Docker Hub
+Tag v*     ──────────────────▶  Build & Push (7 images)  ─────▶  Docker Hub
 
-Manual     ──────────────────▶  Build & Push (4 images)  ─────▶  Docker Hub
+Manual     ──────────────────▶  Build & Push (7 images)  ─────▶  Docker Hub
 ```
 
 ---
@@ -350,8 +356,8 @@ Manual     ──────────────────▶  Build & Pu
 ```bash
 make setup              # Interactive setup wizard (first-time setup)
 docker compose pull     # Pull all pre-built images
-docker compose up -d    # Start core stack (4 containers)
-make up-gateway         # Start with MCP Gateway (5 containers)
+docker compose up -d    # Start default stack (7 containers)
+make up-gateway         # Start with MCP Gateway (8 containers)
 make claude-code        # Launch Claude Code in Docker
 make health             # Health check all MCP servers
 make status             # Container status table

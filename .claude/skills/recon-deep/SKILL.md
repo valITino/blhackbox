@@ -145,6 +145,6 @@ Write the following files to `output/reports/` alongside the recon report.
 ### WireMCP — DNS Traffic Analysis (if passive DNS capture available)
 - `capture_packets(interface="eth0", duration=30, filter="port 53")` — Capture DNS queries during enumeration
 - `get_statistics(file_path="<pcap>")` — Protocol distribution showing DNS patterns
-- `follow_stream(file_path="<pcap>", stream_number=0)` — Inspect DNS conversations
+- `follow_stream(file_path="<pcap>", stream_index=0)` — Inspect DNS conversations
 
 > **Note:** This is a reconnaissance-only skill. No exploitation, no screenshots. For exploitation, use `/full-pentest` or `/exploit-dev`.
