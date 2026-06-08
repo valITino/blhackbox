@@ -48,6 +48,29 @@ def test_hexstrike_adapter_uses_upstream_package(tmp_path: Path, monkeypatch) ->
     assert "/messages" in route_paths or "/messages/" in route_paths
 
 
+def test_hexstrike_adapter_allows_internal_docker_hostname(tmp_path: Path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    upstream = tmp_path / "hexstrike-ai_gamma"
+    upstream.mkdir()
+    (upstream / "hexstrike_mcp.py").write_text(
+        "from mcp.server.fastmcp import FastMCP\n"
+        "class HexStrikeClient:\n"
+        "    def __init__(self, server_url, timeout):\n"
+        "        self.server_url = server_url\n"
+        "def setup_mcp_server(client):\n"
+        "    return FastMCP('hexstrike-ai-mcp')\n",
+        encoding="utf-8",
+    )
+    monkeypatch.syspath_prepend(str(upstream))
+
+    module = _load_hexstrike_module()
+    fastmcp = module._load_upstream_fastmcp(upstream, "http://hexstrike-ai:8888", 1)
+
+    security = fastmcp.settings.transport_security
+    assert security.enable_dns_rebinding_protection is True
+    assert "hexstrike-bridge-mcp:*" in security.allowed_hosts
+    assert "http://hexstrike-bridge-mcp:*" in security.allowed_origins
+
+
 def test_hexstrike_dockerfile_clones_upstream_repo() -> None:
     dockerfile = (Path(__file__).parent.parent / "docker" / "hexstrike-mcp.Dockerfile").read_text(
         encoding="utf-8"
