@@ -59,3 +59,27 @@ def test_integration_dockerfiles_exist() -> None:
     assert "hexstrike-ai_gamma" in hexstrike_dockerfile
     assert "BOAZ-MCP_gamma" in boaz_dockerfile
     assert "BOAZ_gamma" in boaz_dockerfile
+
+
+def test_claude_code_container_wires_all_default_mcp_servers() -> None:
+    dockerfile = (ROOT / "docker" / "claude-code.Dockerfile").read_text(
+        encoding="utf-8"
+    )
+    entrypoint = (ROOT / "docker" / "claude-code-entrypoint.sh").read_text(
+        encoding="utf-8"
+    )
+
+    for expected in [
+        "http://kali-mcp:9001/sse",
+        "http://kali-mcp:9003/sse",
+        "http://screenshot-mcp:9004/sse",
+        "http://boaz-mcp:9005/sse",
+        "http://hexstrike-bridge-mcp:9006/sse",
+    ]:
+        assert expected in dockerfile
+        assert expected in entrypoint
+
+    assert "boaz" in dockerfile
+    assert "hexstrike" in dockerfile
+    assert "boaz-mcp" in entrypoint
+    assert "hexstrike-bridge-mcp" in entrypoint

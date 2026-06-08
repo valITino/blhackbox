@@ -95,6 +95,12 @@ CLAUDE CODE (Docker container on blhackbox_net)
   │                                      4 tools: web page screenshots, element
   │                                      capture, annotations
   │
+  ├── boaz (SSE :9005) ───────────────▶  BOAZ-MCP GAMMA SERVER
+  │                                      upstream BOAZ MCP tools via SSE
+  │
+  ├── hexstrike (SSE :9006) ──────────▶  HEXSTRIKE GAMMA MCP SERVER
+  │                                      upstream HexStrike tool suite via SSE
+  │
   │  After collecting raw outputs, Claude structures them directly:
   │    get_payload_schema() → parse/dedup/correlate → aggregate_results()
   │
@@ -224,7 +230,7 @@ make up
 make check-mcp LIVE=1
 ```
 
-The normal Claude Code Docker path connects directly to the MCP services; no MCP Gateway is needed for that setup. Gateway users can still aggregate the same services through `blhackbox-mcp-catalog.yaml` if they intentionally enable the gateway profile.
+The normal Claude Code Docker path connects directly to `kali`, `wireshark`, `screenshot`, `boaz`, and `hexstrike`; no MCP Gateway is needed for that setup. Gateway users can still aggregate the same services through `blhackbox-mcp-catalog.yaml` if they intentionally enable the gateway profile.
 
 See [`docs/mcp-server-review.md`](docs/mcp-server-review.md), [`docs/external-integrations/hexstrike-ai-review.md`](docs/external-integrations/hexstrike-ai-review.md), [`docs/external-integrations/boaz-mcp-architecture.md`](docs/external-integrations/boaz-mcp-architecture.md), and [`docs/architecture/hexstrike-vs-blhackbox.md`](docs/architecture/hexstrike-vs-blhackbox.md) for the detailed review.
 
@@ -415,7 +421,7 @@ You are now inside an interactive Claude Code session.
 /mcp
 ```
 
-You should see `kali`, `wireshark`, and `screenshot`, each with their available tools.
+You should see `kali`, `wireshark`, `screenshot`, `boaz`, and `hexstrike`, each with their available tools.
 
 ### Step 4 — Run your first pentest
 
@@ -699,12 +705,14 @@ STEP 1 ─ YOU TYPE A PROMPT
           │
           ▼
 STEP 2 ─ AI DECIDES WHICH TOOLS TO USE
-  Claude picks tools from Kali MCP (incl. Metasploit), WireMCP, Screenshot MCP:
+  Claude picks tools from Kali MCP (incl. Metasploit), WireMCP, Screenshot MCP, BOAZ MCP, and HexStrike MCP:
     • subfinder (Kali)           → find subdomains
     • nmap -sV -sC (Kali)       → port scan + service detection
     • nikto (Kali)               → web server scanning
     • msf_search (Kali/MSF)      → find matching exploits
     • capture_packets (WireMCP)  → capture traffic during scanning
+    • boaz MCP tools (BOAZ)       → authorized lab payload workflows
+    • hexstrike MCP tools         → upstream HexStrike automation workflows
           │
           ▼
 STEP 3 ─ TOOLS EXECUTE IN DOCKER CONTAINERS

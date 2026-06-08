@@ -37,18 +37,16 @@ BOAZ-MCP wraps BOAZ_beta for AI-assisted payload wrapping/evasion in authorized 
 
 ### Adopted now
 
-- No payload-evasion code was imported or enabled.
-- The catalogue keeps backend and tag metadata while avoiding policy gates or risk labels.
+- Integrated the upstream BOAZ-MCP Gamma server as the default `boaz-mcp` Docker Compose service, backed by a BOAZ_gamma checkout in the image.
+- Exposed BOAZ over SSE on port `9005` and wired it into the same Claude Code Docker direct-SSE `.mcp.json` path as Kali, WireMCP, Screenshot MCP, and HexStrike.
+- Kept BOAZ isolated as a separate MCP server with its own workspace mount and upstream path-confinement behavior.
+- Kept authorization-gated prompts/docs and avoided automatic execution in default assessment workflows.
 
-### Recommended only as an opt-in future profile
+### Recommended follow-up hardening
 
-If blhackbox ever supports BOAZ-style functionality, it should be isolated as:
-
-- A default Docker Compose service, `boaz-mcp`, backed by a BOAZ_gamma checkout in the image.
-- A separate MCP server with strict input/output directories.
-- Authorization-gated prompts and docs.
-- No automatic execution in default assessment workflows.
-- Tests that validate path confinement and that payload inputs must already exist in a lab payload directory.
+- Add tests that validate path confinement and that payload inputs must already exist in an authorized lab payload directory.
+- Keep BOAZ output directories explicit and separate from general report/session output.
+- Continue to avoid implicit BOAZ execution in default discovery-only workflows.
 
 ## Build-vs-fork recommendation
 
