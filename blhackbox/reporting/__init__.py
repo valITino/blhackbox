@@ -33,10 +33,10 @@ __all__ = [
 def load_session_source(session_path: Path) -> AggregatedPayload | ScanSession:
     """Load a persisted session file as the model that produced it.
 
-    ``aggregate_results`` persists an :class:`AggregatedPayload`; the legacy
-    ``save_session`` helper persists a :class:`ScanSession`.  The AggregatedPayload
-    schema is tried first (the format the MCP host writes), falling back to
-    ScanSession for older session files.
+    ``aggregate_results`` persists an :class:`AggregatedPayload`; older or
+    externally produced session files may instead hold a :class:`ScanSession`.
+    The AggregatedPayload schema is tried first (the format the MCP host
+    writes), falling back to ScanSession for those legacy files.
     """
     text = session_path.read_text(encoding="utf-8")
     try:
