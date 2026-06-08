@@ -8,7 +8,7 @@
 | `wire-mcp` | SSE | `9003` | Wireshark/tshark packet capture and pcap analysis | Capture, pcap read, conversations, statistics, credential extraction, stream following, interface listing |
 | `screenshot-mcp` | SSE | `9004` | Headless Chromium evidence capture | Page screenshots, element screenshots, screenshot listing, annotation |
 | `blhackbox` | stdio | n/a | Core orchestration, graph/reporting, templates, catalogue discovery | Tool execution, graph queries, reports, template retrieval, result aggregation, payload schema, catalogue search |
-| Docker MCP Gateway | streaming HTTP | `8080` | Optional host-client aggregation proxy | Proxies Kali, WireMCP, and Screenshot MCP through the Docker catalog |
+| Docker MCP Gateway | streaming HTTP | `8080` | Optional host-client aggregation proxy | Proxies Kali, WireMCP, Screenshot MCP, HexStrike MCP, and BOAZ MCP through the Docker catalog for host clients |
 | `boaz-mcp` | SSE | `9005` | Default BOAZ MCP service | Upstream BOAZ-MCP Gamma server exposed over SSE |
 | `hexstrike-bridge-mcp` | SSE | `9006` | Default HexStrike Gamma MCP service | Upstream HexStrike Gamma MCP server loaded unchanged and exposed over SSE, connected to `hexstrike-ai` |
 
@@ -19,7 +19,7 @@
    - `get_tool_details` returns exact metadata for a tool.
    - `recommend_workflow` returns an ordered tool profile for common assessment workflows.
 2. Expanded `tools_catalog.json` from a minimal list to richer metadata:
-   - `backend` so agents know whether a tool belongs to Kali MCP, WireMCP, Screenshot MCP, or the core server.
+   - `backend` so agents know whether a tool belongs to Kali MCP, WireMCP, Screenshot MCP, HexStrike MCP, BOAZ MCP, or the core server.
    - `risk` so plans can default to lower-risk discovery before active/high-risk testing.
    - `tags` for low-context semantic discovery.
    - `example_params` for safer tool invocation scaffolding.
@@ -56,7 +56,7 @@
 ## What not to integrate directly yet
 
 - Do not replace blhackbox with a HexStrike fork wholesale. Keep blhackbox as the orchestrating Docker/MCP stack while containerizing the upstream HexStrike API and MCP surfaces as default services.
-- Do not directly integrate BOAZ payload-evasion generation into the default stack. It is high-risk dual-use functionality and has heavy platform/toolchain requirements. If added later, it should be isolated behind an opt-in profile, strong authorization checks, dedicated output directories, and explicit lab-only documentation.
+- Keep BOAZ isolated as its own direct-SSE Docker MCP service (`boaz-mcp:9005`) with explicit lab-only documentation, path confinement, and dedicated output directories; do not collapse BOAZ functionality into the core blhackbox server.
 
 ## Next high-value follow-ups
 

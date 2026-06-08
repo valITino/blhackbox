@@ -25,7 +25,7 @@ Replacing blhackbox with a monolithic HexStrike-style API would increase migrati
 - Workflow recommendations.
 - Tool inventory and drift detection.
 - MCP validation checks.
-- Default HexStrike Gamma API plus full upstream HexStrike MCP service loaded unchanged and exposed over SSE.
+- Default HexStrike Gamma API plus full upstream HexStrike MCP service loaded unchanged and exposed over SSE on `hexstrike-bridge-mcp:9006`, available directly to Claude Code Docker as `hexstrike` and optionally through the gateway for host clients.
 
 ## Adopt next
 

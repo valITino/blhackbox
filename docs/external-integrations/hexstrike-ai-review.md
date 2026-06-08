@@ -29,7 +29,7 @@ HexStrike AI Gamma is built around a large Flask API server plus an MCP client/s
 
 The production container now runs the upstream MCP tool surface through a small SSE entrypoint; blhackbox does not rewrite the upstream tool definitions. The adapter imports upstream `HexStrikeClient` and `setup_mcp_server`, points them at the `hexstrike-ai` API container, and serves the resulting FastMCP app on port `9006`.
 
-This keeps HexStrike available as a default blhackbox MCP service while preserving the existing Docker-separated stack for Kali MCP, WireMCP, Screenshot MCP, reporting, graph storage, and templates.
+This keeps HexStrike available as a default blhackbox MCP service while preserving the existing Docker-separated stack for Kali MCP, WireMCP, Screenshot MCP, BOAZ MCP, reporting, graph storage, and templates. Claude Code Docker reaches HexStrike directly as `hexstrike` at `http://hexstrike-bridge-mcp:9006/sse`; the MCP Gateway is only an optional host-client aggregation path.
 
 ## Best next implementation ideas
 

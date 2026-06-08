@@ -21,7 +21,7 @@
 - `boaz-mcp` loads upstream BOAZ-MCP Gamma from `BOAZ_MCP_PATH=/opt/BOAZ-MCP_gamma`, uses `BOAZ_PATH=/opt/BOAZ_gamma`, and mounts `./output/boaz-lab` for operator workspace files.
 - `claude-code` has `NO_PROXY` entries for all internal service hostnames.
 - `wire-mcp` intentionally shares the Kali network namespace for packet visibility.
-- `mcp-gateway` remains available only for clients that require a single host-side Streamable HTTP endpoint; normal Docker-based operation connects directly to each MCP service.
+- `mcp-gateway` remains available only for clients that require a single host-side Streamable HTTP endpoint; normal Docker-based Claude Code operation connects directly to all five MCP services: Kali (`9001`), WireMCP (`9003` via `kali-mcp` namespace), Screenshot (`9004`), BOAZ (`9005`), and HexStrike (`9006`).
 
 ## Operator commands
 

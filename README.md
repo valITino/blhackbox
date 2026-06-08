@@ -58,7 +58,7 @@
 In v2, **your AI client (Claude or ChatGPT) IS the orchestrator**. There is no internal LangGraph orchestrator or LLM planner. Here is what happens when you type a prompt:
 
 1. **You type a prompt** in your AI client (Claude Code, Claude Desktop, or ChatGPT).
-2. **The AI decides which tools to call** from three MCP servers — Kali MCP (70+ security tools including Metasploit), WireMCP (7 packet analysis tools), and Screenshot MCP (4 evidence capture tools).
+2. **The AI decides which tools to call** from five direct MCP servers — Kali MCP (70+ security tools including Metasploit), WireMCP (7 packet analysis tools), Screenshot MCP (4 evidence capture tools), HexStrike MCP (SSE :9006), and BOAZ MCP (SSE :9005).
 3. **Each MCP server executes the tool** in its Docker container and returns raw output.
 4. **The AI structures the results** — parsing, deduplicating, correlating, and building an `AggregatedPayload` directly.
 5. **The AI validates and persists** the payload via `aggregate_results()`, then writes the final pentest report.
@@ -69,7 +69,7 @@ Everything runs inside Docker containers. No tools are installed on your host ma
 
 ## Architecture
 
-Claude Code in Docker connects **directly** to each MCP server via SSE over the internal Docker network — no MCP Gateway needed.
+Claude Code in Docker connects **directly** to all five MCP servers via SSE over the internal Docker network — no MCP Gateway needed.
 
 ```
 YOU (the user)
@@ -81,7 +81,7 @@ YOU (the user)
 CLAUDE CODE (Docker container on blhackbox_net)
   │
   │  Reads your prompt, decides which tools to call.
-  │  Connects directly to each MCP server via SSE.
+  │  Connects directly to all five MCP servers via SSE.
   │
   ├── kali (SSE :9001) ──────────────▶  KALI MCP SERVER
   │                                      70+ tools: nmap, nikto, gobuster, sqlmap,
@@ -94,6 +94,14 @@ CLAUDE CODE (Docker container on blhackbox_net)
   ├── screenshot (SSE :9004) ────────▶  SCREENSHOT MCP SERVER
   │                                      4 tools: web page screenshots, element
   │                                      capture, annotations
+  │
+  ├── hexstrike (SSE :9006) ─────────▶  HEXSTRIKE MCP SERVER
+  │                                      Upstream HexStrike Gamma MCP suite
+  │                                      via hexstrike-bridge-mcp
+  │
+  ├── boaz (SSE :9005) ──────────────▶  BOAZ MCP SERVER
+  │                                      Upstream BOAZ-MCP Gamma server
+  │                                      with BOAZ_gamma in-container
   │
   │  After collecting raw outputs, Claude structures them directly:
   │    get_payload_schema() → parse/dedup/correlate → aggregate_results()
@@ -224,7 +232,7 @@ make up
 make check-mcp LIVE=1
 ```
 
-The normal Claude Code Docker path connects directly to the MCP services; no MCP Gateway is needed for that setup. Gateway users can still aggregate the same services through `blhackbox-mcp-catalog.yaml` if they intentionally enable the gateway profile.
+The normal Claude Code Docker path connects directly to all five MCP services — `kali`, `wireshark`, `screenshot`, `hexstrike`, and `boaz`; no MCP Gateway is needed for that setup. Gateway users can still aggregate the same services through `blhackbox-mcp-catalog.yaml` if they intentionally enable the gateway profile.
 
 See [`docs/mcp-server-review.md`](docs/mcp-server-review.md), [`docs/external-integrations/hexstrike-ai-review.md`](docs/external-integrations/hexstrike-ai-review.md), [`docs/external-integrations/boaz-mcp-architecture.md`](docs/external-integrations/boaz-mcp-architecture.md), and [`docs/architecture/hexstrike-vs-blhackbox.md`](docs/architecture/hexstrike-vs-blhackbox.md) for the detailed review.
 
@@ -387,7 +395,7 @@ RETURN ip, p, s
 
 ## Tutorial 1: Claude Code (Docker) — Recommended
 
-Claude Code runs entirely inside a Docker container on the same network as all blhackbox services. It connects **directly** to each MCP server via SSE — no MCP Gateway, no host install, no Node.js.
+Claude Code runs entirely inside a Docker container on the same network as all blhackbox services. It connects **directly** to all five MCP servers (`kali`, `wireshark`, `screenshot`, `hexstrike`, and `boaz`) via SSE — no MCP Gateway, no host install, no Node.js.
 
 ### Step 1 — Start the stack
 
@@ -415,7 +423,7 @@ You are now inside an interactive Claude Code session.
 /mcp
 ```
 
-You should see `kali`, `wireshark`, and `screenshot`, each with their available tools.
+You should see `kali`, `wireshark`, `screenshot`, `hexstrike`, and `boaz`, each with their available tools.
 
 ### Step 4 — Run your first pentest
 
@@ -436,8 +444,9 @@ Claude Code will autonomously:
 1. Call Kali tools (nmap, subfinder, nikto, sqlmap, msfconsole, etc.)
 2. Capture network traffic and extract credentials via WireMCP
 3. Take screenshot evidence via Screenshot MCP
-4. Structure, deduplicate, and correlate findings into an `AggregatedPayload`
-5. Validate via `aggregate_results()` and write a structured pentest report
+4. Use HexStrike and BOAZ MCP tools directly when an authorized workflow calls for those specialized capabilities
+5. Structure, deduplicate, and correlate findings into an `AggregatedPayload`
+6. Validate via `aggregate_results()` and write a structured pentest report
 
 See [Available Skills](#available-skills) for all 11 pentesting workflows.
 
@@ -471,7 +480,7 @@ Claude Code on [claude.ai/code](https://claude.ai/code) works as a web-based cod
 
 Skills (`.claude/skills/`) are automatically available in web sessions since they're checked into the repo.
 
-> **Note:** The web session uses the blhackbox stdio MCP server (not the Docker stack). For the full Docker stack with Kali tools, Metasploit, WireMCP, and Screenshot MCP, use [Tutorial 1](#tutorial-1-claude-code-docker--recommended).
+> **Note:** The web session uses the blhackbox stdio MCP server (not the Docker stack). For the full Docker stack with Kali tools, Metasploit, WireMCP, Screenshot MCP, HexStrike MCP, and BOAZ MCP, use [Tutorial 1](#tutorial-1-claude-code-docker--recommended).
 
 ---
 
@@ -515,7 +524,7 @@ Restart Claude Desktop. You should see a hammer icon with available tools.
 
 ### Step 3 — Run a pentest
 
-Type your prompt in Claude Desktop. The flow is identical to Tutorial 1 — the gateway routes tool calls to the same MCP servers.
+Type your prompt in Claude Desktop. The flow is identical to Tutorial 1 — the gateway routes tool calls to the same five MCP servers that Claude Code Docker reaches directly.
 
 ---
 

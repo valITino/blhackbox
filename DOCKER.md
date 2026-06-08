@@ -63,6 +63,12 @@ Claude Code ──┬──▶ Kali MCP (SSE :9001)
               ├──▶ Screenshot MCP (SSE :9004)
               │    4 tools: web screenshots, element capture, annotations
               │
+              ├──▶ HexStrike MCP (SSE :9006)
+              │    Upstream HexStrike Gamma MCP suite via hexstrike-bridge-mcp
+              │
+              ├──▶ BOAZ MCP (SSE :9005)
+              │    Upstream BOAZ-MCP Gamma server with BOAZ_gamma in-container
+              │
               │  After collecting raw outputs, Claude structures them directly:
               │    get_payload_schema() → parse/dedup/correlate → aggregate_results()
               │
@@ -77,7 +83,9 @@ Neo4j            Cross-session memory (optional)
 ```
 Claude Desktop ──▶ MCP Gateway (localhost:8080/mcp) ──┬──▶ Kali MCP
 (host app)                                             ├──▶ WireMCP
-                                                       └──▶ Screenshot MCP
+                                                       ├──▶ Screenshot MCP
+                                                       ├──▶ HexStrike MCP
+                                                       └──▶ BOAZ MCP
 ```
 
 ---
@@ -197,14 +205,16 @@ Skills are available in the container via two mechanisms:
 
 ### Claude Code in Docker (Direct SSE — no gateway)
 
-The Claude Code container's `.mcp.json` connects directly to each server:
+The Claude Code container's `.mcp.json` connects directly to all five MCP servers. WireMCP shares Kali MCP's network namespace, so the direct SSE URL for `wireshark` uses `kali-mcp:9003`:
 
 ```json
 {
   "mcpServers": {
     "kali":       { "type": "sse", "url": "http://kali-mcp:9001/sse" },
-    "wireshark":  { "type": "sse", "url": "http://wire-mcp:9003/sse" },
-    "screenshot": { "type": "sse", "url": "http://screenshot-mcp:9004/sse" }
+    "wireshark":  { "type": "sse", "url": "http://kali-mcp:9003/sse" },
+    "screenshot": { "type": "sse", "url": "http://screenshot-mcp:9004/sse" },
+    "hexstrike":  { "type": "sse", "url": "http://hexstrike-bridge-mcp:9006/sse" },
+    "boaz":       { "type": "sse", "url": "http://boaz-mcp:9005/sse" }
   }
 }
 ```
@@ -289,7 +299,7 @@ Requires `--profile gateway` (`make up-gateway`).
 |:--|:--|
 | **Base** | `node:22-slim` |
 | **Entrypoint** | `claude-code-entrypoint.sh` (health checks + launch) |
-| **MCP config** | Direct SSE to each server (no gateway dependency) |
+| **MCP config** | Direct SSE to all five MCP servers: Kali, WireMCP, Screenshot, HexStrike, and BOAZ (no gateway dependency) |
 | **Skills** | 11 pentesting skills mounted from `.claude/skills/` |
 | **Requires** | `ANTHROPIC_API_KEY` in `.env` |
 
