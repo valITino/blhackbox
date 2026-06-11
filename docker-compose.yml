@@ -106,8 +106,12 @@ services:
     privileged: true
     init: true
     environment:
-      # WPScan API token for vulnerability database lookups (Issue #15)
+      # WPScan API token — wpscan auto-loads this; adds the WP vuln database.
       WPSCAN_API_TOKEN: "${WPSCAN_API_TOKEN:-}"
+      # Optional subfinder passive-source keys (all optional; recon runs without them).
+      VIRUSTOTAL_API_KEY: "${VIRUSTOTAL_API_KEY:-}"
+      SHODAN_API_KEY: "${SHODAN_API_KEY:-}"
+      SECURITYTRAILS_API_KEY: "${SECURITYTRAILS_API_KEY:-}"
       # Max timeout for long-running scans (Issue #8)
       KALI_MAX_TIMEOUT: "${KALI_MAX_TIMEOUT:-600}"
       # Metasploit timeout for msfconsole commands
@@ -213,6 +217,11 @@ services:
     init: true
     environment:
       HEXSTRIKE_PORT: "8888"
+      # Optional recon keys — all tools run without them (see README).
+      WPSCAN_API_TOKEN: "${WPSCAN_API_TOKEN:-}"
+      VIRUSTOTAL_API_KEY: "${VIRUSTOTAL_API_KEY:-}"
+      SHODAN_API_KEY: "${SHODAN_API_KEY:-}"
+      SECURITYTRAILS_API_KEY: "${SECURITYTRAILS_API_KEY:-}"
     ports:
       - "${HEXSTRIKE_API_PORT:-8888}:8888"
     volumes:

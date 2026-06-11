@@ -316,6 +316,11 @@ print_summary() {
     echo -e "  ${BOLD}For pentesting:${NC}"
     echo -e "    Use a pentest template or skill: ${DIM}full-pentest, quick-scan, etc.${NC}"
     echo ""
+    echo -e "  ${BOLD}Optional API keys${NC} ${DIM}(none required — all tools run without them):${NC}"
+    echo -e "    Add keys to ${CYAN}.env${NC} to widen recon coverage, then restart the stack."
+    echo -e "    ${DIM}WPSCAN_API_TOKEN (WordPress vulns), VIRUSTOTAL_API_KEY / SHODAN_API_KEY /${NC}"
+    echo -e "    ${DIM}SECURITYTRAILS_API_KEY (subfinder sources). See README → Optional API keys.${NC}"
+    echo ""
 }
 
 # ── Parse Arguments ──────────────────────────────────────────────────

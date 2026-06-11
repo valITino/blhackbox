@@ -274,6 +274,26 @@ The `output/` directory is created automatically by `setup.sh`. For manual insta
 - At least **8 GB RAM** recommended (7 containers in the default stack)
 - An **Anthropic API key** from [console.anthropic.com](https://console.anthropic.com) (required for Claude Code)
 
+### Optional API keys
+
+**Every recon tool works without any API key.** Keys are never required — they only
+widen passive-source coverage (more subdomains, vulnerability data, and OSINT hits).
+A tool with no key simply skips the sources that need one and keeps going, so you can
+add keys later (or never). To add them, put the values in your `.env` (copy
+`.env.example` first) and restart the stack:
+
+| Tool | Key | How it's read | What it adds |
+|:--|:--|:--|:--|
+| `wpscan` | `WPSCAN_API_TOKEN` | Auto-loaded from `.env` (passed into the container) | WordPress vulnerability database. Free tier: [wpscan.com/api](https://wpscan.com/api) (25 req/day) |
+| `subfinder` | `VIRUSTOTAL_API_KEY`, `SHODAN_API_KEY`, `SECURITYTRAILS_API_KEY`, … | From `.env` env vars, or `~/.config/subfinder/provider-config.yaml` | Extra passive subdomain sources |
+| `theHarvester` | shodan, hunter, securitytrails, censys, … | Config file `api-keys.yaml` (mount into the container to use) | Extra OSINT sources (keyless sources like crt.sh, certspotter, OTX still work) |
+| `amass` | per-source keys | Config file `~/.config/amass/datasources.yaml` (mount to use) | Extra data sources |
+
+The fully keyless tools — `nuclei`, `httpx`, `katana`, `gobuster`, `ffuf`, `nikto`,
+`whatweb`, `wafw00f`, `dnsenum`, `fierce`, `dnsrecon`, `nmap`, `sqlmap`, and the rest —
+need no configuration at all. Run `get_tool_details(<tool>)` and check the `api_key`
+field to see whether a specific tool benefits from a key.
+
 ---
 
 ## Installation

@@ -139,6 +139,7 @@ async def take_screenshot(
     full_page: bool = False,
     wait_for_selector: str = "",
     wait_timeout: int = 0,
+    wait_until: str = "load",
     output_path: str = "",
 ) -> str:
     """Capture a screenshot of a web page via headless Chromium.
@@ -150,6 +151,10 @@ async def take_screenshot(
         full_page: Capture the full scrollable page (default false)
         wait_for_selector: CSS selector to wait for before capture
         wait_timeout: Extra milliseconds to wait after page load (0-30000)
+        wait_until: Navigation wait condition — 'load' (default), 'domcontentloaded',
+            'networkidle', or 'commit'. 'networkidle' often times out on live sites
+            with analytics/websockets; prefer 'load' and use wait_for_selector or
+            wait_timeout when you need specific content to render.
         output_path: Custom output file path (optional)
 
     Returns:
@@ -157,6 +162,9 @@ async def take_screenshot(
     """
     if not url.startswith(("http://", "https://")):
         return json.dumps({"error": "URL must start with http:// or https://"})
+
+    if wait_until not in ("load", "domcontentloaded", "networkidle", "commit"):
+        wait_until = "load"
 
     width = _clamp(width, 1, MAX_WIDTH)
     height = _clamp(height, 1, MAX_HEIGHT)
@@ -171,7 +179,7 @@ async def take_screenshot(
             )
             page = await context.new_page()
 
-            await page.goto(url, timeout=NAVIGATION_TIMEOUT, wait_until="networkidle")
+            await page.goto(url, timeout=NAVIGATION_TIMEOUT, wait_until=wait_until)
 
             if wait_for_selector:
                 await page.wait_for_selector(wait_for_selector, timeout=NAVIGATION_TIMEOUT)
