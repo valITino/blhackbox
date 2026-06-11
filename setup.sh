@@ -27,6 +27,7 @@ ARROW="${CYAN}→${NC}"
 # ── Globals ──────────────────────────────────────────────────────────
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 API_KEY=""
+DEEPSEEK_KEY=""
 MINIMAL=false
 SKIP_PULL=false
 NEO4J_PASS=""
@@ -47,7 +48,8 @@ usage() {
     echo "Usage: $0 [OPTIONS]"
     echo ""
     echo "Options:"
-    echo "  --api-key KEY     Set ANTHROPIC_API_KEY (skips interactive prompt)"
+    echo "  --api-key KEY      Set ANTHROPIC_API_KEY for the Claude Code container"
+    echo "  --deepseek-key KEY Set DEEPSEEK_API_KEY for the DeepSeek (Reasonix) container"
     echo "  --minimal         Core stack only (no Neo4j)"
     echo "  --with-neo4j      Enable Neo4j knowledge graph"
     echo "  --with-gateway    Enable MCP Gateway for Claude Desktop/ChatGPT"
@@ -163,6 +165,23 @@ configure_env() {
         echo -e "  ${WARN} ANTHROPIC_API_KEY skipped — Claude Code Docker won't start without it"
     fi
 
+    # --- DEEPSEEK_API_KEY (for the DeepSeek / Reasonix container) ---
+    if [ -z "$DEEPSEEK_KEY" ]; then
+        echo ""
+        echo -e "  ${BOLD}DEEPSEEK_API_KEY${NC} ${DIM}(for the DeepSeek/Reasonix agent in Docker)${NC}"
+        echo -e "  ${DIM}Get yours at: https://platform.deepseek.com/api_keys${NC}"
+        echo -e "  ${DIM}Press Enter to skip if you won't use the DeepSeek agent.${NC}"
+        read -rsp "  API Key: " DEEPSEEK_KEY
+        echo ""
+    fi
+
+    if [ -n "$DEEPSEEK_KEY" ]; then
+        sed -i "s|^# DEEPSEEK_API_KEY=sk-.*|DEEPSEEK_API_KEY=${DEEPSEEK_KEY}|" "$SCRIPT_DIR/.env"
+        echo -e "  ${CHECK} DEEPSEEK_API_KEY configured"
+    else
+        echo -e "  ${WARN} DEEPSEEK_API_KEY skipped — the DeepSeek agent won't start without it"
+    fi
+
     # --- NEO4J_PASSWORD ---
     if [[ "$PROFILES" == *"neo4j"* ]]; then
         if [ -z "$NEO4J_PASS" ]; then
@@ -183,10 +202,12 @@ configure_env() {
     echo ""
     echo -e "  ${BOLD}Keys & tokens${NC} ${DIM}(edit .env to add them, then restart the stack):${NC}"
     echo ""
-    echo -e "    ${BOLD}Required${NC}"
-    echo -e "      ${CYAN}ANTHROPIC_API_KEY${NC}      ${DIM}Only for Claude Code inside Docker (--profile${NC}"
-    echo -e "                             ${DIM}claude-code). Not needed for Claude Code Web/host.${NC}"
+    echo -e "    ${BOLD}Agent keys (set the one for the in-Docker agent you run)${NC}"
+    echo -e "      ${CYAN}ANTHROPIC_API_KEY${NC}      ${DIM}Claude Code container (--profile claude-code).${NC}"
+    echo -e "                             ${DIM}Not needed for Claude Code Web/host.${NC}"
     echo -e "                             ${DIM}→ https://console.anthropic.com/settings/keys${NC}"
+    echo -e "      ${CYAN}DEEPSEEK_API_KEY${NC}       ${DIM}DeepSeek (Reasonix) container (--profile deepseek).${NC}"
+    echo -e "                             ${DIM}→ https://platform.deepseek.com/api_keys${NC}"
     echo ""
     echo -e "    ${BOLD}Optional — widen recon (all tools work without them)${NC}"
     echo -e "      ${CYAN}WPSCAN_API_TOKEN${NC}       ${DIM}WordPress vuln database; wpscan auto-reads it.${NC}"
@@ -322,6 +343,7 @@ print_summary() {
     echo ""
     echo -e "  ${BOLD}Quick start:${NC}"
     echo -e "    ${CYAN}make claude-code${NC}    ${DIM}Launch Claude Code in Docker${NC}"
+    echo -e "    ${CYAN}make deepseek${NC}       ${DIM}Launch the DeepSeek (Reasonix) agent in Docker${NC}"
     echo -e "    ${CYAN}make status${NC}         ${DIM}Check service status${NC}"
     echo -e "    ${CYAN}make health${NC}         ${DIM}Run health checks${NC}"
     echo -e "    ${CYAN}make logs${NC}           ${DIM}View service logs${NC}"
@@ -357,6 +379,10 @@ while [[ $# -gt 0 ]]; do
     case "$1" in
         --api-key)
             API_KEY="$2"
+            shift 2
+            ;;
+        --deepseek-key)
+            DEEPSEEK_KEY="$2"
             shift 2
             ;;
         --minimal)

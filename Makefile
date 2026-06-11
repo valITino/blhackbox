@@ -1,6 +1,6 @@
 .PHONY: help setup up up-full up-gateway down logs test test-local lint format clean nuke \
        pull status health portainer gateway-logs \
-       claude-code \
+       claude-code deepseek \
        neo4j-browser logs-kali \
        logs-wireshark logs-screenshot \
        restart-kali \
@@ -27,7 +27,7 @@ up: ## Start default stack (7 containers: Kali, WireMCP, Screenshot, HexStrike A
 	$(COMPOSE) up -d
 
 down: ## Stop all services (default + auxiliary profiles)
-	$(COMPOSE) --profile gateway --profile neo4j --profile claude-code down
+	$(COMPOSE) --profile gateway --profile neo4j --profile claude-code --profile deepseek down
 
 logs: ## Tail logs from all services
 	$(COMPOSE) logs -f
@@ -83,7 +83,7 @@ boaz-bridge: ## Run local BOAZ MCP helper server
 	python boaz-mcp/server.py
 
 clean: ## Remove containers, volumes, networks, and build artifacts (keeps images)
-	$(COMPOSE) --profile gateway --profile neo4j --profile claude-code down -v --remove-orphans
+	$(COMPOSE) --profile gateway --profile neo4j --profile claude-code --profile deepseek down -v --remove-orphans
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 	rm -rf dist/ build/ *.egg-info
 
@@ -91,7 +91,7 @@ nuke: ## Full cleanup: containers + volumes + ALL images (frees max disk space)
 	@echo "\033[1;33m  WARNING: This will remove ALL blhackbox containers, volumes, AND images.\033[0m"
 	@echo "\033[2m  You will need to 'docker compose pull' or 'docker compose build' again.\033[0m"
 	@echo ""
-	$(COMPOSE) --profile gateway --profile neo4j --profile claude-code down -v --remove-orphans --rmi all
+	$(COMPOSE) --profile gateway --profile neo4j --profile claude-code --profile deepseek down -v --remove-orphans --rmi all
 	@echo ""
 	@echo "\033[2m  Pruning dangling images and build cache...\033[0m"
 	docker image prune -f
@@ -119,12 +119,24 @@ claude-code: ## Build and launch Claude Code in a Docker container
 	@echo ""
 	$(COMPOSE) --profile claude-code run --rm claude-code
 
+# ── DeepSeek / Reasonix (Docker) ────────────────────────────────
+deepseek: ## Build and launch the DeepSeek (Reasonix) agent in a Docker container
+	$(COMPOSE) --profile deepseek pull deepseek || $(COMPOSE) --profile deepseek build deepseek
+	@echo ""
+	@echo "\033[1m  Pre-flight Container Status\033[0m"
+	@echo "\033[2m  ──────────────────────────────────────\033[0m"
+	@$(COMPOSE) ps --format "table {{.Name}}\t{{.Status}}" 2>/dev/null || $(COMPOSE) ps
+	@echo ""
+	@echo "\033[2m  Waiting for all dependencies to become healthy...\033[0m"
+	@echo ""
+	$(COMPOSE) --profile deepseek run --rm deepseek
+
 # ── Health & Status ──────────────────────────────────────────────
 status: ## Health status of all containers
 	@echo ""
 	@echo "\033[1m  blhackbox Container Status\033[0m"
 	@echo "\033[2m  ──────────────────────────────────────\033[0m"
-	@$(COMPOSE) --profile gateway --profile neo4j --profile claude-code ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}" 2>/dev/null || $(COMPOSE) ps
+	@$(COMPOSE) --profile gateway --profile neo4j --profile claude-code --profile deepseek ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}" 2>/dev/null || $(COMPOSE) ps
 	@echo ""
 
 health: ## Quick health check of all MCP servers
@@ -215,6 +227,7 @@ push-all: ## Build and push all custom images to Docker Hub
 	docker build -f docker/wire-mcp.Dockerfile -t crhacky/blhackbox:wire-mcp .
 	docker build -f docker/screenshot-mcp.Dockerfile -t crhacky/blhackbox:screenshot-mcp .
 	docker build -f docker/claude-code.Dockerfile -t crhacky/blhackbox:claude-code .
+	docker build -f docker/deepseek.Dockerfile -t crhacky/blhackbox:deepseek .
 	docker build -f docker/hexstrike-ai.Dockerfile -t crhacky/blhackbox:hexstrike-ai .
 	docker build -f docker/hexstrike-mcp.Dockerfile -t crhacky/blhackbox:hexstrike-mcp .
 	docker build -f docker/boaz-mcp.Dockerfile -t crhacky/blhackbox:boaz-mcp .
@@ -222,6 +235,7 @@ push-all: ## Build and push all custom images to Docker Hub
 	docker push crhacky/blhackbox:wire-mcp
 	docker push crhacky/blhackbox:screenshot-mcp
 	docker push crhacky/blhackbox:claude-code
+	docker push crhacky/blhackbox:deepseek
 	docker push crhacky/blhackbox:hexstrike-ai
 	docker push crhacky/blhackbox:hexstrike-mcp
 	docker push crhacky/blhackbox:boaz-mcp
