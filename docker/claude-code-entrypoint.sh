@@ -43,10 +43,10 @@ check_service() {
     local timeout="${3:-3}"
     curl -s --max-time "$timeout" -o /dev/null "$url" 2>/dev/null
     local rc=$?
-    # Exit code 28 = curl connected but the transfer timed out. This is
-    # expected for SSE/streaming endpoints (like /sse) that keep the
-    # connection open indefinitely.  Treat it the same as 0 (success):
-    # the server is up and responding.
+    # A bare GET to the Streamable HTTP endpoint (/mcp) returns an HTTP 4xx
+    # (no MCP session/headers) — curl still exits 0 because it received a
+    # response, which confirms the server is up. Exit code 28 (transfer
+    # timed out) is also treated as success for any endpoint that streams.
     [ "$rc" -eq 0 ] || [ "$rc" -eq 28 ]
 }
 
@@ -93,34 +93,34 @@ MCP_FAIL=0
 REST_OK=0
 REST_FAIL=0
 
-# -- MCP Servers (Claude Code connects via SSE) --
+# -- MCP Servers (Claude Code connects via Streamable HTTP) --
 echo -e "  ${BOLD}MCP Servers${NC}"
-if wait_for_service "Kali MCP" "http://kali-mcp:9001/sse"; then
+if wait_for_service "Kali MCP" "http://kali-mcp:9001/mcp"; then
     MCP_OK=$((MCP_OK + 1))
 else
     MCP_FAIL=$((MCP_FAIL + 1))
 fi
 
 # WireMCP shares kali-mcp's network namespace, so use kali-mcp hostname
-if wait_for_service "WireMCP" "http://kali-mcp:9003/sse"; then
+if wait_for_service "WireMCP" "http://kali-mcp:9003/mcp"; then
     MCP_OK=$((MCP_OK + 1))
 else
     MCP_FAIL=$((MCP_FAIL + 1))
 fi
 
-if wait_for_service "Screenshot MCP" "http://screenshot-mcp:9004/sse"; then
+if wait_for_service "Screenshot MCP" "http://screenshot-mcp:9004/mcp"; then
     MCP_OK=$((MCP_OK + 1))
 else
     MCP_FAIL=$((MCP_FAIL + 1))
 fi
 
-if wait_for_service "BOAZ MCP" "http://boaz-mcp:9005/sse"; then
+if wait_for_service "BOAZ MCP" "http://boaz-mcp:9005/mcp"; then
     MCP_OK=$((MCP_OK + 1))
 else
     MCP_FAIL=$((MCP_FAIL + 1))
 fi
 
-if wait_for_service "HexStrike MCP" "http://hexstrike-bridge-mcp:9006/sse"; then
+if wait_for_service "HexStrike MCP" "http://hexstrike-bridge-mcp:9006/mcp"; then
     MCP_OK=$((MCP_OK + 1))
 else
     MCP_FAIL=$((MCP_FAIL + 1))
@@ -143,7 +143,7 @@ fi
 
 echo ""
 echo -e "${DIM}──────────────────────────────────────────────────${NC}"
-echo -e "  ${BOLD}MCP servers (connected via SSE):${NC}"
+echo -e "  ${BOLD}MCP servers (connected via Streamable HTTP):${NC}"
 echo -e "    kali            ${DIM}Kali Linux security tools + Metasploit (70+ tools)${NC}"
 echo -e "    wireshark       ${DIM}WireMCP — tshark packet capture & analysis${NC}"
 echo -e "    screenshot      ${DIM}Screenshot MCP — headless Chromium evidence capture${NC}"

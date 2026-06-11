@@ -37,8 +37,8 @@ def test_integration_ports_are_documented_in_configs() -> None:
     assert 'HEXSTRIKE_REF: "${HEXSTRIKE_REF:-master}"' in compose
     assert "hexstrike-bridge-mcp" in catalog
     assert "boaz-mcp" in catalog
-    assert mcp_json["mcpServers"]["hexstrike"]["url"] == "http://localhost:9006/sse"
-    assert mcp_json["mcpServers"]["boaz"]["url"] == "http://localhost:9005/sse"
+    assert mcp_json["mcpServers"]["hexstrike"]["url"] == "http://localhost:9006/mcp"
+    assert mcp_json["mcpServers"]["boaz"]["url"] == "http://localhost:9005/mcp"
 
 
 def test_integration_dockerfiles_exist() -> None:
@@ -70,11 +70,11 @@ def test_claude_code_container_wires_all_default_mcp_servers() -> None:
     )
 
     for expected in [
-        "http://kali-mcp:9001/sse",
-        "http://kali-mcp:9003/sse",
-        "http://screenshot-mcp:9004/sse",
-        "http://boaz-mcp:9005/sse",
-        "http://hexstrike-bridge-mcp:9006/sse",
+        "http://kali-mcp:9001/mcp",
+        "http://kali-mcp:9003/mcp",
+        "http://screenshot-mcp:9004/mcp",
+        "http://boaz-mcp:9005/mcp",
+        "http://hexstrike-bridge-mcp:9006/mcp",
     ]:
         assert expected in dockerfile
         assert expected in entrypoint

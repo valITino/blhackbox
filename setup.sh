@@ -175,6 +175,34 @@ configure_env() {
         echo -e "  ${CHECK} NEO4J_PASSWORD configured"
     fi
 
+    # --- Keys & tokens reference ---
+    # Print the full list of keys/tokens the framework can use so the user
+    # knows exactly what to provide. Only ANTHROPIC_API_KEY (Docker client) is
+    # ever required; every pentest tool runs without the rest — they only widen
+    # passive recon coverage and extra data sources.
+    echo ""
+    echo -e "  ${BOLD}Keys & tokens${NC} ${DIM}(edit .env to add them, then restart the stack):${NC}"
+    echo ""
+    echo -e "    ${BOLD}Required${NC}"
+    echo -e "      ${CYAN}ANTHROPIC_API_KEY${NC}      ${DIM}Only for Claude Code inside Docker (--profile${NC}"
+    echo -e "                             ${DIM}claude-code). Not needed for Claude Code Web/host.${NC}"
+    echo -e "                             ${DIM}→ https://console.anthropic.com/settings/keys${NC}"
+    echo ""
+    echo -e "    ${BOLD}Optional — widen recon (all tools work without them)${NC}"
+    echo -e "      ${CYAN}WPSCAN_API_TOKEN${NC}       ${DIM}WordPress vuln database; wpscan auto-reads it.${NC}"
+    echo -e "                             ${DIM}→ https://wpscan.com/api  (free: 25 req/day)${NC}"
+    echo -e "      ${CYAN}SHODAN_API_KEY${NC}         ${DIM}subfinder passive source + Shodan host data.${NC}"
+    echo -e "                             ${DIM}→ https://account.shodan.io${NC}"
+    echo -e "      ${CYAN}VIRUSTOTAL_API_KEY${NC}     ${DIM}subfinder passive source.${NC}"
+    echo -e "                             ${DIM}→ https://www.virustotal.com/gui/my-apikey${NC}"
+    echo -e "      ${CYAN}SECURITYTRAILS_API_KEY${NC} ${DIM}subfinder passive source (subdomains/history).${NC}"
+    echo -e "                             ${DIM}→ https://securitytrails.com/app/account/credentials${NC}"
+    echo -e "      ${CYAN}OPENAI_API_KEY${NC}         ${DIM}Only for ChatGPT/OpenAI MCP clients (host-based).${NC}"
+    echo -e "                             ${DIM}→ https://platform.openai.com/api-keys${NC}"
+    echo ""
+    echo -e "    ${DIM}theHarvester and amass read keys from their OWN config files, not${NC}"
+    echo -e "    ${DIM}env vars: ~/.theHarvester/api-keys.yaml and ~/.config/amass/datasources.yaml${NC}"
+
     echo ""
 }
 

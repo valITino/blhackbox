@@ -69,7 +69,7 @@ Everything runs inside Docker containers. No tools are installed on your host ma
 
 ## Architecture
 
-Claude Code in Docker connects **directly** to each MCP server via SSE over the internal Docker network — no MCP Gateway needed.
+Claude Code in Docker connects **directly** to each MCP server via Streamable HTTP over the internal Docker network — no MCP Gateway needed.
 
 ```
 YOU (the user)
@@ -81,25 +81,25 @@ YOU (the user)
 CLAUDE CODE (Docker container on blhackbox_net)
   │
   │  Reads your prompt, decides which tools to call.
-  │  Connects directly to each MCP server via SSE.
+  │  Connects directly to each MCP server via Streamable HTTP.
   │
-  ├── kali (SSE :9001) ──────────────▶  KALI MCP SERVER
+  ├── kali (HTTP:9001) ──────────────▶  KALI MCP SERVER
   │                                      70+ tools: nmap, nikto, gobuster, sqlmap,
   │                                      hydra, msfconsole, msfvenom, searchsploit…
   │
-  ├── wireshark (SSE :9003) ─────────▶  WIREMCP SERVER
+  ├── wireshark (HTTP:9003) ─────────▶  WIREMCP SERVER
   │                                      7 tools: packet capture, pcap analysis,
   │                                      credential extraction
   │
-  ├── screenshot (SSE :9004) ────────▶  SCREENSHOT MCP SERVER
+  ├── screenshot (HTTP:9004) ────────▶  SCREENSHOT MCP SERVER
   │                                      4 tools: web page screenshots, element
   │                                      capture, annotations
   │
-  ├── boaz (SSE :9005) ───────────────▶  BOAZ-MCP GAMMA SERVER
-  │                                      upstream BOAZ MCP tools via SSE
+  ├── boaz (HTTP:9005) ───────────────▶  BOAZ-MCP GAMMA SERVER
+  │                                      upstream BOAZ MCP tools via Streamable HTTP
   │
-  ├── hexstrike (SSE :9006) ──────────▶  HEXSTRIKE GAMMA MCP SERVER
-  │                                      upstream HexStrike tool suite via SSE
+  ├── hexstrike (HTTP:9006) ──────────▶  HEXSTRIKE GAMMA MCP SERVER
+  │                                      upstream HexStrike tool suite via Streamable HTTP
   │
   │  After collecting raw outputs, Claude structures them directly:
   │    get_payload_schema() → parse/dedup/correlate → aggregate_results()
@@ -220,8 +220,8 @@ The default stack also includes the HexStrike and BOAZ MCP integrations:
 
 | Profile | Services | Ports | Purpose |
 |:--|:--|:--:|:--|
-| default | `hexstrike-ai`, `hexstrike-bridge-mcp` | `8888`, `9006` | Run a capsulated HexStrike Gamma API and expose the upstream HexStrike MCP tool suite over SSE. |
-| default | `boaz-mcp` | `9005` | Run the upstream `BOAZ-MCP_gamma` server over SSE with `BOAZ_gamma` available at `/opt/BOAZ_gamma` and `./output/boaz-lab` mounted as workspace. |
+| default | `hexstrike-ai`, `hexstrike-bridge-mcp` | `8888`, `9006` | Run a capsulated HexStrike Gamma API and expose the upstream HexStrike MCP tool suite over Streamable HTTP. |
+| default | `boaz-mcp` | `9005` | Run the upstream `BOAZ-MCP_gamma` server over Streamable HTTP with `BOAZ_gamma` available at `/opt/BOAZ_gamma` and `./output/boaz-lab` mounted as workspace. |
 
 Start everything with the normal stack command:
 
@@ -400,7 +400,7 @@ RETURN ip, p, s
 
 ## Tutorial 1: Claude Code (Docker) — Recommended
 
-Claude Code runs entirely inside a Docker container on the same network as all blhackbox services. It connects **directly** to each MCP server via SSE — no MCP Gateway, no host install, no Node.js.
+Claude Code runs entirely inside a Docker container on the same network as all blhackbox services. It connects **directly** to each MCP server via Streamable HTTP — no MCP Gateway, no host install, no Node.js.
 
 ### Step 1 — Start the stack
 
@@ -700,7 +700,7 @@ STEP 2 ─ AI DECIDES WHICH TOOLS TO USE
           │
           ▼
 STEP 3 ─ TOOLS EXECUTE IN DOCKER CONTAINERS
-  Claude Code (Docker) connects directly via SSE.
+  Claude Code (Docker) connects directly via Streamable HTTP.
   Claude Desktop / ChatGPT connect via the MCP Gateway.
   Each tool runs in its container and returns raw text.
           │
@@ -730,7 +730,7 @@ STEP 7 ─ (OPTIONAL) RESULTS STORED IN NEO4J
 
 | MCP Client | Gateway? | How it connects |
 |:--|:--:|:--|
-| **Claude Code (Docker)** | No | Direct SSE to each MCP server over Docker network |
+| **Claude Code (Docker)** | No | Direct Streamable HTTP to each MCP server over Docker network |
 | **Claude Code (Web)** | No | Stdio MCP server from `.mcp.json` |
 | **Claude Desktop** | **Yes** | Host GUI app → `localhost:8080/mcp` gateway |
 | **ChatGPT / OpenAI** | **Yes** | Host GUI/web app → `localhost:8080/mcp` gateway |
@@ -741,7 +741,7 @@ The MCP Gateway (`docker/mcp-gateway:latest`) aggregates all MCP servers behind 
 make up-gateway   # starts core stack + gateway
 ```
 
-> **Why optional?** The gateway adds complexity, requires Docker socket access, and is designed for Docker Desktop environments. On headless Linux servers, direct SSE is simpler and more reliable.
+> **Why optional?** The gateway adds complexity, requires Docker socket access, and is designed for Docker Desktop environments. On headless Linux servers, direct Streamable HTTP is simpler and more reliable.
 
 ---
 
@@ -886,9 +886,9 @@ All custom images are published to `crhacky/blhackbox`:
 | `crhacky/blhackbox:wire-mcp` | WireMCP Server (tshark, 7 tools) |
 | `crhacky/blhackbox:screenshot-mcp` | Screenshot MCP Server (headless Chromium, 4 tools) |
 | `crhacky/blhackbox:hexstrike-ai` | HexStrike Gamma API container |
-| `crhacky/blhackbox:hexstrike-mcp` | Upstream HexStrike Gamma MCP server over SSE |
-| `crhacky/blhackbox:boaz-mcp` | Upstream BOAZ-MCP Gamma server over SSE |
-| `crhacky/blhackbox:claude-code` | Claude Code CLI client (direct SSE to MCP servers) |
+| `crhacky/blhackbox:hexstrike-mcp` | Upstream HexStrike Gamma MCP server over Streamable HTTP |
+| `crhacky/blhackbox:boaz-mcp` | Upstream BOAZ-MCP Gamma server over Streamable HTTP |
+| `crhacky/blhackbox:claude-code` | Claude Code CLI client (direct Streamable HTTP to MCP servers) |
 
 Official images pulled directly:
 

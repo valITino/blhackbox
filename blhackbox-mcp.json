@@ -1,9 +1,9 @@
 {
   "mcpServers": {
     "kali": {
-      "type": "sse",
-      "url": "http://localhost:9001/sse",
-      "description": "Kali Linux security tools + Metasploit Framework \u2014 70+ tools including msfconsole, msfvenom, nmap, sqlmap, hydra, etc. Connects via SSE to docker compose service on port 9001."
+      "type": "http",
+      "url": "http://localhost:9001/mcp",
+      "description": "Kali Linux security tools + Metasploit Framework — 70+ tools including msfconsole, msfvenom, nmap, sqlmap, hydra, etc. Connects via Streamable HTTP to docker compose service on port 9001."
     },
     "wireshark": {
       "command": "docker",
@@ -16,12 +16,12 @@
         "--privileged",
         "crhacky/blhackbox:wire-mcp"
       ],
-      "description": "WireMCP Server \u2014 Wireshark/tshark for packet capture and network analysis (7 tools)"
+      "description": "WireMCP Server — Wireshark/tshark for packet capture and network analysis (7 tools)"
     },
     "screenshot": {
-      "type": "sse",
-      "url": "http://localhost:9004/sse",
-      "description": "Screenshot MCP Server \u2014 headless Chromium screenshots for bug bounty PoC evidence capture (4 tools)"
+      "type": "http",
+      "url": "http://localhost:9004/mcp",
+      "description": "Screenshot MCP Server — headless Chromium screenshots for bug bounty PoC evidence capture (4 tools)"
     },
     "blhackbox": {
       "command": "blhackbox",
@@ -29,17 +29,17 @@
         "mcp"
       ],
       "env": {},
-      "description": "blhackbox core MCP server \u2014 recon, tool execution, graph queries, report generation"
+      "description": "blhackbox core MCP server — recon, tool execution, graph queries, report generation"
     },
     "hexstrike": {
-      "type": "sse",
-      "url": "http://localhost:9006/sse",
-      "description": "HexStrike MCP Server \u2014 full upstream HexStrike Gamma MCP service connected to the HexStrike API container."
+      "type": "http",
+      "url": "http://localhost:9006/mcp",
+      "description": "HexStrike MCP Server — full upstream HexStrike Gamma MCP service connected to the HexStrike API container."
     },
     "boaz": {
-      "type": "sse",
-      "url": "http://localhost:9005/sse",
-      "description": "BOAZ MCP Server \u2014 upstream BOAZ-MCP Gamma server exposed over SSE."
+      "type": "http",
+      "url": "http://localhost:9005/mcp",
+      "description": "BOAZ MCP Server — upstream BOAZ-MCP Gamma server exposed over Streamable HTTP."
     }
   }
 }

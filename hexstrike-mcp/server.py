@@ -1,9 +1,9 @@
-"""SSE entrypoint for the upstream HexStrike AI Gamma MCP server.
+"""Streamable HTTP entrypoint for the upstream HexStrike AI Gamma MCP server.
 
 This file does not reimplement HexStrike tools. It loads the unmodified upstream
 `hexstrike_mcp.py` module from a cloned `hexstrike-ai_gamma` checkout and runs
-its FastMCP server over SSE so it behaves like the other blhackbox Docker MCP
-services.
+its FastMCP server over Streamable HTTP so it behaves like the other blhackbox
+Docker MCP services.
 """
 
 from __future__ import annotations
@@ -82,7 +82,7 @@ def create_app(
         allowed_hosts,
         allowed_origins,
     )
-    app = fastmcp.sse_app()
+    app = fastmcp.streamable_http_app()
 
     async def health(_: Request) -> JSONResponse:
         return JSONResponse(
@@ -91,7 +91,7 @@ def create_app(
                 "service": "hexstrike-bridge-mcp",
                 "upstream": "hexstrike-ai_gamma",
                 "hexstrike_url": server_url,
-                "transport": "sse",
+                "transport": "streamable-http",
             }
         )
 
@@ -100,7 +100,7 @@ def create_app(
 
 
 def main() -> None:
-    """Run HexStrike AI Gamma MCP over SSE."""
+    """Run HexStrike AI Gamma MCP over Streamable HTTP."""
     uvicorn.run(create_app(), host=DEFAULT_HOST, port=DEFAULT_PORT)
 
 

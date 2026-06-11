@@ -9,7 +9,7 @@ Tools:
   - list_screenshots    → List captured screenshots with metadata
   - annotate_screenshot → Add text/box annotations to a screenshot for PoC docs
 
-Transport: FastMCP SSE on port 9004.
+Transport: FastMCP Streamable HTTP on port 9004.
 """
 
 from __future__ import annotations
@@ -488,6 +488,6 @@ async def annotate_screenshot(
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    transport = os.environ.get("MCP_TRANSPORT", "sse")
+    transport = os.environ.get("MCP_TRANSPORT", "streamable-http")
     logger.info("Starting Screenshot MCP server (%s on port %d)", transport, MCP_PORT)
     mcp.run(transport=transport)

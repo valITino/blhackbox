@@ -785,7 +785,7 @@ async def _do_get_payload_schema() -> str:
 
 
 async def _screenshot_request(endpoint: str, payload: dict[str, Any]) -> str:
-    """Send a request to the screenshot-mcp SSE server's tool endpoint."""
+    """Send a request to the screenshot-mcp server's tool endpoint."""
     import httpx
 
     from blhackbox.config import settings
@@ -805,8 +805,8 @@ async def _screenshot_request(endpoint: str, payload: dict[str, Any]) -> str:
         return json.dumps({
             "error": (
                 "Screenshot MCP server not reachable. "
-                "Use the screenshot MCP server directly via SSE at "
-                f"{base_url}/sse or ensure the screenshot-mcp container is running."
+                "Use the screenshot MCP server directly via Streamable HTTP at "
+                f"{base_url}/mcp or ensure the screenshot-mcp container is running."
             ),
         })
 

@@ -19,8 +19,8 @@ registry:
     title: "Kali MCP Server"
     type: "server"
     remote:
-      url: "http://kali-mcp:9001/sse"
-      transport_type: sse
+      url: "http://kali-mcp:9001/mcp"
+      transport_type: streamable
 
   wire-mcp:
     description: "Wireshark/tshark — 7 tools: packet capture, pcap analysis, credential extraction, stream following"
@@ -28,29 +28,29 @@ registry:
     type: "server"
     remote:
       # wire-mcp shares kali-mcp's network namespace for traffic visibility
-      url: "http://kali-mcp:9003/sse"
-      transport_type: sse
+      url: "http://kali-mcp:9003/mcp"
+      transport_type: streamable
 
   screenshot-mcp:
     description: "Headless Chromium screenshots — 4 tools: take_screenshot, take_element_screenshot, list_screenshots, annotate_screenshot"
     title: "Screenshot MCP Server"
     type: "server"
     remote:
-      url: "http://screenshot-mcp:9004/sse"
-      transport_type: sse
+      url: "http://screenshot-mcp:9004/mcp"
+      transport_type: streamable
 
   hexstrike-bridge-mcp:
     description: "HexStrike Gamma MCP — upstream tool surface connected to the local HexStrike API container"
     title: "HexStrike MCP Server"
     type: "server"
     remote:
-      url: "http://hexstrike-bridge-mcp:9006/sse"
-      transport_type: sse
+      url: "http://hexstrike-bridge-mcp:9006/mcp"
+      transport_type: streamable
 
   boaz-mcp:
-    description: "BOAZ MCP — upstream BOAZ-MCP Gamma server exposed over SSE"
+    description: "BOAZ MCP — upstream BOAZ-MCP Gamma server exposed over Streamable HTTP"
     title: "BOAZ MCP Server"
     type: "server"
     remote:
-      url: "http://boaz-mcp:9005/sse"
-      transport_type: sse
+      url: "http://boaz-mcp:9005/mcp"
+      transport_type: streamable

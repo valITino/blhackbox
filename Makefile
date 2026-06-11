@@ -132,10 +132,10 @@ health: ## Quick health check of all MCP servers
 	@echo "\033[1m  MCP Server Health Check\033[0m"
 	@echo "\033[2m  ──────────────────────────────────────\033[0m"
 	@printf "  %-22s " "Kali MCP (9001)"; \
-		docker exec blhackbox-kali-mcp python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:9001/sse')" > /dev/null 2>&1 \
+		docker exec blhackbox-kali-mcp python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:9001/health')" > /dev/null 2>&1 \
 		&& echo "\033[32m[OK]\033[0m" || echo "\033[31m[FAIL]\033[0m"
 	@printf "  %-22s " "WireMCP (9003)"; \
-		docker exec blhackbox-wire-mcp python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:9003/sse')" > /dev/null 2>&1 \
+		docker exec blhackbox-wire-mcp python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:9003/health')" > /dev/null 2>&1 \
 		&& echo "\033[32m[OK]\033[0m" || echo "\033[31m[FAIL]\033[0m"
 	@printf "  %-22s " "Screenshot MCP (9004)"; \
 		docker exec blhackbox-screenshot-mcp python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:9004/health')" > /dev/null 2>&1 \
@@ -144,10 +144,10 @@ health: ## Quick health check of all MCP servers
 		docker exec blhackbox-hexstrike-ai python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:8888/health')" > /dev/null 2>&1 \
 		&& echo "\033[32m[OK]\033[0m" || echo "\033[31m[FAIL]\033[0m"
 	@printf "  %-22s " "HexStrike MCP (9006)"; \
-		docker exec blhackbox-hexstrike-mcp python -c "import urllib.request; urllib.request.urlopen('http://localhost:9006/sse')" > /dev/null 2>&1 \
+		docker exec blhackbox-hexstrike-mcp python -c "import urllib.request; urllib.request.urlopen('http://localhost:9006/health')" > /dev/null 2>&1 \
 		&& echo "\033[32m[OK]\033[0m" || echo "\033[31m[FAIL]\033[0m"
 	@printf "  %-22s " "BOAZ MCP (9005)"; \
-		docker exec blhackbox-boaz-mcp python -c "import urllib.request; urllib.request.urlopen('http://localhost:9005/sse')" > /dev/null 2>&1 \
+		docker exec blhackbox-boaz-mcp python -c "import urllib.request; urllib.request.urlopen('http://localhost:9005/health')" > /dev/null 2>&1 \
 		&& echo "\033[32m[OK]\033[0m" || echo "\033[31m[FAIL]\033[0m"
 	@printf "  %-22s " "MCP Gateway (8080)"; \
 		docker inspect --format='{{.State.Running}}' blhackbox-mcp-gateway 2>/dev/null | grep -q "true" \

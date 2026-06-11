@@ -1,6 +1,6 @@
 # BOAZ MCP
 
-The default Docker stack runs the upstream `BOAZ-MCP_gamma` server on SSE port `9005`. The upstream server is cloned into the image unchanged and is loaded by `boaz-mcp/server.py`, which only adapts the upstream stdio MCP server to the same SSE transport style used by the other blhackbox MCP containers.
+The default Docker stack runs the upstream `BOAZ-MCP_gamma` server on Streamable HTTP port `9005`. The upstream server is cloned into the image unchanged and is loaded by `boaz-mcp/server.py`, which only adapts the upstream stdio MCP server to the same Streamable HTTP transport style used by the other blhackbox MCP containers.
 
 The image also clones `BOAZ_gamma` into `/opt/BOAZ_gamma` and sets `BOAZ_PATH=/opt/BOAZ_gamma`. The service mounts `./output/boaz-lab` as an operator workspace.
 
@@ -18,4 +18,4 @@ Run manually for local adapter checks:
 python boaz-mcp/server.py
 ```
 
-Default SSE port: `9005`.
+Default Streamable HTTP endpoint: `http://localhost:9005/mcp` (health probe at `/health`).

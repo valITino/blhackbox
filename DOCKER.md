@@ -51,22 +51,22 @@ docker compose pull    # pull ALL images (custom + official) in one command
 
 In v2, **Claude (or ChatGPT) IS the orchestrator** natively via MCP.
 
-### Claude Code in Docker — Direct SSE (no gateway)
+### Claude Code in Docker — Direct Streamable HTTP (no gateway)
 
 ```
-Claude Code ──┬──▶ Kali MCP (SSE :9001)
+Claude Code ──┬──▶ Kali MCP (HTTP:9001)
 (container)   │    70+ tools: nmap, sqlmap, hydra, msfconsole, msfvenom…
               │
-              ├──▶ WireMCP (SSE :9003)
+              ├──▶ WireMCP (HTTP:9003)
               │    7 tools: packet capture, pcap analysis, credential extraction
               │
-              ├──▶ Screenshot MCP (SSE :9004)
+              ├──▶ Screenshot MCP (HTTP:9004)
               │    4 tools: web screenshots, element capture, annotations
               │
-              ├──▶ BOAZ MCP (SSE :9005)
+              ├──▶ BOAZ MCP (HTTP:9005)
               │    upstream BOAZ-MCP Gamma tools
               │
-              ├──▶ HexStrike MCP (SSE :9006)
+              ├──▶ HexStrike MCP (HTTP:9006)
               │    upstream HexStrike Gamma tool suite
               │
               │  After collecting raw outputs, Claude structures them directly:
@@ -192,8 +192,8 @@ Skills are available in the container via two mechanisms:
 | `wire-mcp` | `crhacky/blhackbox:wire-mcp` | `9003` | default | Wireshark / tshark (7 tools) |
 | `screenshot-mcp` | `crhacky/blhackbox:screenshot-mcp` | `9004` | default | Screenshot MCP (headless Chromium, 4 tools) |
 | `hexstrike-ai` | `crhacky/blhackbox:hexstrike-ai` | `8888` | default | HexStrike Gamma API |
-| `hexstrike-bridge-mcp` | `crhacky/blhackbox:hexstrike-mcp` | `9006` | default | HexStrike Gamma MCP server (SSE) |
-| `boaz-mcp` | `crhacky/blhackbox:boaz-mcp` | `9005` | default | BOAZ-MCP Gamma server (SSE) |
+| `hexstrike-bridge-mcp` | `crhacky/blhackbox:hexstrike-mcp` | `9006` | default | HexStrike Gamma MCP server (Streamable HTTP) |
+| `boaz-mcp` | `crhacky/blhackbox:boaz-mcp` | `9005` | default | BOAZ-MCP Gamma server (Streamable HTTP) |
 | `portainer` | `portainer/portainer-ce:latest` | `9443` | default | Docker management UI (HTTPS) |
 | `claude-code` | `crhacky/blhackbox:claude-code` | — | `claude-code` | Claude Code CLI client (Docker) |
 | `mcp-gateway` | `docker/mcp-gateway:latest` | `8080` | `gateway` | Single MCP entry point (host clients) |
@@ -203,18 +203,18 @@ Skills are available in the container via two mechanisms:
 
 ## MCP Connection Modes
 
-### Claude Code in Docker (Direct SSE — no gateway)
+### Claude Code in Docker (Direct Streamable HTTP — no gateway)
 
 The Claude Code container's `.mcp.json` connects directly to each server:
 
 ```json
 {
   "mcpServers": {
-    "kali":       { "type": "sse", "url": "http://kali-mcp:9001/sse" },
-    "wireshark":  { "type": "sse", "url": "http://kali-mcp:9003/sse" },
-    "screenshot": { "type": "sse", "url": "http://screenshot-mcp:9004/sse" },
-    "boaz":       { "type": "sse", "url": "http://boaz-mcp:9005/sse" },
-    "hexstrike":  { "type": "sse", "url": "http://hexstrike-bridge-mcp:9006/sse" }
+    "kali":       { "type": "http", "url": "http://kali-mcp:9001/mcp" },
+    "wireshark":  { "type": "http", "url": "http://kali-mcp:9003/mcp" },
+    "screenshot": { "type": "http", "url": "http://screenshot-mcp:9004/mcp" },
+    "boaz":       { "type": "http", "url": "http://boaz-mcp:9005/mcp" },
+    "hexstrike":  { "type": "http", "url": "http://hexstrike-bridge-mcp:9006/mcp" }
   }
 }
 ```
@@ -260,7 +260,7 @@ Requires `--profile gateway` (`make up-gateway`).
 | | |
 |:--|:--|
 | **Base** | `kalilinux/kali-rolling` |
-| **Transport** | SSE on port 9001 |
+| **Transport** | Streamable HTTP on port 9001 |
 | **Privileged** | Yes (raw socket access) |
 | **Entrypoint** | `entrypoint.sh` (starts PostgreSQL for MSF DB, then MCP server) |
 
@@ -275,7 +275,7 @@ Requires `--profile gateway` (`make up-gateway`).
 | | |
 |:--|:--|
 | **Base** | `debian:bookworm-slim` |
-| **Transport** | SSE on port 9003 |
+| **Transport** | Streamable HTTP on port 9003 |
 | **Privileged** | Yes (packet capture) |
 | **Entrypoint** | WireMCP server (`server.py`) |
 
@@ -288,7 +288,7 @@ Requires `--profile gateway` (`make up-gateway`).
 | | |
 |:--|:--|
 | **Base** | `python:3.13-slim` |
-| **Transport** | SSE on port 9004 |
+| **Transport** | Streamable HTTP on port 9004 |
 | **Entrypoint** | Screenshot MCP server (FastMCP + Playwright headless Chromium) |
 
 **Tools (4):** `take_screenshot` (full-page web capture), `take_element_screenshot` (CSS selector targeting), `annotate_screenshot` (labels and highlight boxes), `list_screenshots` (evidence inventory)
@@ -299,7 +299,7 @@ Requires `--profile gateway` (`make up-gateway`).
 |:--|:--|
 | **Base** | `node:22-slim` |
 | **Entrypoint** | `claude-code-entrypoint.sh` (health checks + launch) |
-| **MCP config** | Direct SSE to each server (no gateway dependency) |
+| **MCP config** | Direct Streamable HTTP to each server (no gateway dependency) |
 | **Skills** | 11 pentesting skills mounted from `.claude/skills/` |
 | **Requires** | `ANTHROPIC_API_KEY` in `.env` |
 

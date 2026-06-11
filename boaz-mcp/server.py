@@ -1,27 +1,47 @@
-"""SSE entrypoint for the upstream BOAZ-MCP Gamma server.
+"""Streamable HTTP entrypoint for the upstream BOAZ-MCP Gamma server.
 
 This file does not reimplement BOAZ tools. It loads the unmodified upstream
 `boaz_mcp.server.BoazMCPServer` from BOAZ-MCP_gamma and exposes that low-level
-MCP server over SSE so it behaves like the other blhackbox Docker MCP services.
+MCP server over Streamable HTTP so it behaves like the other blhackbox Docker
+MCP services.
 """
 
 from __future__ import annotations
 
+import contextlib
 import os
 import sys
+from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import Any
 
 import uvicorn
-from mcp.server.sse import SseServerTransport
+from mcp.server.streamable_http_manager import StreamableHTTPSessionManager
 from starlette.applications import Starlette
 from starlette.requests import Request
-from starlette.responses import JSONResponse, Response
-from starlette.routing import Mount, Route
+from starlette.responses import JSONResponse
+from starlette.routing import Route
+from starlette.types import Receive, Scope, Send
 
 DEFAULT_BOAZ_MCP_PATH = Path(os.environ.get("BOAZ_MCP_PATH", "/opt/BOAZ-MCP_gamma"))
 DEFAULT_HOST = os.environ.get("BOAZ_MCP_HOST", "0.0.0.0")
 DEFAULT_PORT = int(os.environ.get("BOAZ_MCP_PORT", "9005"))
+
+
+class _StreamableHTTPASGIApp:
+    """ASGI wrapper around the session manager's request handler.
+
+    Mounting the handler with a Starlette ``Route`` whose endpoint is a class
+    instance (rather than ``Mount``) serves the Streamable HTTP transport at the
+    exact ``/mcp`` path, matching the FastMCP-based servers. ``Mount`` would
+    redirect ``/mcp`` to ``/mcp/`` and break clients that POST to ``/mcp``.
+    """
+
+    def __init__(self, session_manager: StreamableHTTPSessionManager) -> None:
+        self.session_manager = session_manager
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        await self.session_manager.handle_request(scope, receive, send)
 
 
 def _add_upstream_to_path(upstream_path: Path = DEFAULT_BOAZ_MCP_PATH) -> None:
@@ -40,21 +60,13 @@ def _load_upstream_mcp_server(upstream_path: Path = DEFAULT_BOAZ_MCP_PATH) -> An
 
 
 def create_app(upstream_path: Path = DEFAULT_BOAZ_MCP_PATH) -> Starlette:
-    """Create a Starlette SSE app around the upstream BOAZ MCP server."""
+    """Create a Starlette Streamable HTTP app around the upstream BOAZ MCP server."""
     upstream_server = _load_upstream_mcp_server(upstream_path)
-    sse = SseServerTransport("/messages/")
-
-    async def handle_sse(scope: Any, receive: Any, send: Any) -> Response:
-        async with sse.connect_sse(scope, receive, send) as streams:
-            await upstream_server.run(
-                streams[0],
-                streams[1],
-                upstream_server.create_initialization_options(),
-            )
-        return Response()
-
-    async def sse_endpoint(request: Request) -> Response:
-        return await handle_sse(request.scope, request.receive, request._send)  # type: ignore[attr-defined]
+    session_manager = StreamableHTTPSessionManager(
+        app=upstream_server,
+        json_response=False,
+        stateless=False,
+    )
 
     async def health(_: Request) -> JSONResponse:
         return JSONResponse(
@@ -62,21 +74,28 @@ def create_app(upstream_path: Path = DEFAULT_BOAZ_MCP_PATH) -> Starlette:
                 "status": "ok",
                 "service": "boaz-mcp",
                 "upstream": "BOAZ-MCP_gamma",
-                "transport": "sse",
+                "transport": "streamable-http",
             }
         )
+
+    @contextlib.asynccontextmanager
+    async def lifespan(_: Starlette) -> AsyncIterator[None]:
+        # The session manager's task group must be running for the duration of
+        # the app; handle_request fails otherwise.
+        async with session_manager.run():
+            yield
 
     return Starlette(
         routes=[
             Route("/health", endpoint=health, methods=["GET"]),
-            Route("/sse", endpoint=sse_endpoint, methods=["GET"]),
-            Mount("/messages/", app=sse.handle_post_message),
-        ]
+            Route("/mcp", endpoint=_StreamableHTTPASGIApp(session_manager)),
+        ],
+        lifespan=lifespan,
     )
 
 
 def main() -> None:
-    """Run BOAZ-MCP Gamma over SSE."""
+    """Run BOAZ-MCP Gamma over Streamable HTTP."""
     uvicorn.run(create_app(), host=DEFAULT_HOST, port=DEFAULT_PORT)
 
 
