@@ -2,7 +2,7 @@
 # Usage:
 #   docker compose --profile claude-code run --rm claude-code
 #
-# Connects DIRECTLY to each MCP server via SSE on the internal
+# Connects DIRECTLY to each MCP server via Streamable HTTP on the internal
 # blhackbox_net network. No MCP Gateway required. No host-side install.
 
 FROM node:22-slim
@@ -20,30 +20,30 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /root
 
-# Pre-configure MCP to connect directly to each FastMCP server via SSE.
-# Wire-MCP shares kali-mcp's network namespace, so it's accessed via
-# kali-mcp hostname on port 9003.
+# Pre-configure MCP to connect directly to each FastMCP server via
+# Streamable HTTP. Wire-MCP shares kali-mcp's network namespace, so it's
+# accessed via the kali-mcp hostname on port 9003.
 RUN echo '{ \
   "mcpServers": { \
     "kali": { \
-      "type": "sse", \
-      "url": "http://kali-mcp:9001/sse" \
+      "type": "http", \
+      "url": "http://kali-mcp:9001/mcp" \
     }, \
     "wireshark": { \
-      "type": "sse", \
-      "url": "http://kali-mcp:9003/sse" \
+      "type": "http", \
+      "url": "http://kali-mcp:9003/mcp" \
     }, \
     "screenshot": { \
-      "type": "sse", \
-      "url": "http://screenshot-mcp:9004/sse" \
+      "type": "http", \
+      "url": "http://screenshot-mcp:9004/mcp" \
     }, \
     "boaz": { \
-      "type": "sse", \
-      "url": "http://boaz-mcp:9005/sse" \
+      "type": "http", \
+      "url": "http://boaz-mcp:9005/mcp" \
     }, \
     "hexstrike": { \
-      "type": "sse", \
-      "url": "http://hexstrike-bridge-mcp:9006/sse" \
+      "type": "http", \
+      "url": "http://hexstrike-bridge-mcp:9006/mcp" \
     } \
   } \
 }' > .mcp.json

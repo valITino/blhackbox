@@ -44,11 +44,11 @@
 |---|---|
 | **Getting Started** | [How It Works](#how-it-works) · [Architecture](#architecture) · [Prerequisites](#prerequisites) · [Installation](#installation) |
 | **Skills** | [Skills Overview](#skills--slash-commands) · [Available Skills](#available-skills) · [How Skills Work](#how-skills-work) |
-| **Tutorials** | [Claude Code (Docker)](#tutorial-1-claude-code-docker--recommended) · [Claude Code (Web)](#tutorial-2-claude-code-web) · [Claude Desktop](#tutorial-3-claude-desktop-host--gateway) · [ChatGPT / OpenAI](#tutorial-4-chatgpt--openai-host--gateway) |
+| **Tutorials** | [Claude Code (Docker)](#tutorial-1-claude-code-docker--recommended) · [DeepSeek (Reasonix)](#tutorial-1b-deepseek-reasonix-docker) · [Claude Code (Web)](#tutorial-2-claude-code-web) · [Claude Desktop](#tutorial-3-claude-desktop-host--gateway) · [ChatGPT / OpenAI](#tutorial-4-chatgpt--openai-host--gateway) |
 | **Advanced** | [Advanced Usage & FAQ](#advanced-usage--faq) |
 | **Reference** | [Components](#components) · [Output Files](#output-files) · [CLI Reference](#cli-reference) · [Makefile Shortcuts](#makefile-shortcuts) · [Docker Hub Images](#docker-hub-images) |
 | **Operations** | [Prompt Flow](#how-prompts-flow-through-the-system) · [MCP Gateway](#do-i-need-the-mcp-gateway) · [Portainer Setup](#portainer-setup) · [Neo4j](#neo4j-optional) · [Troubleshooting](#troubleshooting) |
-| **Security** | [Authorization & Verification](#authorization--verification) · [Security Notes](#security-notes) |
+| **Security** | [Security Notes](#security-notes) |
 | **Project** | [Project Structure](#project-structure) · [Build from Source](#build-from-source-optional) · [License](#license) |
 
 ---
@@ -69,7 +69,7 @@ Everything runs inside Docker containers. No tools are installed on your host ma
 
 ## Architecture
 
-Claude Code in Docker connects **directly** to each MCP server via SSE over the internal Docker network — no MCP Gateway needed.
+Claude Code in Docker connects **directly** to each MCP server via Streamable HTTP over the internal Docker network — no MCP Gateway needed.
 
 ```
 YOU (the user)
@@ -81,25 +81,25 @@ YOU (the user)
 CLAUDE CODE (Docker container on blhackbox_net)
   │
   │  Reads your prompt, decides which tools to call.
-  │  Connects directly to each MCP server via SSE.
+  │  Connects directly to each MCP server via Streamable HTTP.
   │
-  ├── kali (SSE :9001) ──────────────▶  KALI MCP SERVER
+  ├── kali (HTTP:9001) ──────────────▶  KALI MCP SERVER
   │                                      70+ tools: nmap, nikto, gobuster, sqlmap,
   │                                      hydra, msfconsole, msfvenom, searchsploit…
   │
-  ├── wireshark (SSE :9003) ─────────▶  WIREMCP SERVER
+  ├── wireshark (HTTP:9003) ─────────▶  WIREMCP SERVER
   │                                      7 tools: packet capture, pcap analysis,
   │                                      credential extraction
   │
-  ├── screenshot (SSE :9004) ────────▶  SCREENSHOT MCP SERVER
+  ├── screenshot (HTTP:9004) ────────▶  SCREENSHOT MCP SERVER
   │                                      4 tools: web page screenshots, element
   │                                      capture, annotations
   │
-  ├── boaz (SSE :9005) ───────────────▶  BOAZ-MCP GAMMA SERVER
-  │                                      upstream BOAZ MCP tools via SSE
+  ├── boaz (HTTP:9005) ───────────────▶  BOAZ-MCP GAMMA SERVER
+  │                                      upstream BOAZ MCP tools via Streamable HTTP
   │
-  ├── hexstrike (SSE :9006) ──────────▶  HEXSTRIKE GAMMA MCP SERVER
-  │                                      upstream HexStrike tool suite via SSE
+  ├── hexstrike (HTTP:9006) ──────────▶  HEXSTRIKE GAMMA MCP SERVER
+  │                                      upstream HexStrike tool suite via Streamable HTTP
   │
   │  After collecting raw outputs, Claude structures them directly:
   │    get_payload_schema() → parse/dedup/correlate → aggregate_results()
@@ -220,8 +220,8 @@ The default stack also includes the HexStrike and BOAZ MCP integrations:
 
 | Profile | Services | Ports | Purpose |
 |:--|:--|:--:|:--|
-| default | `hexstrike-ai`, `hexstrike-bridge-mcp` | `8888`, `9006` | Run a capsulated HexStrike Gamma API and expose the upstream HexStrike MCP tool suite over SSE. |
-| default | `boaz-mcp` | `9005` | Run the upstream `BOAZ-MCP_gamma` server over SSE with `BOAZ_gamma` available at `/opt/BOAZ_gamma` and `./output/boaz-lab` mounted as workspace. |
+| default | `hexstrike-ai`, `hexstrike-bridge-mcp` | `8888`, `9006` | Run a capsulated HexStrike Gamma API and expose the upstream HexStrike MCP tool suite over Streamable HTTP. |
+| default | `boaz-mcp` | `9005` | Run the upstream `BOAZ-MCP_gamma` server over Streamable HTTP with `BOAZ_gamma` available at `/opt/BOAZ_gamma` and `./output/boaz-lab` mounted as workspace. |
 
 Start everything with the normal stack command:
 
@@ -274,6 +274,26 @@ The `output/` directory is created automatically by `setup.sh`. For manual insta
 - At least **8 GB RAM** recommended (7 containers in the default stack)
 - An **Anthropic API key** from [console.anthropic.com](https://console.anthropic.com) (required for Claude Code)
 
+### Optional API keys
+
+**Every recon tool works without any API key.** Keys are never required — they only
+widen passive-source coverage (more subdomains, vulnerability data, and OSINT hits).
+A tool with no key simply skips the sources that need one and keeps going, so you can
+add keys later (or never). To add them, put the values in your `.env` (copy
+`.env.example` first) and restart the stack:
+
+| Tool | Key | How it's read | What it adds |
+|:--|:--|:--|:--|
+| `wpscan` | `WPSCAN_API_TOKEN` | Auto-loaded from `.env` (passed into the container) | WordPress vulnerability database. Free tier: [wpscan.com/api](https://wpscan.com/api) (25 req/day) |
+| `subfinder` | `VIRUSTOTAL_API_KEY`, `SHODAN_API_KEY`, `SECURITYTRAILS_API_KEY`, … | From `.env` env vars, or `~/.config/subfinder/provider-config.yaml` | Extra passive subdomain sources |
+| `theHarvester` | shodan, hunter, securitytrails, censys, … | Config file `api-keys.yaml` (mount into the container to use) | Extra OSINT sources (keyless sources like crt.sh, certspotter, OTX still work) |
+| `amass` | per-source keys | Config file `~/.config/amass/datasources.yaml` (mount to use) | Extra data sources |
+
+The fully keyless tools — `nuclei`, `httpx`, `katana`, `gobuster`, `ffuf`, `nikto`,
+`whatweb`, `wafw00f`, `dnsenum`, `fierce`, `dnsrecon`, `nmap`, `sqlmap`, and the rest —
+need no configuration at all. Run `get_tool_details(<tool>)` and check the `api_key`
+field to see whether a specific tool benefits from a key.
+
 ---
 
 ## Installation
@@ -322,19 +342,6 @@ mkdir -p output/reports output/screenshots output/sessions
 docker compose pull
 docker compose up -d
 ```
-
-**Set up authorization** (required before running pentests):
-
-```bash
-# 5. Fill in engagement details
-nano verification.env
-# Set AUTHORIZATION_STATUS=ACTIVE after completing all fields
-
-# 6. Render the active verification document
-make inject-verification
-```
-
-See [Authorization & Verification](#authorization--verification) for details.
 
 **Verify everything is running:**
 
@@ -393,7 +400,7 @@ RETURN ip, p, s
 
 ## Tutorial 1: Claude Code (Docker) — Recommended
 
-Claude Code runs entirely inside a Docker container on the same network as all blhackbox services. It connects **directly** to each MCP server via SSE — no MCP Gateway, no host install, no Node.js.
+Claude Code runs entirely inside a Docker container on the same network as all blhackbox services. It connects **directly** to each MCP server via Streamable HTTP — no MCP Gateway, no host install, no Node.js.
 
 ### Step 1 — Start the stack
 
@@ -414,6 +421,8 @@ docker compose --profile claude-code run --rm claude-code
 The entrypoint script checks each service and shows a status dashboard with available skills.
 
 You are now inside an interactive Claude Code session.
+
+> **Prefer DeepSeek?** A drop-in alternative agent is available. Set `DEEPSEEK_API_KEY` in `.env` and run `make deepseek` (or `docker compose --profile deepseek run --rm deepseek`). It launches [Reasonix](https://github.com/esengine/DeepSeek-Reasonix), a DeepSeek-native terminal agent, wired to the same five MCP servers over Streamable HTTP. See [Tutorial 1b](#tutorial-1b-deepseek-reasonix-docker).
 
 ### Step 3 — Verify the connection
 
@@ -459,6 +468,32 @@ Or use **Portainer** at `https://localhost:9443` for a unified dashboard.
 
 ---
 
+## Tutorial 1b: DeepSeek (Reasonix, Docker)
+
+Prefer a DeepSeek-powered agent over Claude? [Reasonix](https://github.com/esengine/DeepSeek-Reasonix) is a DeepSeek-native terminal coding agent that connects to the **same five MCP servers** over Streamable HTTP — it reads a Claude-style `.mcp.json`, so the wiring is identical to the Claude Code container. It is added as a separate `deepseek` profile and does **not** replace Claude Code.
+
+### Step 1 — Set your DeepSeek key
+
+Put `DEEPSEEK_API_KEY` in `.env` (get one at [platform.deepseek.com/api_keys](https://platform.deepseek.com/api_keys)). `setup.sh` prompts for it, or add it manually. The key is read from the environment at runtime and never written into the image.
+
+### Step 2 — Launch the agent
+
+```bash
+make deepseek
+```
+
+Or manually:
+
+```bash
+docker compose --profile deepseek run --rm deepseek
+```
+
+The entrypoint checks each MCP server, then drops you into an interactive Reasonix session with all the pentest tools available. The default model is **DeepSeek-V4-Flash**; type `/pro` for a single Pro turn or `/preset max` to use Pro for the whole session.
+
+> **Note:** Slash-command *skills* (`/full-pentest`, `/quick-scan`, …) are a Claude Code feature. With Reasonix, describe your authorized target and goal in natural language and the agent calls the MCP tools directly; the methodology in `CLAUDE.md` is mounted at `/root/CLAUDE.md` for reference.
+
+---
+
 ## Tutorial 2: Claude Code (Web)
 
 Claude Code on [claude.ai/code](https://claude.ai/code) works as a web-based coding agent. When you open this repo in a web session, the MCP server configures itself automatically.
@@ -471,7 +506,7 @@ Claude Code on [claude.ai/code](https://claude.ai/code) works as a web-based cod
 ### Steps
 
 1. Go to [claude.ai/code](https://claude.ai/code) and open this repository
-2. The session-start hook auto-installs dependencies and injects verification
+2. The session-start hook auto-installs dependencies and runs an MCP health check
 3. Type `/mcp` to verify — you should see `blhackbox` with its tools
 4. Use a skill: `/quick-scan example.com`
 
@@ -652,7 +687,7 @@ The repo has directory-scoped `CLAUDE.md` files that enforce local development r
 
 | File | Rules |
 |:--|:--|
-| `blhackbox/mcp/CLAUDE.md` | MCP tool validation, verification document handling |
+| `blhackbox/mcp/CLAUDE.md` | MCP tool validation and development rules |
 | `blhackbox/models/CLAUDE.md` | `AggregatedPayload` schema contract, PoC fields mandatory |
 | `blhackbox/backends/CLAUDE.md` | `shell=False` enforcement, tool allowlisting |
 | `blhackbox/reporting/CLAUDE.md` | Report path conventions, WeasyPrint compatibility |
@@ -671,29 +706,6 @@ output/
 ```
 
 Reports follow the naming convention: `output/reports/reports-DDMMYYYY/report-<target>-DDMMYYYY.md`
-
-### How do I set up authorization for a lab/CTF?
-
-Minimal self-authorized setup in `verification.env`:
-
-```bash
-AUTHORIZATION_STATUS=ACTIVE
-ENGAGEMENT_ID=LAB-2026-001
-AUTHORIZATION_DATE=2026-03-15
-EXPIRATION_DATE=2026-12-31
-AUTHORIZING_ORGANIZATION=My Lab
-TESTER_NAME=Your Name
-TARGET_1=192.168.1.0/24
-TARGET_1_TYPE=network
-TESTING_START=2026-03-15 00:00
-TESTING_END=2026-12-31 23:59
-SIGNATORY_NAME=Your Name
-SIGNATURE_DATE=2026-03-15
-```
-
-Then: `make inject-verification`
-
-See [Authorization & Verification](#authorization--verification) for the full setup.
 
 ---
 
@@ -716,7 +728,7 @@ STEP 2 ─ AI DECIDES WHICH TOOLS TO USE
           │
           ▼
 STEP 3 ─ TOOLS EXECUTE IN DOCKER CONTAINERS
-  Claude Code (Docker) connects directly via SSE.
+  Claude Code (Docker) connects directly via Streamable HTTP.
   Claude Desktop / ChatGPT connect via the MCP Gateway.
   Each tool runs in its container and returns raw text.
           │
@@ -746,7 +758,8 @@ STEP 7 ─ (OPTIONAL) RESULTS STORED IN NEO4J
 
 | MCP Client | Gateway? | How it connects |
 |:--|:--:|:--|
-| **Claude Code (Docker)** | No | Direct SSE to each MCP server over Docker network |
+| **Claude Code (Docker)** | No | Direct Streamable HTTP to each MCP server over Docker network |
+| **DeepSeek / Reasonix (Docker)** | No | Direct Streamable HTTP to each MCP server over Docker network |
 | **Claude Code (Web)** | No | Stdio MCP server from `.mcp.json` |
 | **Claude Desktop** | **Yes** | Host GUI app → `localhost:8080/mcp` gateway |
 | **ChatGPT / OpenAI** | **Yes** | Host GUI/web app → `localhost:8080/mcp` gateway |
@@ -757,7 +770,7 @@ The MCP Gateway (`docker/mcp-gateway:latest`) aggregates all MCP servers behind 
 make up-gateway   # starts core stack + gateway
 ```
 
-> **Why optional?** The gateway adds complexity, requires Docker socket access, and is designed for Docker Desktop environments. On headless Linux servers, direct SSE is simpler and more reliable.
+> **Why optional?** The gateway adds complexity, requires Docker socket access, and is designed for Docker Desktop environments. On headless Linux servers, direct Streamable HTTP is simpler and more reliable.
 
 ---
 
@@ -867,6 +880,7 @@ blhackbox mcp                                            # Start MCP server
 | `make up-gateway` | Start with MCP Gateway for Claude Desktop (8 containers) |
 | `make down` | Stop all services |
 | `make claude-code` | Build and launch Claude Code in Docker |
+| `make deepseek` | Build and launch the DeepSeek (Reasonix) agent in Docker |
 | `make status` | Container status table |
 | `make health` | Quick health check of all services |
 | `make test` | Run tests |
@@ -876,7 +890,6 @@ blhackbox mcp                                            # Start MCP server
 | `make logs-kali` | Tail Kali MCP logs (includes Metasploit) |
 | `make logs-wireshark` | Tail WireMCP logs |
 | `make logs-screenshot` | Tail Screenshot MCP logs |
-| `make inject-verification` | Render verification.env → active authorization document |
 | `make push-all` | Build and push all images to Docker Hub |
 
 ---
@@ -903,9 +916,10 @@ All custom images are published to `crhacky/blhackbox`:
 | `crhacky/blhackbox:wire-mcp` | WireMCP Server (tshark, 7 tools) |
 | `crhacky/blhackbox:screenshot-mcp` | Screenshot MCP Server (headless Chromium, 4 tools) |
 | `crhacky/blhackbox:hexstrike-ai` | HexStrike Gamma API container |
-| `crhacky/blhackbox:hexstrike-mcp` | Upstream HexStrike Gamma MCP server over SSE |
-| `crhacky/blhackbox:boaz-mcp` | Upstream BOAZ-MCP Gamma server over SSE |
-| `crhacky/blhackbox:claude-code` | Claude Code CLI client (direct SSE to MCP servers) |
+| `crhacky/blhackbox:hexstrike-mcp` | Upstream HexStrike Gamma MCP server over Streamable HTTP |
+| `crhacky/blhackbox:boaz-mcp` | Upstream BOAZ-MCP Gamma server over Streamable HTTP |
+| `crhacky/blhackbox:claude-code` | Claude Code CLI client (direct Streamable HTTP to MCP servers) |
+| `crhacky/blhackbox:deepseek` | DeepSeek (Reasonix) terminal agent (direct Streamable HTTP to MCP servers) |
 
 Official images pulled directly:
 
@@ -929,101 +943,10 @@ Stores `AggregatedPayload` results as a graph after each session. Useful for rec
 
 ---
 
-## Authorization & Verification
-
-Before running any pentest template, blhackbox requires an **active verification document** — explicit written authorization confirming you have permission to test the target. Without it, Claude Code will refuse to execute offensive actions.
-
-### How it works
-
-```
-verification.env              You fill in engagement details (target, scope,
-      │                       testing window, authorized activities, signatory)
-      │
-      ▼
-inject_verification.py        Renders the template with your values
-      │
-      ▼
-verification.md               Template with {{PLACEHOLDER}} tokens
-      │
-      ▼
-.claude/verification-         Active document loaded into Claude Code session.
-  active.md                   Automatically appended to every pentest template.
-```
-
-When you load a pentest template (via the `get_template` MCP tool), the active verification document is automatically appended as authorization context. If none exists, Claude will prompt you to set one up.
-
-### Step-by-step setup
-
-**1. Edit `verification.env`** in the project root:
-
-```bash
-nano verification.env    # or vim, code, etc.
-```
-
-Fill in **all** fields across the 6 sections:
-
-| Section | Fields |
-|:--|:--|
-| **Engagement ID** | `ENGAGEMENT_ID`, `AUTHORIZATION_DATE`, `EXPIRATION_DATE`, `AUTHORIZING_ORGANIZATION`, `TESTER_NAME`, `TESTER_EMAIL`, `CLIENT_CONTACT_NAME`, `CLIENT_CONTACT_EMAIL` |
-| **Scope** | `TARGET_1` through `TARGET_3` (with `_TYPE` and `_NOTES`), `OUT_OF_SCOPE`, `ENGAGEMENT_TYPE`, `CREDENTIALS` |
-| **Activities** | Toggle each `PERMIT_*` field (`x` = allowed, blank = denied): recon, scanning, enumeration, exploitation, data extraction, credential testing, post-exploitation, traffic capture, screenshots |
-| **Testing Window** | `TESTING_START`, `TESTING_END`, `TIMEZONE`, `EMERGENCY_CONTACT`, `EMERGENCY_PHONE` |
-| **Legal** | `APPLICABLE_STANDARDS`, `REPORT_CLASSIFICATION`, `REPORT_DELIVERY` |
-| **Signature** | `SIGNATORY_NAME`, `SIGNATORY_TITLE`, `SIGNATORY_ORGANIZATION`, `SIGNATURE_DATE`, `DIGITAL_SIGNATURE` |
-
-**2. Activate** — set the status field:
-
-```bash
-AUTHORIZATION_STATUS=ACTIVE
-```
-
-**3. Inject** — render the active document:
-
-```bash
-make inject-verification
-```
-
-Or directly: `python -m blhackbox.prompts.inject_verification`
-
-On success:
-
-```
-Verification document activated → .claude/verification-active.md
-Engagement: PENTEST-2026-001
-Targets: example.com, 10.0.0.0/24
-Window: 2026-03-01 09:00 — 2026-03-31 17:00 UTC
-Authorized by: Jane Smith
-```
-
-**4. Start your session** — Claude Code will automatically pick up the verification document. On Claude Code Web, the session-start hook runs `inject-verification` automatically if `verification.env` exists.
-
-### Validation rules
-
-The injection script validates before rendering:
-
-- `AUTHORIZATION_STATUS` must be `ACTIVE`
-- All required fields must be filled (`ENGAGEMENT_ID`, `AUTHORIZATION_DATE`, `EXPIRATION_DATE`, `AUTHORIZING_ORGANIZATION`, `TESTER_NAME`, `TARGET_1`, `TESTING_START`, `TESTING_END`, `SIGNATORY_NAME`, `SIGNATURE_DATE`)
-- `EXPIRATION_DATE` must not be in the past
-
-If any check fails, the script exits with an error explaining what to fix.
-
-### Files involved
-
-| File | Purpose |
-|:--|:--|
-| `verification.env` | User-fillable config with engagement details, scope, and permissions |
-| `blhackbox/prompts/verification.md` | Template with `{{PLACEHOLDER}}` tokens |
-| `blhackbox/prompts/inject_verification.py` | Renders the template into the active document |
-| `.claude/verification-active.md` | Rendered active authorization (git-ignored) |
-
-For a minimal self-authorized lab setup, see [How do I set up authorization for a lab/CTF?](#how-do-i-set-up-authorization-for-a-labctf) in the Advanced FAQ.
-
----
-
 ## Security Notes
 
 - **Docker socket** — MCP Gateway (optional) and Portainer mount `/var/run/docker.sock`. This grants effective root on the host. Never expose ports 8080 or 9443 to the public internet.
-- **Authorization** — Set up a [verification document](#authorization--verification) before running any pentest. Claude Code will not execute offensive actions without active authorization. The rendered document (`.claude/verification-active.md`) is git-ignored.
+- **Authorization** — Only test systems you have explicit written permission to assess. Unauthorized scanning or exploitation is illegal.
 - **Neo4j** — Set a strong password in `.env`. Never use defaults in production.
 - **Portainer** — Uses HTTPS with a self-signed certificate. Create a strong admin password on first run.
 
@@ -1037,7 +960,6 @@ blhackbox/
 ├── CLAUDE.md                            Project-wide development rules
 ├── .claude/
 │   ├── settings.json                    Claude Code hooks config
-│   ├── verification-active.md           Rendered authorization (git-ignored)
 │   ├── hooks/
 │   │   ├── session-start.sh             Auto-setup for web sessions
 │   │   └── loop-detector.sh             MCP tool loop detection (Reflector pattern)
@@ -1057,14 +979,15 @@ blhackbox/
 │   ├── reports/                         Generated pentest reports
 │   ├── screenshots/                     PoC evidence captures
 │   └── sessions/                        Aggregated session JSONs
-├── verification.env                     Pentest authorization config
 ├── .mcp.json                            MCP server config (Claude Code Web)
 ├── docker/
 │   ├── kali-mcp.Dockerfile              Kali Linux + Metasploit Framework
 │   ├── wire-mcp.Dockerfile
 │   ├── screenshot-mcp.Dockerfile
 │   ├── claude-code.Dockerfile           MCP client container
-│   └── claude-code-entrypoint.sh        Startup script with health checks
+│   ├── claude-code-entrypoint.sh        Startup script with health checks
+│   ├── deepseek.Dockerfile              DeepSeek (Reasonix) MCP client container
+│   └── deepseek-entrypoint.sh           DeepSeek startup script with health checks
 ├── kali-mcp/                            Kali MCP server (70+ tools + Metasploit)
 ├── wire-mcp/                            WireMCP server (tshark, 7 tools)
 ├── screenshot-mcp/                      Screenshot MCP server (Playwright, 4 tools)
@@ -1081,9 +1004,7 @@ blhackbox/
 │   │   └── CLAUDE.md                    Backend safety rules (shell=False)
 │   ├── prompts/
 │   │   ├── templates/                   11 pentest template .md files
-│   │   ├── claude_playbook.md           Pentest playbook for MCP host
-│   │   ├── verification.md              Authorization template
-│   │   └── inject_verification.py       Renders template → active document
+│   │   └── claude_playbook.md           Pentest playbook for MCP host
 │   ├── reporting/
 │   │   ├── html_generator.py, pdf_generator.py, md_generator.py
 │   │   └── CLAUDE.md                    Reporting path conventions

@@ -13,7 +13,8 @@
     ],
     "example_params": {
       "target": "example.com"
-    }
+    },
+    "api_key": "Optional — runs without keys. Extra passive sources (VirusTotal, Shodan, SecurityTrails, etc.) activate via env vars in .env or ~/.config/subfinder/provider-config.yaml. Sources with no key are skipped, not fatal."
   },
   {
     "category": "dns",
@@ -29,7 +30,8 @@
     ],
     "example_params": {
       "target": "example.com"
-    }
+    },
+    "api_key": "Optional — runs without keys. Data-source keys (read from ~/.config/amass/datasources.yaml) only widen coverage; amass works standalone."
   },
   {
     "category": "dns",
@@ -90,7 +92,8 @@
     ],
     "example_params": {
       "target": "example.com"
-    }
+    },
+    "api_key": "Optional — runs without keys (keyless sources: crtsh, certspotter, duckduckgo, otx, rapiddns, etc.). Key-required sources (shodan, hunter, securitytrails, censys) read from api-keys.yaml; missing keys produce warnings, not failure."
   },
   {
     "category": "intelligence",
@@ -601,7 +604,8 @@
     ],
     "example_params": {
       "target": "https://example.com"
-    }
+    },
+    "api_key": "Optional — scans without one. wpscan auto-loads WPSCAN_API_TOKEN (set in .env) to add WordPress vulnerability data. Free tier: https://wpscan.com/api (25 req/day)."
   },
   {
     "category": "web",

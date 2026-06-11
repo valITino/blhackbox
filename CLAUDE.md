@@ -8,7 +8,7 @@ Behavioral guidelines + project-specific rules. Read the whole file before touch
 
 Before making **any** fix, refactor, addition, or change — no matter how small it looks — you must complete all three phases below in order. **No exceptions.**
 
-> **Note on tradeoffs:** Generic coding guidance often says "for trivial tasks, use judgment and skip the ceremony." That shortcut **does not apply here.** This is a security-sensitive pentesting framework where a one-line change can break authorization checks, shell-injection guards, or a stable schema contract. Bias toward caution over speed, always.
+> **Note on tradeoffs:** Generic coding guidance often says "for trivial tasks, use judgment and skip the ceremony." That shortcut **does not apply here.** This is a security-sensitive pentesting framework where a one-line change can break shell-injection guards, secret handling, or a stable schema contract. Bias toward caution over speed, always.
 
 ### Phase 1: Web Research — Cast a Wide Net
 
@@ -51,7 +51,7 @@ Before writing code, answer these internally:
 1. **Root cause** — not the symptom, the actual root cause?
 2. **Blast radius** — which other files, modules, behaviors, or contracts does this change affect?
 3. **Stable contracts** — does the fix break any stable internal contract that downstream consumers rely on? Examples include the `AggregatedPayload` schema (consumed by `aggregate_results` and report generation), MCP tool signatures, and any documented prompt/template structure.
-4. **Security invariants** — does it violate any core safety rule? Shell-injection safety (`shell=False`), secret/API-key handling, Pydantic validation of MCP tool inputs, authorization checks tied to the active verification document.
+4. **Security invariants** — does it violate any core safety rule? Shell-injection safety (`shell=False`), secret/API-key handling, Pydantic validation of MCP tool inputs.
 5. **Simplicity** — is there a simpler fix that achieves the same result?
 
 Only after answering all five — write the fix.
@@ -161,39 +161,6 @@ Follow the existing conventions in the repo — don't invent new patterns. Befor
 
 ---
 
-## Verification Document — Authorization for Pentesting
-
-Before executing any pentest template or offensive action, Claude Code **must** check for an active verification document. This document provides the explicit written authorization that Claude requires before performing security testing activities.
-
-### How it works
-
-1. **User fills in** `verification.env` in the project root with engagement details (target, scope, testing window, authorized activities, signatory, etc.)
-2. **User sets** `AUTHORIZATION_STATUS=ACTIVE` once all fields are populated
-3. **User runs** `make inject-verification` (or it runs automatically on session start)
-4. The script renders `blhackbox/prompts/verification.md` (template) with the env values and writes the active document to `.claude/verification-active.md`
-5. Claude Code reads this file at session start to confirm authorization
-
-### Checking authorization at runtime
-
-When a pentest template is loaded (via `get_template` MCP tool), the active verification document is automatically appended as authorization context. If no active verification exists, Claude should inform the user to:
-
-```
-1. Edit verification.env with your engagement details
-2. Set AUTHORIZATION_STATUS=ACTIVE
-3. Run: make inject-verification
-```
-
-### Files
-
-| File | Purpose |
-|------|---------|
-| `verification.env` | User-fillable config (engagement details, scope, permissions) |
-| `blhackbox/prompts/verification.md` | Template with `{{PLACEHOLDER}}` tokens |
-| `blhackbox/prompts/inject_verification.py` | Renders template → active document |
-| `.claude/verification-active.md` | Rendered active authorization (git-ignored) |
-
----
-
 ## Self-Check — Are These Guidelines Working?
 
 These guidelines are working if:
@@ -201,7 +168,7 @@ These guidelines are working if:
 - Fewer rewrites due to overcomplication
 - Clarifying questions come **before** implementation, not after mistakes
 - Every Phase 3 question is answered before code is written
-- No `shell=True`, no broken `AggregatedPayload` contracts, no skipped verification checks
+- No `shell=True`, no broken `AggregatedPayload` contracts
 - When research is inconclusive or the codebase review surfaces a surprise, it's named explicitly instead of papered over
 
 ---

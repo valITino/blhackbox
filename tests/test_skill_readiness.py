@@ -18,7 +18,10 @@ def test_skill_and_template_files_discovered() -> None:
 def test_all_skills_require_tool_and_methodology_readiness() -> None:
     required_phrases = [
         "## Mandatory Tool & Methodology Readiness",
-        "Do **not** start the skill's execution plan until this readiness pass is complete.",
+        "Complete this readiness pass before you start the execution plan",
+        # The readiness methodology stays, but skills must also empower adaptive,
+        # judgment-driven recovery instead of following the plan off a cliff.
+        "Adapt, recover, and think",
         "Inventory 100% of usable capabilities first.",
         "Build a working tool matrix before execution",
         "closest supported profile",

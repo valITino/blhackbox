@@ -5,13 +5,14 @@
 #   docker compose up -d                         Start default stack (Kali, WireMCP, Screenshot, HexStrike, BOAZ, Portainer)
 #   docker compose --profile gateway up -d       Start with MCP Gateway
 #   docker compose --profile claude-code up -d   Start with Claude Code container
+#   docker compose --profile deepseek run --rm deepseek   Run the DeepSeek (Reasonix) agent
 #   docker compose --profile neo4j up -d         Start with Neo4j
 #   docker compose build                         Build all custom images locally
 #
 # MCP servers (core — always started):
-#   kali-mcp         (FastMCP SSE, port 9001) — Kali Linux security tools (70+) + Metasploit Framework
-#   wire-mcp         (FastMCP SSE, port 9003) — Wireshark/tshark (7 tools)
-#   screenshot-mcp   (FastMCP SSE, port 9004) — Headless Chromium screenshots (4 tools)
+#   kali-mcp         (FastMCP Streamable HTTP, port 9001) — Kali Linux security tools (70+) + Metasploit Framework
+#   wire-mcp         (FastMCP Streamable HTTP, port 9003) — Wireshark/tshark (7 tools)
+#   screenshot-mcp   (FastMCP Streamable HTTP, port 9004) — Headless Chromium screenshots (4 tools)
 #
 # Integrated MCP services in the default stack:
 #   hexstrike-ai          (port 8888) — HexStrike Gamma API
@@ -23,7 +24,7 @@
 # structures them into an AggregatedPayload, then validates via the
 # aggregate_results tool.
 #
-# Claude Code (Docker) connects directly to MCP servers via SSE.
+# Claude Code (Docker) connects directly to MCP servers via Streamable HTTP.
 # Claude Desktop / ChatGPT connect via the MCP Gateway (--profile gateway).
 #
 # Claude Desktop config (requires --profile gateway):
@@ -89,9 +90,9 @@ services:
         condition: service_healthy
 
   # -- KALI MCP SERVER -------------------------------------------------------
-  # Host-based clients can connect directly via SSE at http://localhost:9001/sse
-  # without the MCP Gateway. Claude Code (Docker) uses the internal URL
-  # http://kali-mcp:9001/sse instead.
+  # Host-based clients can connect directly via Streamable HTTP at
+  # http://localhost:9001/mcp without the MCP Gateway. Claude Code (Docker)
+  # uses the internal URL http://kali-mcp:9001/mcp instead.
   #
   # Includes Metasploit Framework (msfconsole, msfvenom) — Metasploit tools
   # are integrated directly into kali-mcp via CLI execution (`msfconsole -qx`).
@@ -106,8 +107,12 @@ services:
     privileged: true
     init: true
     environment:
-      # WPScan API token for vulnerability database lookups (Issue #15)
+      # WPScan API token — wpscan auto-loads this; adds the WP vuln database.
       WPSCAN_API_TOKEN: "${WPSCAN_API_TOKEN:-}"
+      # Optional subfinder passive-source keys (all optional; recon runs without them).
+      VIRUSTOTAL_API_KEY: "${VIRUSTOTAL_API_KEY:-}"
+      SHODAN_API_KEY: "${SHODAN_API_KEY:-}"
+      SECURITYTRAILS_API_KEY: "${SECURITYTRAILS_API_KEY:-}"
       # Max timeout for long-running scans (Issue #8)
       KALI_MAX_TIMEOUT: "${KALI_MAX_TIMEOUT:-600}"
       # Metasploit timeout for msfconsole commands
@@ -117,7 +122,7 @@ services:
     ports:
       - "${KALI_MCP_PORT:-9001}:9001"
     healthcheck:
-      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:9001/sse')\""]
+      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:9001/health')\""]
       interval: 15s
       timeout: 10s
       retries: 10
@@ -156,7 +161,7 @@ services:
       kali-mcp:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:9003/sse')\""]
+      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:9003/health')\""]
       interval: 15s
       timeout: 10s
       retries: 5
@@ -199,7 +204,7 @@ services:
   # -- HEXSTRIKE GAMMA API + FULL MCP SERVER ---------------------------------
   # Runs with the default stack like the other MCP services. The API service
   # capsules HexStrike Gamma; the MCP service exposes the upstream tool suite
-  # over SSE on port 9006.
+  # over Streamable HTTP on port 9006.
   hexstrike-ai:
     image: crhacky/blhackbox:hexstrike-ai
     build:
@@ -213,6 +218,11 @@ services:
     init: true
     environment:
       HEXSTRIKE_PORT: "8888"
+      # Optional recon keys — all tools run without them (see README).
+      WPSCAN_API_TOKEN: "${WPSCAN_API_TOKEN:-}"
+      VIRUSTOTAL_API_KEY: "${VIRUSTOTAL_API_KEY:-}"
+      SHODAN_API_KEY: "${SHODAN_API_KEY:-}"
+      SECURITYTRAILS_API_KEY: "${SECURITYTRAILS_API_KEY:-}"
     ports:
       - "${HEXSTRIKE_API_PORT:-8888}:8888"
     volumes:
@@ -253,7 +263,7 @@ services:
   # -- BOAZ MCP SERVER --------------------------------------------------------
   # Runs with the default stack like the other MCP services. The image carries
   # the unmodified upstream BOAZ-MCP Gamma server plus a BOAZ_gamma checkout.
-  # blhackbox only adds the SSE entrypoint used by the container.
+  # blhackbox only adds the Streamable HTTP entrypoint used by the container.
   boaz-mcp:
     image: crhacky/blhackbox:boaz-mcp
     build:
@@ -317,7 +327,7 @@ services:
   # Enable with: docker compose --profile claude-code up -d
   # Then run:    docker compose run --rm claude-code
   #
-  # Connects DIRECTLY to each MCP server via SSE over the Docker network.
+  # Connects DIRECTLY to each MCP server via Streamable HTTP over the Docker network.
   # Does NOT require the MCP Gateway.
   claude-code:
     image: crhacky/blhackbox:claude-code
@@ -344,6 +354,54 @@ services:
       - shared-output:/root/kali-data:ro
       # Mount skills and project instructions so Claude Code discovers them
       - ./.claude/skills:/root/.claude/skills:ro
+      - ./CLAUDE.md:/root/CLAUDE.md:ro
+    depends_on:
+      kali-mcp:
+        condition: service_healthy
+      wire-mcp:
+        condition: service_healthy
+      screenshot-mcp:
+        condition: service_healthy
+      hexstrike-bridge-mcp:
+        condition: service_healthy
+      boaz-mcp:
+        condition: service_healthy
+    networks:
+      - blhackbox_net
+
+  # -- DEEPSEEK / REASONIX (OPTIONAL) ----------------------------------------
+  # DeepSeek-native MCP client running inside Docker -- no host install needed.
+  # Enable with: docker compose --profile deepseek run --rm deepseek
+  #              (or `make deepseek`)
+  #
+  # Reasonix (https://github.com/esengine/DeepSeek-Reasonix) connects DIRECTLY
+  # to each MCP server via Streamable HTTP over the Docker network by reading
+  # its baked .mcp.json (Claude Code's mcpServers schema). Does NOT require the
+  # MCP Gateway. Requires DEEPSEEK_API_KEY (read from env, never written to disk).
+  deepseek:
+    image: crhacky/blhackbox:deepseek
+    build:
+      context: .
+      dockerfile: docker/deepseek.Dockerfile
+    container_name: blhackbox-deepseek
+    profiles: ["deepseek"]
+    stdin_open: true
+    tty: true
+    environment:
+      DEEPSEEK_API_KEY: "${DEEPSEEK_API_KEY:-}"
+      # Bypass egress proxies (e.g. GitHub Codespaces) for internal Docker traffic
+      no_proxy: "mcp-gateway,kali-mcp,wire-mcp,screenshot-mcp,hexstrike-ai,hexstrike-bridge-mcp,boaz-mcp,localhost,127.0.0.1"
+      NO_PROXY: "mcp-gateway,kali-mcp,wire-mcp,screenshot-mcp,hexstrike-ai,hexstrike-bridge-mcp,boaz-mcp,localhost,127.0.0.1"
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    volumes:
+      - ./output/screenshots:/tmp/screenshots:ro
+      - ./output/reports:/root/reports
+      - ./output/sessions:/root/results
+      # Shared working data from Kali MCP (recon files, tool artifacts)
+      - shared-output:/root/kali-data:ro
+      # Mount project instructions so the agent has the latest methodology
       - ./CLAUDE.md:/root/CLAUDE.md:ro
     depends_on:
       kali-mcp:

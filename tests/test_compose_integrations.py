@@ -37,8 +37,8 @@ def test_integration_ports_are_documented_in_configs() -> None:
     assert 'HEXSTRIKE_REF: "${HEXSTRIKE_REF:-master}"' in compose
     assert "hexstrike-bridge-mcp" in catalog
     assert "boaz-mcp" in catalog
-    assert mcp_json["mcpServers"]["hexstrike"]["url"] == "http://localhost:9006/sse"
-    assert mcp_json["mcpServers"]["boaz"]["url"] == "http://localhost:9005/sse"
+    assert mcp_json["mcpServers"]["hexstrike"]["url"] == "http://localhost:9006/mcp"
+    assert mcp_json["mcpServers"]["boaz"]["url"] == "http://localhost:9005/mcp"
 
 
 def test_integration_dockerfiles_exist() -> None:
@@ -70,11 +70,11 @@ def test_claude_code_container_wires_all_default_mcp_servers() -> None:
     )
 
     for expected in [
-        "http://kali-mcp:9001/sse",
-        "http://kali-mcp:9003/sse",
-        "http://screenshot-mcp:9004/sse",
-        "http://boaz-mcp:9005/sse",
-        "http://hexstrike-bridge-mcp:9006/sse",
+        "http://kali-mcp:9001/mcp",
+        "http://kali-mcp:9003/mcp",
+        "http://screenshot-mcp:9004/mcp",
+        "http://boaz-mcp:9005/mcp",
+        "http://hexstrike-bridge-mcp:9006/mcp",
     ]:
         assert expected in dockerfile
         assert expected in entrypoint
@@ -83,3 +83,34 @@ def test_claude_code_container_wires_all_default_mcp_servers() -> None:
     assert "hexstrike" in dockerfile
     assert "boaz-mcp" in entrypoint
     assert "hexstrike-bridge-mcp" in entrypoint
+
+
+def test_deepseek_container_wires_all_default_mcp_servers() -> None:
+    dockerfile = (ROOT / "docker" / "deepseek.Dockerfile").read_text(encoding="utf-8")
+    entrypoint = (ROOT / "docker" / "deepseek-entrypoint.sh").read_text(encoding="utf-8")
+
+    for expected in [
+        "http://kali-mcp:9001/mcp",
+        "http://kali-mcp:9003/mcp",
+        "http://screenshot-mcp:9004/mcp",
+        "http://boaz-mcp:9005/mcp",
+        "http://hexstrike-bridge-mcp:9006/mcp",
+    ]:
+        assert expected in dockerfile
+        assert expected in entrypoint
+
+    # Reasonix install + DeepSeek provider that reads the key from the env.
+    assert "npm install -g reasonix" in dockerfile
+    assert "reasonix.toml" in dockerfile
+    assert 'api_key_env = "DEEPSEEK_API_KEY"' in dockerfile
+    # Launches the Reasonix coding agent.
+    assert "reasonix code" in entrypoint
+
+
+def test_deepseek_service_is_in_compose_under_profile() -> None:
+    compose = COMPOSE.read_text(encoding="utf-8")
+    assert "deepseek:" in compose
+    assert "image: crhacky/blhackbox:deepseek" in compose
+    assert 'profiles: ["deepseek"]' in compose
+    assert "docker/deepseek.Dockerfile" in compose
+    assert "DEEPSEEK_API_KEY" in compose

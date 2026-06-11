@@ -1,6 +1,6 @@
 .PHONY: help setup up up-full up-gateway down logs test test-local lint format clean nuke \
        pull status health portainer gateway-logs \
-       claude-code \
+       claude-code deepseek \
        neo4j-browser logs-kali \
        logs-wireshark logs-screenshot \
        restart-kali \
@@ -8,8 +8,7 @@
        push-all wordlists report \
        check-mcp mcp-status tool-inventory security-scan \
        logs-hexstrike logs-boaz \
-       hexstrike-bridge boaz-bridge \
-       inject-verification
+       hexstrike-bridge boaz-bridge
 
 COMPOSE := docker compose
 
@@ -28,7 +27,7 @@ up: ## Start default stack (7 containers: Kali, WireMCP, Screenshot, HexStrike A
 	$(COMPOSE) up -d
 
 down: ## Stop all services (default + auxiliary profiles)
-	$(COMPOSE) --profile gateway --profile neo4j --profile claude-code down
+	$(COMPOSE) --profile gateway --profile neo4j --profile claude-code --profile deepseek down
 
 logs: ## Tail logs from all services
 	$(COMPOSE) logs -f
@@ -84,7 +83,7 @@ boaz-bridge: ## Run local BOAZ MCP helper server
 	python boaz-mcp/server.py
 
 clean: ## Remove containers, volumes, networks, and build artifacts (keeps images)
-	$(COMPOSE) --profile gateway --profile neo4j --profile claude-code down -v --remove-orphans
+	$(COMPOSE) --profile gateway --profile neo4j --profile claude-code --profile deepseek down -v --remove-orphans
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 	rm -rf dist/ build/ *.egg-info
 
@@ -92,7 +91,7 @@ nuke: ## Full cleanup: containers + volumes + ALL images (frees max disk space)
 	@echo "\033[1;33m  WARNING: This will remove ALL blhackbox containers, volumes, AND images.\033[0m"
 	@echo "\033[2m  You will need to 'docker compose pull' or 'docker compose build' again.\033[0m"
 	@echo ""
-	$(COMPOSE) --profile gateway --profile neo4j --profile claude-code down -v --remove-orphans --rmi all
+	$(COMPOSE) --profile gateway --profile neo4j --profile claude-code --profile deepseek down -v --remove-orphans --rmi all
 	@echo ""
 	@echo "\033[2m  Pruning dangling images and build cache...\033[0m"
 	docker image prune -f
@@ -120,12 +119,24 @@ claude-code: ## Build and launch Claude Code in a Docker container
 	@echo ""
 	$(COMPOSE) --profile claude-code run --rm claude-code
 
+# ── DeepSeek / Reasonix (Docker) ────────────────────────────────
+deepseek: ## Build and launch the DeepSeek (Reasonix) agent in a Docker container
+	$(COMPOSE) --profile deepseek pull deepseek || $(COMPOSE) --profile deepseek build deepseek
+	@echo ""
+	@echo "\033[1m  Pre-flight Container Status\033[0m"
+	@echo "\033[2m  ──────────────────────────────────────\033[0m"
+	@$(COMPOSE) ps --format "table {{.Name}}\t{{.Status}}" 2>/dev/null || $(COMPOSE) ps
+	@echo ""
+	@echo "\033[2m  Waiting for all dependencies to become healthy...\033[0m"
+	@echo ""
+	$(COMPOSE) --profile deepseek run --rm deepseek
+
 # ── Health & Status ──────────────────────────────────────────────
 status: ## Health status of all containers
 	@echo ""
 	@echo "\033[1m  blhackbox Container Status\033[0m"
 	@echo "\033[2m  ──────────────────────────────────────\033[0m"
-	@$(COMPOSE) --profile gateway --profile neo4j --profile claude-code ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}" 2>/dev/null || $(COMPOSE) ps
+	@$(COMPOSE) --profile gateway --profile neo4j --profile claude-code --profile deepseek ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}" 2>/dev/null || $(COMPOSE) ps
 	@echo ""
 
 health: ## Quick health check of all MCP servers
@@ -133,10 +144,10 @@ health: ## Quick health check of all MCP servers
 	@echo "\033[1m  MCP Server Health Check\033[0m"
 	@echo "\033[2m  ──────────────────────────────────────\033[0m"
 	@printf "  %-22s " "Kali MCP (9001)"; \
-		docker exec blhackbox-kali-mcp python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:9001/sse')" > /dev/null 2>&1 \
+		docker exec blhackbox-kali-mcp python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:9001/health')" > /dev/null 2>&1 \
 		&& echo "\033[32m[OK]\033[0m" || echo "\033[31m[FAIL]\033[0m"
 	@printf "  %-22s " "WireMCP (9003)"; \
-		docker exec blhackbox-wire-mcp python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:9003/sse')" > /dev/null 2>&1 \
+		docker exec blhackbox-wire-mcp python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:9003/health')" > /dev/null 2>&1 \
 		&& echo "\033[32m[OK]\033[0m" || echo "\033[31m[FAIL]\033[0m"
 	@printf "  %-22s " "Screenshot MCP (9004)"; \
 		docker exec blhackbox-screenshot-mcp python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:9004/health')" > /dev/null 2>&1 \
@@ -145,10 +156,10 @@ health: ## Quick health check of all MCP servers
 		docker exec blhackbox-hexstrike-ai python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:8888/health')" > /dev/null 2>&1 \
 		&& echo "\033[32m[OK]\033[0m" || echo "\033[31m[FAIL]\033[0m"
 	@printf "  %-22s " "HexStrike MCP (9006)"; \
-		docker exec blhackbox-hexstrike-mcp python -c "import urllib.request; urllib.request.urlopen('http://localhost:9006/sse')" > /dev/null 2>&1 \
+		docker exec blhackbox-hexstrike-mcp python -c "import urllib.request; urllib.request.urlopen('http://localhost:9006/health')" > /dev/null 2>&1 \
 		&& echo "\033[32m[OK]\033[0m" || echo "\033[31m[FAIL]\033[0m"
 	@printf "  %-22s " "BOAZ MCP (9005)"; \
-		docker exec blhackbox-boaz-mcp python -c "import urllib.request; urllib.request.urlopen('http://localhost:9005/sse')" > /dev/null 2>&1 \
+		docker exec blhackbox-boaz-mcp python -c "import urllib.request; urllib.request.urlopen('http://localhost:9005/health')" > /dev/null 2>&1 \
 		&& echo "\033[32m[OK]\033[0m" || echo "\033[31m[FAIL]\033[0m"
 	@printf "  %-22s " "MCP Gateway (8080)"; \
 		docker inspect --format='{{.State.Running}}' blhackbox-mcp-gateway 2>/dev/null | grep -q "true" \
@@ -210,16 +221,13 @@ wordlists: ## Download common wordlists
 report: ## Generate report for a session (requires SESSION env var)
 	blhackbox report --session $(SESSION) --format pdf
 
-# ── Verification ─────────────────────────────────────────────────
-inject-verification: ## Render verification.env into active authorization document
-	python -m blhackbox.prompts.inject_verification
-
 # ── Build and push (Docker Hub: crhacky/blhackbox) ──────────────
 push-all: ## Build and push all custom images to Docker Hub
 	docker build -f docker/kali-mcp.Dockerfile -t crhacky/blhackbox:kali-mcp .
 	docker build -f docker/wire-mcp.Dockerfile -t crhacky/blhackbox:wire-mcp .
 	docker build -f docker/screenshot-mcp.Dockerfile -t crhacky/blhackbox:screenshot-mcp .
 	docker build -f docker/claude-code.Dockerfile -t crhacky/blhackbox:claude-code .
+	docker build -f docker/deepseek.Dockerfile -t crhacky/blhackbox:deepseek .
 	docker build -f docker/hexstrike-ai.Dockerfile -t crhacky/blhackbox:hexstrike-ai .
 	docker build -f docker/hexstrike-mcp.Dockerfile -t crhacky/blhackbox:hexstrike-mcp .
 	docker build -f docker/boaz-mcp.Dockerfile -t crhacky/blhackbox:boaz-mcp .
@@ -227,6 +235,7 @@ push-all: ## Build and push all custom images to Docker Hub
 	docker push crhacky/blhackbox:wire-mcp
 	docker push crhacky/blhackbox:screenshot-mcp
 	docker push crhacky/blhackbox:claude-code
+	docker push crhacky/blhackbox:deepseek
 	docker push crhacky/blhackbox:hexstrike-ai
 	docker push crhacky/blhackbox:hexstrike-mcp
 	docker push crhacky/blhackbox:boaz-mcp

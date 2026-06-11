@@ -27,6 +27,7 @@ ARROW="${CYAN}→${NC}"
 # ── Globals ──────────────────────────────────────────────────────────
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 API_KEY=""
+DEEPSEEK_KEY=""
 MINIMAL=false
 SKIP_PULL=false
 NEO4J_PASS=""
@@ -47,7 +48,8 @@ usage() {
     echo "Usage: $0 [OPTIONS]"
     echo ""
     echo "Options:"
-    echo "  --api-key KEY     Set ANTHROPIC_API_KEY (skips interactive prompt)"
+    echo "  --api-key KEY      Set ANTHROPIC_API_KEY for the Claude Code container"
+    echo "  --deepseek-key KEY Set DEEPSEEK_API_KEY for the DeepSeek (Reasonix) container"
     echo "  --minimal         Core stack only (no Neo4j)"
     echo "  --with-neo4j      Enable Neo4j knowledge graph"
     echo "  --with-gateway    Enable MCP Gateway for Claude Desktop/ChatGPT"
@@ -163,6 +165,23 @@ configure_env() {
         echo -e "  ${WARN} ANTHROPIC_API_KEY skipped — Claude Code Docker won't start without it"
     fi
 
+    # --- DEEPSEEK_API_KEY (for the DeepSeek / Reasonix container) ---
+    if [ -z "$DEEPSEEK_KEY" ]; then
+        echo ""
+        echo -e "  ${BOLD}DEEPSEEK_API_KEY${NC} ${DIM}(for the DeepSeek/Reasonix agent in Docker)${NC}"
+        echo -e "  ${DIM}Get yours at: https://platform.deepseek.com/api_keys${NC}"
+        echo -e "  ${DIM}Press Enter to skip if you won't use the DeepSeek agent.${NC}"
+        read -rsp "  API Key: " DEEPSEEK_KEY
+        echo ""
+    fi
+
+    if [ -n "$DEEPSEEK_KEY" ]; then
+        sed -i "s|^# DEEPSEEK_API_KEY=sk-.*|DEEPSEEK_API_KEY=${DEEPSEEK_KEY}|" "$SCRIPT_DIR/.env"
+        echo -e "  ${CHECK} DEEPSEEK_API_KEY configured"
+    else
+        echo -e "  ${WARN} DEEPSEEK_API_KEY skipped — the DeepSeek agent won't start without it"
+    fi
+
     # --- NEO4J_PASSWORD ---
     if [[ "$PROFILES" == *"neo4j"* ]]; then
         if [ -z "$NEO4J_PASS" ]; then
@@ -174,6 +193,36 @@ configure_env() {
         sed -i "s|^NEO4J_PASSWORD=.*|NEO4J_PASSWORD=${NEO4J_PASS}|" "$SCRIPT_DIR/.env"
         echo -e "  ${CHECK} NEO4J_PASSWORD configured"
     fi
+
+    # --- Keys & tokens reference ---
+    # Print the full list of keys/tokens the framework can use so the user
+    # knows exactly what to provide. Only ANTHROPIC_API_KEY (Docker client) is
+    # ever required; every pentest tool runs without the rest — they only widen
+    # passive recon coverage and extra data sources.
+    echo ""
+    echo -e "  ${BOLD}Keys & tokens${NC} ${DIM}(edit .env to add them, then restart the stack):${NC}"
+    echo ""
+    echo -e "    ${BOLD}Agent keys (set the one for the in-Docker agent you run)${NC}"
+    echo -e "      ${CYAN}ANTHROPIC_API_KEY${NC}      ${DIM}Claude Code container (--profile claude-code).${NC}"
+    echo -e "                             ${DIM}Not needed for Claude Code Web/host.${NC}"
+    echo -e "                             ${DIM}→ https://console.anthropic.com/settings/keys${NC}"
+    echo -e "      ${CYAN}DEEPSEEK_API_KEY${NC}       ${DIM}DeepSeek (Reasonix) container (--profile deepseek).${NC}"
+    echo -e "                             ${DIM}→ https://platform.deepseek.com/api_keys${NC}"
+    echo ""
+    echo -e "    ${BOLD}Optional — widen recon (all tools work without them)${NC}"
+    echo -e "      ${CYAN}WPSCAN_API_TOKEN${NC}       ${DIM}WordPress vuln database; wpscan auto-reads it.${NC}"
+    echo -e "                             ${DIM}→ https://wpscan.com/api  (free: 25 req/day)${NC}"
+    echo -e "      ${CYAN}SHODAN_API_KEY${NC}         ${DIM}subfinder passive source + Shodan host data.${NC}"
+    echo -e "                             ${DIM}→ https://account.shodan.io${NC}"
+    echo -e "      ${CYAN}VIRUSTOTAL_API_KEY${NC}     ${DIM}subfinder passive source.${NC}"
+    echo -e "                             ${DIM}→ https://www.virustotal.com/gui/my-apikey${NC}"
+    echo -e "      ${CYAN}SECURITYTRAILS_API_KEY${NC} ${DIM}subfinder passive source (subdomains/history).${NC}"
+    echo -e "                             ${DIM}→ https://securitytrails.com/app/account/credentials${NC}"
+    echo -e "      ${CYAN}OPENAI_API_KEY${NC}         ${DIM}Only for ChatGPT/OpenAI MCP clients (host-based).${NC}"
+    echo -e "                             ${DIM}→ https://platform.openai.com/api-keys${NC}"
+    echo ""
+    echo -e "    ${DIM}theHarvester and amass read keys from their OWN config files, not${NC}"
+    echo -e "    ${DIM}env vars: ~/.theHarvester/api-keys.yaml and ~/.config/amass/datasources.yaml${NC}"
 
     echo ""
 }
@@ -294,6 +343,7 @@ print_summary() {
     echo ""
     echo -e "  ${BOLD}Quick start:${NC}"
     echo -e "    ${CYAN}make claude-code${NC}    ${DIM}Launch Claude Code in Docker${NC}"
+    echo -e "    ${CYAN}make deepseek${NC}       ${DIM}Launch the DeepSeek (Reasonix) agent in Docker${NC}"
     echo -e "    ${CYAN}make status${NC}         ${DIM}Check service status${NC}"
     echo -e "    ${CYAN}make health${NC}         ${DIM}Run health checks${NC}"
     echo -e "    ${CYAN}make logs${NC}           ${DIM}View service logs${NC}"
@@ -314,9 +364,12 @@ print_summary() {
         echo -e "  ${BOLD}MCP Gateway:${NC}    ${CYAN}http://localhost:8080${NC}"
     fi
     echo -e "  ${BOLD}For pentesting:${NC}"
-    echo -e "    1. Edit ${CYAN}verification.env${NC} with your engagement details"
-    echo -e "    2. Run ${CYAN}make inject-verification${NC}"
-    echo -e "    3. Use a pentest template: ${DIM}full-pentest, quick-scan, etc.${NC}"
+    echo -e "    Use a pentest template or skill: ${DIM}full-pentest, quick-scan, etc.${NC}"
+    echo ""
+    echo -e "  ${BOLD}Optional API keys${NC} ${DIM}(none required — all tools run without them):${NC}"
+    echo -e "    Add keys to ${CYAN}.env${NC} to widen recon coverage, then restart the stack."
+    echo -e "    ${DIM}WPSCAN_API_TOKEN (WordPress vulns), VIRUSTOTAL_API_KEY / SHODAN_API_KEY /${NC}"
+    echo -e "    ${DIM}SECURITYTRAILS_API_KEY (subfinder sources). See README → Optional API keys.${NC}"
     echo ""
 }
 
@@ -326,6 +379,10 @@ while [[ $# -gt 0 ]]; do
     case "$1" in
         --api-key)
             API_KEY="$2"
+            shift 2
+            ;;
+        --deepseek-key)
+            DEEPSEEK_KEY="$2"
             shift 2
             ;;
         --minimal)

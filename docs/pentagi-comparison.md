@@ -239,7 +239,6 @@ PentAGI's Adviser uses a stronger model for strategic analysis before execution.
 | **Workflow templates** | 10 production-ready slash command skills | No equivalent |
 | **PoC rigor** | Mandatory `evidence`, `poc_steps`, `poc_payload` fields | No enforced PoC structure |
 | **Protocol standard** | MCP-native (works with any MCP client) | Custom API |
-| **Authorization framework** | verification.env with legal workflow | No equivalent |
 | **Metasploit integration** | Full msfconsole + msfvenom via CLI | Basic Metasploit |
 | **Report formats** | MD + PDF + HTML with AggregatedPayload contract | Less structured |
 

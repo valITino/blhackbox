@@ -4,13 +4,13 @@
 
 | Server | Transport | Port | Primary role | Tools / capability surface |
 |---|---:|---:|---|---|
-| `kali-mcp` | SSE | `9001` | Kali security-tool execution and Metasploit CLI workflows | 70+ allow-listed command tools including recon, web, exploitation, wireless, forensics, and utility commands |
-| `wire-mcp` | SSE | `9003` | Wireshark/tshark packet capture and pcap analysis | Capture, pcap read, conversations, statistics, credential extraction, stream following, interface listing |
-| `screenshot-mcp` | SSE | `9004` | Headless Chromium evidence capture | Page screenshots, element screenshots, screenshot listing, annotation |
+| `kali-mcp` | Streamable HTTP | `9001` | Kali security-tool execution and Metasploit CLI workflows | 70+ allow-listed command tools including recon, web, exploitation, wireless, forensics, and utility commands |
+| `wire-mcp` | Streamable HTTP | `9003` | Wireshark/tshark packet capture and pcap analysis | Capture, pcap read, conversations, statistics, credential extraction, stream following, interface listing |
+| `screenshot-mcp` | Streamable HTTP | `9004` | Headless Chromium evidence capture | Page screenshots, element screenshots, screenshot listing, annotation |
 | `blhackbox` | stdio | n/a | Core orchestration, graph/reporting, templates, catalogue discovery | Tool execution, graph queries, reports, template retrieval, result aggregation, payload schema, catalogue search |
 | Docker MCP Gateway | streaming HTTP | `8080` | Optional host-client aggregation proxy | Proxies Kali, WireMCP, Screenshot MCP, BOAZ MCP, and HexStrike MCP through the Docker catalog |
-| `boaz-mcp` | SSE | `9005` | Default BOAZ MCP service | Upstream BOAZ-MCP Gamma server exposed over SSE |
-| `hexstrike-bridge-mcp` | SSE | `9006` | Default HexStrike Gamma MCP service | Upstream HexStrike Gamma MCP server loaded unchanged and exposed over SSE, connected to `hexstrike-ai` |
+| `boaz-mcp` | Streamable HTTP | `9005` | Default BOAZ MCP service | Upstream BOAZ-MCP Gamma server exposed over Streamable HTTP |
+| `hexstrike-bridge-mcp` | Streamable HTTP | `9006` | Default HexStrike Gamma MCP service | Upstream HexStrike Gamma MCP server loaded unchanged and exposed over Streamable HTTP, connected to `hexstrike-ai` |
 
 ## Changes made in this review
 
@@ -32,7 +32,7 @@
 
 ### Kali MCP
 
-- The Docker Compose service exposes `http://localhost:9001/sse` and has an HTTP healthcheck against `/sse`.
+- The Docker Compose service exposes the Streamable HTTP endpoint `http://localhost:9001/mcp` and has an HTTP healthcheck against the dedicated `/health` route.
 - The server has an explicit allowlist instead of unrestricted arbitrary execution.
 - Tool output is consistently structured with `stdout`, `stderr`, `exit_code`, `tool_name`, `timestamp`, and `target`.
 - Recommendation: keep the allowlist, but prefer high-level wrappers for dangerous/high-impact workflows where possible.
@@ -40,7 +40,7 @@
 ### WireMCP
 
 - `wire-mcp` shares `kali-mcp`'s network namespace to observe Kali-generated traffic.
-- Gateway catalog points WireMCP to `http://kali-mcp:9003/sse`, matching the shared namespace design.
+- Gateway catalog points WireMCP to `http://kali-mcp:9003/mcp`, matching the shared namespace design.
 - Recommendation: preserve this network-mode design; add pcap fixture tests in a future PR if sample pcaps can be committed safely.
 
 ### Screenshot MCP

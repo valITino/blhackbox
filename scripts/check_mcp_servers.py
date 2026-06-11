@@ -42,13 +42,16 @@ class Endpoint:
 
 
 LIVE_ENDPOINTS = [
-    Endpoint("kali-mcp", "http://localhost:9001/sse"),
-    Endpoint("wire-mcp", "http://localhost:9003/sse"),
+    # Health probes use each server's dedicated /health route. A bare GET to
+    # the Streamable HTTP endpoint (/mcp) returns HTTP 4xx, which urlopen
+    # raises on — so health checks target /health (200) instead.
+    Endpoint("kali-mcp", "http://localhost:9001/health"),
+    Endpoint("wire-mcp", "http://localhost:9003/health"),
     Endpoint("screenshot-mcp", "http://localhost:9004/health"),
     Endpoint("mcp-gateway", "http://localhost:8080/mcp", required=False),
     Endpoint("hexstrike-api", "http://localhost:8888/health"),
-    Endpoint("hexstrike-bridge", "http://localhost:9006/sse"),
-    Endpoint("boaz-mcp", "http://localhost:9005/sse"),
+    Endpoint("hexstrike-bridge", "http://localhost:9006/health"),
+    Endpoint("boaz-mcp", "http://localhost:9005/health"),
 ]
 
 
@@ -107,7 +110,7 @@ def run_checks(live: bool) -> list[CheckResult]:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Validate blhackbox MCP servers")
-    parser.add_argument("--live", action="store_true", help="Check live HTTP/SSE endpoints")
+    parser.add_argument("--live", action="store_true", help="Check live HTTP endpoints")
     parser.add_argument("--json", action="store_true", help="Emit JSON")
     args = parser.parse_args()
 

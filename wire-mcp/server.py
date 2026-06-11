@@ -13,7 +13,7 @@ Exposes 7 tools for network traffic analysis:
   - follow_stream       — reconstruct a TCP/UDP stream
   - list_interfaces     — list available capture interfaces
 
-Transport: FastMCP SSE on port 9003.
+Transport: FastMCP Streamable HTTP on port 9003.
 """
 
 from __future__ import annotations
@@ -36,6 +36,18 @@ CAPTURE_DIR = Path(os.environ.get("CAPTURE_DIR", "/tmp/captures"))
 CAPTURE_DIR.mkdir(parents=True, exist_ok=True)
 
 mcp = FastMCP("wire-mcp", host="0.0.0.0", port=MCP_PORT)
+
+
+@mcp.custom_route("/health", methods=["GET"])
+async def health_check(request):  # type: ignore[no-untyped-def]
+    """Lightweight health probe for Docker and Makefile checks.
+
+    The Streamable HTTP endpoint (/mcp) only answers MCP protocol requests,
+    so container health checks target this dedicated route instead.
+    """
+    from starlette.responses import JSONResponse
+
+    return JSONResponse({"status": "healthy", "service": "wire-mcp", "port": MCP_PORT})
 
 
 async def _run_tshark(args: list[str], timeout: int = 60) -> dict:
@@ -350,7 +362,7 @@ async def list_interfaces() -> str:
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    transport = os.environ.get("MCP_TRANSPORT", "sse")
+    transport = os.environ.get("MCP_TRANSPORT", "streamable-http")
     logger.info(
         "Starting WireMCP Server (%s on port %d)",
         transport, MCP_PORT,

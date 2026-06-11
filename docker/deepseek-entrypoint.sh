@@ -30,7 +30,7 @@ export NO_PROXY="$no_proxy"
 print_banner() {
     echo ""
     echo -e "${CYAN}${BOLD}  ╔══════════════════════════════════════════════╗${NC}"
-    echo -e "${CYAN}${BOLD}  ║          blhackbox v2.0 — Claude Code       ║${NC}"
+    echo -e "${CYAN}${BOLD}  ║       blhackbox v2.0 — DeepSeek (Reasonix)  ║${NC}"
     echo -e "${CYAN}${BOLD}  ║        MCP-based Pentesting Framework       ║${NC}"
     echo -e "${CYAN}${BOLD}  ╚══════════════════════════════════════════════╝${NC}"
     echo ""
@@ -71,8 +71,7 @@ wait_for_service() {
 }
 
 # ── Output directory symlinks ──────────────────────────────────────
-# Skill templates reference "output/reports/", "output/sessions/", etc.
-# which resolve to /root/output/reports/ (WORKDIR is /root).
+# Report/session paths resolve to /root/output/* (WORKDIR is /root).
 # Bind mounts are at /root/reports, /root/results, /tmp/screenshots.
 # Create symlinks so both path conventions reach the bind mounts.
 mkdir -p /root/output
@@ -84,16 +83,23 @@ ln -sfn /tmp/screenshots    /root/output/screenshots
 
 print_banner
 
+# DeepSeek API key is required for Reasonix to authenticate against the
+# DeepSeek API. It is read from the environment (reasonix.toml api_key_env).
+if [ -z "${DEEPSEEK_API_KEY:-}" ]; then
+    echo -e "  ${WARN} DEEPSEEK_API_KEY is not set — Reasonix cannot authenticate."
+    echo -e "  ${DIM}Add it to .env and re-run, or pass -e DEEPSEEK_API_KEY=sk-...${NC}"
+    echo -e "  ${DIM}Get a key at https://platform.deepseek.com/api_keys${NC}"
+    echo ""
+fi
+
 echo -e "${BOLD}Checking service connectivity...${NC}"
 echo -e "${DIM}Waiting for services to become healthy.${NC}"
 echo ""
 
 MCP_OK=0
 MCP_FAIL=0
-REST_OK=0
-REST_FAIL=0
 
-# -- MCP Servers (Claude Code connects via Streamable HTTP) --
+# -- MCP Servers (Reasonix connects via Streamable HTTP) --
 echo -e "  ${BOLD}MCP Servers${NC}"
 if wait_for_service "Kali MCP" "http://kali-mcp:9001/mcp"; then
     MCP_OK=$((MCP_OK + 1))
@@ -130,14 +136,11 @@ fi
 echo ""
 echo -e "${DIM}──────────────────────────────────────────────────${NC}"
 
-TOTAL_OK=$((MCP_OK + REST_OK))
-TOTAL_FAIL=$((MCP_FAIL + REST_FAIL))
-
-if [ "$TOTAL_FAIL" -eq 0 ]; then
-    echo -e "${GREEN}${BOLD}  All $TOTAL_OK services connected.${NC}"
+if [ "$MCP_FAIL" -eq 0 ]; then
+    echo -e "${GREEN}${BOLD}  All $MCP_OK MCP servers connected.${NC}"
 else
-    echo -e "${YELLOW}${BOLD}  $TOTAL_OK/$((TOTAL_OK + TOTAL_FAIL)) services connected. $TOTAL_FAIL unreachable.${NC}"
-    echo -e "${DIM}  Claude Code will start — unreachable MCP servers show as 'failed' in /mcp.${NC}"
+    echo -e "${YELLOW}${BOLD}  $MCP_OK/$((MCP_OK + MCP_FAIL)) MCP servers connected. $MCP_FAIL unreachable.${NC}"
+    echo -e "${DIM}  Reasonix will start — unreachable servers simply won't expose tools.${NC}"
     echo -e "${DIM}  Use 'docker compose ps' in another terminal to check container health.${NC}"
 fi
 
@@ -150,34 +153,20 @@ echo -e "    screenshot      ${DIM}Screenshot MCP — headless Chromium evidence
 echo -e "    boaz           ${DIM}BOAZ-MCP Gamma — agentic offensive security tools${NC}"
 echo -e "    hexstrike      ${DIM}HexStrike Gamma — AI security automation tools${NC}"
 echo ""
-echo -e "  ${BOLD}Data aggregation:${NC}"
-echo -e "    ${DIM}You (Claude) handle parsing, deduplication, and synthesis directly.${NC}"
-echo -e "    ${DIM}Use get_payload_schema + aggregate_results to validate & persist.${NC}"
+echo -e "  ${BOLD}Model:${NC} ${DIM}DeepSeek-V4-Flash (default). Type ${NC}${CYAN}/pro${NC}${DIM} for one Pro turn,${NC}"
+echo -e "         ${DIM}or ${NC}${CYAN}/preset max${NC}${DIM} to use Pro for the whole session.${NC}"
 echo ""
-echo -e "  ${BOLD}Skills (autonomous pentesting — use as /skill target):${NC}"
-echo -e "    ${CYAN}/full-pentest${NC}       ${DIM}Complete end-to-end penetration test${NC}"
-echo -e "    ${CYAN}/full-attack-chain${NC}  ${DIM}Recon through exploitation with reporting${NC}"
-echo -e "    ${CYAN}/quick-scan${NC}         ${DIM}Fast high-level security scan${NC}"
-echo -e "    ${CYAN}/recon-deep${NC}         ${DIM}Comprehensive reconnaissance${NC}"
-echo -e "    ${CYAN}/web-app-assessment${NC} ${DIM}Web application security testing${NC}"
-echo -e "    ${CYAN}/network-infrastructure${NC} ${DIM}Network infrastructure assessment${NC}"
-echo -e "    ${CYAN}/vuln-assessment${NC}    ${DIM}Vulnerability identification${NC}"
-echo -e "    ${CYAN}/api-security${NC}       ${DIM}API security testing (OWASP API Top 10)${NC}"
-echo -e "    ${CYAN}/bug-bounty${NC}         ${DIM}Bug bounty hunting workflow${NC}"
-echo -e "    ${CYAN}/osint-gathering${NC}    ${DIM}Passive OSINT intelligence collection${NC}"
+echo -e "  ${BOLD}Methodology:${NC} ${DIM}Pentest workflow and rules are in ${NC}${CYAN}/root/CLAUDE.md${NC}${DIM}.${NC}"
+echo -e "  ${DIM}Describe your authorized target and goal; Reasonix will call the MCP tools.${NC}"
 echo ""
 echo -e "  ${BOLD}Output files${NC} ${DIM}(mounted to host ./output/)${NC}${BOLD}:${NC}"
 echo -e "    ${DIM}output/reports/      → ./output/reports/      pentest reports${NC}"
 echo -e "    ${DIM}output/screenshots/  → ./output/screenshots/  PoC evidence (read-only)${NC}"
-echo -e "    ${DIM}output/sessions/     → ./output/sessions/     session JSONs${NC}"
+echo -e "    ${DIM}output/sessions/     → ./output/sessions/     session data${NC}"
 echo -e "    ${DIM}/root/kali-data/     ← shared Kali MCP recon artifacts (read-only)${NC}"
-echo ""
-echo -e "  ${BOLD}Quick start:${NC}"
-echo -e "    ${CYAN}/mcp${NC}                       ${DIM}Check MCP server status${NC}"
-echo -e "    ${CYAN}/full-pentest example.com${NC}   ${DIM}Run a full pentest${NC}"
-echo -e "    ${CYAN}/quick-scan 10.0.0.1${NC}        ${DIM}Fast triage scan${NC}"
-echo -e "    ${CYAN}/bug-bounty target.com${NC}      ${DIM}Start a bug bounty hunt${NC}"
 echo -e "${DIM}──────────────────────────────────────────────────${NC}"
 echo ""
 
-exec claude "$@"
+# Launch the Reasonix coding agent. `reasonix code` opens the interactive TUI;
+# any args passed to the container are forwarded.
+exec reasonix code "$@"

@@ -595,7 +595,7 @@ async def _do_list_templates() -> str:
 
 
 async def _do_get_template(args: dict[str, Any]) -> str:
-    from blhackbox.prompts import load_template, load_verification
+    from blhackbox.prompts import load_template
 
     name = args["name"]
     target = args.get("target")
@@ -603,29 +603,6 @@ async def _do_get_template(args: dict[str, Any]) -> str:
         content = load_template(name, target=target)
     except (ValueError, FileNotFoundError) as exc:
         return json.dumps({"error": str(exc)})
-
-    # Append active verification document as authorization context
-    verification = load_verification()
-    if verification:
-        content += (
-            "\n\n---\n\n"
-            "## ACTIVE AUTHORIZATION DOCUMENT\n\n"
-            "The following verification document confirms explicit written "
-            "authorization for all activities described above.\n\n"
-            + verification
-        )
-    else:
-        content += (
-            "\n\n---\n\n"
-            "## ⚠ NO ACTIVE AUTHORIZATION DOCUMENT\n\n"
-            "No verification document found. Before executing this template, "
-            "the operator must:\n\n"
-            "1. Edit `verification.env` with engagement details\n"
-            "2. Set `AUTHORIZATION_STATUS=ACTIVE`\n"
-            "3. Run `make inject-verification`\n\n"
-            "This generates the explicit written authorization required "
-            "for penetration testing activities.\n"
-        )
 
     return content
 
@@ -808,7 +785,7 @@ async def _do_get_payload_schema() -> str:
 
 
 async def _screenshot_request(endpoint: str, payload: dict[str, Any]) -> str:
-    """Send a request to the screenshot-mcp SSE server's tool endpoint."""
+    """Send a request to the screenshot-mcp server's tool endpoint."""
     import httpx
 
     from blhackbox.config import settings
@@ -828,8 +805,8 @@ async def _screenshot_request(endpoint: str, payload: dict[str, Any]) -> str:
         return json.dumps({
             "error": (
                 "Screenshot MCP server not reachable. "
-                "Use the screenshot MCP server directly via SSE at "
-                f"{base_url}/sse or ensure the screenshot-mcp container is running."
+                "Use the screenshot MCP server directly via Streamable HTTP at "
+                f"{base_url}/mcp or ensure the screenshot-mcp container is running."
             ),
         })
 

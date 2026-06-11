@@ -27,6 +27,7 @@ Seven custom images are published to `crhacky/blhackbox` on Docker Hub:
 | **WireMCP** | `crhacky/blhackbox:wire-mcp` | `docker/wire-mcp.Dockerfile` | `debian:bookworm-slim` |
 | **Screenshot MCP** | `crhacky/blhackbox:screenshot-mcp` | `docker/screenshot-mcp.Dockerfile` | `python:3.13-slim` |
 | **Claude Code** | `crhacky/blhackbox:claude-code` | `docker/claude-code.Dockerfile` | `node:22-slim` |
+| **DeepSeek (Reasonix)** | `crhacky/blhackbox:deepseek` | `docker/deepseek.Dockerfile` | `node:22-slim` |
 | **HexStrike API** | `crhacky/blhackbox:hexstrike-ai` | `docker/hexstrike-ai.Dockerfile` | `kalilinux/kali-rolling` |
 | **HexStrike MCP** | `crhacky/blhackbox:hexstrike-mcp` | `docker/hexstrike-mcp.Dockerfile` | `python:3.11-slim` |
 | **BOAZ MCP** | `crhacky/blhackbox:boaz-mcp` | `docker/boaz-mcp.Dockerfile` | `python:3.11-slim` |
@@ -51,22 +52,22 @@ docker compose pull    # pull ALL images (custom + official) in one command
 
 In v2, **Claude (or ChatGPT) IS the orchestrator** natively via MCP.
 
-### Claude Code in Docker — Direct SSE (no gateway)
+### Claude Code in Docker — Direct Streamable HTTP (no gateway)
 
 ```
-Claude Code ──┬──▶ Kali MCP (SSE :9001)
+Claude Code ──┬──▶ Kali MCP (HTTP:9001)
 (container)   │    70+ tools: nmap, sqlmap, hydra, msfconsole, msfvenom…
               │
-              ├──▶ WireMCP (SSE :9003)
+              ├──▶ WireMCP (HTTP:9003)
               │    7 tools: packet capture, pcap analysis, credential extraction
               │
-              ├──▶ Screenshot MCP (SSE :9004)
+              ├──▶ Screenshot MCP (HTTP:9004)
               │    4 tools: web screenshots, element capture, annotations
               │
-              ├──▶ BOAZ MCP (SSE :9005)
+              ├──▶ BOAZ MCP (HTTP:9005)
               │    upstream BOAZ-MCP Gamma tools
               │
-              ├──▶ HexStrike MCP (SSE :9006)
+              ├──▶ HexStrike MCP (HTTP:9006)
               │    upstream HexStrike Gamma tool suite
               │
               │  After collecting raw outputs, Claude structures them directly:
@@ -192,10 +193,11 @@ Skills are available in the container via two mechanisms:
 | `wire-mcp` | `crhacky/blhackbox:wire-mcp` | `9003` | default | Wireshark / tshark (7 tools) |
 | `screenshot-mcp` | `crhacky/blhackbox:screenshot-mcp` | `9004` | default | Screenshot MCP (headless Chromium, 4 tools) |
 | `hexstrike-ai` | `crhacky/blhackbox:hexstrike-ai` | `8888` | default | HexStrike Gamma API |
-| `hexstrike-bridge-mcp` | `crhacky/blhackbox:hexstrike-mcp` | `9006` | default | HexStrike Gamma MCP server (SSE) |
-| `boaz-mcp` | `crhacky/blhackbox:boaz-mcp` | `9005` | default | BOAZ-MCP Gamma server (SSE) |
+| `hexstrike-bridge-mcp` | `crhacky/blhackbox:hexstrike-mcp` | `9006` | default | HexStrike Gamma MCP server (Streamable HTTP) |
+| `boaz-mcp` | `crhacky/blhackbox:boaz-mcp` | `9005` | default | BOAZ-MCP Gamma server (Streamable HTTP) |
 | `portainer` | `portainer/portainer-ce:latest` | `9443` | default | Docker management UI (HTTPS) |
 | `claude-code` | `crhacky/blhackbox:claude-code` | — | `claude-code` | Claude Code CLI client (Docker) |
+| `deepseek` | `crhacky/blhackbox:deepseek` | — | `deepseek` | DeepSeek (Reasonix) terminal agent (Docker) |
 | `mcp-gateway` | `docker/mcp-gateway:latest` | `8080` | `gateway` | Single MCP entry point (host clients) |
 | `neo4j` | `neo4j:5` | `7474` / `7687` | `neo4j` | Cross-session knowledge graph |
 
@@ -203,18 +205,18 @@ Skills are available in the container via two mechanisms:
 
 ## MCP Connection Modes
 
-### Claude Code in Docker (Direct SSE — no gateway)
+### Claude Code in Docker (Direct Streamable HTTP — no gateway)
 
 The Claude Code container's `.mcp.json` connects directly to each server:
 
 ```json
 {
   "mcpServers": {
-    "kali":       { "type": "sse", "url": "http://kali-mcp:9001/sse" },
-    "wireshark":  { "type": "sse", "url": "http://kali-mcp:9003/sse" },
-    "screenshot": { "type": "sse", "url": "http://screenshot-mcp:9004/sse" },
-    "boaz":       { "type": "sse", "url": "http://boaz-mcp:9005/sse" },
-    "hexstrike":  { "type": "sse", "url": "http://hexstrike-bridge-mcp:9006/sse" }
+    "kali":       { "type": "http", "url": "http://kali-mcp:9001/mcp" },
+    "wireshark":  { "type": "http", "url": "http://kali-mcp:9003/mcp" },
+    "screenshot": { "type": "http", "url": "http://screenshot-mcp:9004/mcp" },
+    "boaz":       { "type": "http", "url": "http://boaz-mcp:9005/mcp" },
+    "hexstrike":  { "type": "http", "url": "http://hexstrike-bridge-mcp:9006/mcp" }
   }
 }
 ```
@@ -242,7 +244,8 @@ Requires `--profile gateway` (`make up-gateway`).
 
 | Variable | Default | Description |
 |:--|:--|:--|
-| `ANTHROPIC_API_KEY` | — | Required for Claude Code in Docker |
+| `ANTHROPIC_API_KEY` | — | Required for the Claude Code container (`--profile claude-code`) |
+| `DEEPSEEK_API_KEY` | — | Required for the DeepSeek/Reasonix container (`--profile deepseek`) |
 | `MCP_GATEWAY_PORT` | `8080` | MCP Gateway host port (optional) |
 | `MSF_TIMEOUT` | `300` | Metasploit command timeout in seconds |
 | `NEO4J_URI` | `bolt://neo4j:7687` | Neo4j connection URI (optional) |
@@ -260,7 +263,7 @@ Requires `--profile gateway` (`make up-gateway`).
 | | |
 |:--|:--|
 | **Base** | `kalilinux/kali-rolling` |
-| **Transport** | SSE on port 9001 |
+| **Transport** | Streamable HTTP on port 9001 |
 | **Privileged** | Yes (raw socket access) |
 | **Entrypoint** | `entrypoint.sh` (starts PostgreSQL for MSF DB, then MCP server) |
 
@@ -275,7 +278,7 @@ Requires `--profile gateway` (`make up-gateway`).
 | | |
 |:--|:--|
 | **Base** | `debian:bookworm-slim` |
-| **Transport** | SSE on port 9003 |
+| **Transport** | Streamable HTTP on port 9003 |
 | **Privileged** | Yes (packet capture) |
 | **Entrypoint** | WireMCP server (`server.py`) |
 
@@ -288,7 +291,7 @@ Requires `--profile gateway` (`make up-gateway`).
 | | |
 |:--|:--|
 | **Base** | `python:3.13-slim` |
-| **Transport** | SSE on port 9004 |
+| **Transport** | Streamable HTTP on port 9004 |
 | **Entrypoint** | Screenshot MCP server (FastMCP + Playwright headless Chromium) |
 
 **Tools (4):** `take_screenshot` (full-page web capture), `take_element_screenshot` (CSS selector targeting), `annotate_screenshot` (labels and highlight boxes), `list_screenshots` (evidence inventory)
@@ -299,11 +302,24 @@ Requires `--profile gateway` (`make up-gateway`).
 |:--|:--|
 | **Base** | `node:22-slim` |
 | **Entrypoint** | `claude-code-entrypoint.sh` (health checks + launch) |
-| **MCP config** | Direct SSE to each server (no gateway dependency) |
+| **MCP config** | Direct Streamable HTTP to each server (no gateway dependency) |
 | **Skills** | 11 pentesting skills mounted from `.claude/skills/` |
 | **Requires** | `ANTHROPIC_API_KEY` in `.env` |
 
 The Claude Code container includes the full skills system. Skills (`.claude/skills/`) and project instructions (`CLAUDE.md`) are baked into the image at build time and overridden by volume mounts at runtime for live updates.
+
+### DeepSeek / Reasonix — `crhacky/blhackbox:deepseek`
+
+| | |
+|:--|:--|
+| **Base** | `node:22-slim` |
+| **Agent** | [Reasonix](https://github.com/esengine/DeepSeek-Reasonix) (DeepSeek-native), installed via `npm install -g reasonix` |
+| **Entrypoint** | `deepseek-entrypoint.sh` (health checks + launch) |
+| **MCP config** | Auto-reads the baked Claude-style `.mcp.json`; Direct Streamable HTTP to each server (no gateway dependency) |
+| **Provider** | `reasonix.toml` → DeepSeek (`https://api.deepseek.com`), key from `DEEPSEEK_API_KEY` env (never written to disk) |
+| **Requires** | `DEEPSEEK_API_KEY` in `.env` |
+
+Reasonix maps the `.mcp.json` `mcpServers` entries (`type: http`, `url: …/mcp`) field-for-field onto its plugins, so it reaches the same five MCP servers as the Claude Code container. Launch it with `make deepseek` or `docker compose --profile deepseek run --rm deepseek`. Note that Claude Code *skills* (slash commands) are not a Reasonix feature; the agent works from natural-language instructions and the mounted `CLAUDE.md` methodology.
 
 ---
 

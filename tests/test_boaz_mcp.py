@@ -1,4 +1,4 @@
-"""Tests for the BOAZ-MCP Gamma SSE adapter."""
+"""Tests for the BOAZ-MCP Gamma Streamable HTTP adapter."""
 
 from __future__ import annotations
 
@@ -40,8 +40,7 @@ def test_boaz_adapter_uses_upstream_package(tmp_path: Path, monkeypatch) -> None
     app = module.create_app(upstream)
     route_paths = {getattr(route, "path", "") for route in app.routes}
     assert "/health" in route_paths
-    assert "/sse" in route_paths
-    assert "/messages" in route_paths or "/messages/" in route_paths
+    assert "/mcp" in route_paths
 
 
 def test_boaz_dockerfile_clones_upstream_repos() -> None:

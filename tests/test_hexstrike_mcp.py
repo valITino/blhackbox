@@ -1,4 +1,4 @@
-"""Tests for the HexStrike AI Gamma SSE adapter."""
+"""Tests for the HexStrike AI Gamma Streamable HTTP adapter."""
 
 from __future__ import annotations
 
@@ -44,8 +44,7 @@ def test_hexstrike_adapter_uses_upstream_package(tmp_path: Path, monkeypatch) ->
     app = module.create_app(upstream, "http://hexstrike-ai:8888", 1)
     route_paths = {getattr(route, "path", "") for route in app.routes}
     assert "/health" in route_paths
-    assert "/sse" in route_paths
-    assert "/messages" in route_paths or "/messages/" in route_paths
+    assert "/mcp" in route_paths
 
 
 def test_hexstrike_adapter_allows_internal_docker_hostname(tmp_path: Path, monkeypatch) -> None:  # type: ignore[no-untyped-def]

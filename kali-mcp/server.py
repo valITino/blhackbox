@@ -92,6 +92,18 @@ MCP_PORT = int(os.environ.get("MCP_PORT", "9001"))
 mcp = FastMCP("kali-mcp", host="0.0.0.0", port=MCP_PORT)
 
 
+@mcp.custom_route("/health", methods=["GET"])
+async def health_check(request):  # type: ignore[no-untyped-def]
+    """Lightweight health probe for Docker and Makefile checks.
+
+    The Streamable HTTP endpoint (/mcp) only answers MCP protocol requests,
+    so container health checks target this dedicated route instead.
+    """
+    from starlette.responses import JSONResponse
+
+    return JSONResponse({"status": "healthy", "service": "kali-mcp", "port": MCP_PORT})
+
+
 # ---------------------------------------------------------------------------
 # Helper: run a subprocess and return structured result
 # ---------------------------------------------------------------------------
@@ -986,7 +998,7 @@ async def get_exploit_code(
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    transport = os.environ.get("MCP_TRANSPORT", "sse")
+    transport = os.environ.get("MCP_TRANSPORT", "streamable-http")
     logger.info(
         "Starting Kali Linux MCP Server (%s on port %d, allowed tools: %d, msf: %s)",
         transport, MCP_PORT, len(ALLOWED_TOOLS),
