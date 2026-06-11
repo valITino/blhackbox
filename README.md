@@ -995,7 +995,7 @@ Window: 2026-03-01 09:00 — 2026-03-31 17:00 UTC
 Authorized by: Jane Smith
 ```
 
-**4. Start your session** — Claude Code will automatically pick up the verification document. On Claude Code Web, the session-start hook runs `inject-verification` automatically if `verification.env` exists.
+**4. Start your session** — Claude Code will automatically pick up the verification document. On Claude Code Web, the session-start hook runs `inject-verification` automatically if `verification.env` exists. In the Dockerized Claude Code container (`make claude-code`), `verification.env` is mounted read-only and the entrypoint renders it into `/root/.claude/verification-active.md` at startup — no host pre-step required.
 
 ### Validation rules
 
