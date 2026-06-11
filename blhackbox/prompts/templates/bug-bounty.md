@@ -38,10 +38,9 @@ PROGRAM_RULES  = "[PROGRAM_RULES]"
 > **Before you start:**
 > 1. Confirm all placeholders above (`TARGET`, `SCOPE`, `OUT_OF_SCOPE`,
 >    `PROGRAM_RULES`) are set with actual program details
-> 2. Double-check the scope — never test out-of-scope assets
-> 3. Ensure all MCP servers are healthy — run `make mcp-status`
-> 4. Verify authorization is active — run `make inject-verification`
-> 5. Query each server's tool listing to discover available hunting capabilities
+> 1. Double-check the scope — never test out-of-scope assets
+> 2. Ensure all MCP servers are healthy — run `make mcp-status`
+> 3. Query each server's tool listing to discover available hunting capabilities
 
 ## Mandatory Tool & Methodology Readiness
 

@@ -55,13 +55,6 @@ RUN echo '{ \
 COPY CLAUDE.md /root/CLAUDE.md
 COPY .claude/skills /root/.claude/skills
 
-# Verification renderer + template. inject_verification.py is stdlib-only and
-# reads its template from the sibling verification.md, so both must live in the
-# same directory. The entrypoint runs this at startup to render the mounted
-# verification.env into /root/.claude/verification-active.md.
-COPY blhackbox/prompts/inject_verification.py /opt/blhackbox-verify/inject_verification.py
-COPY blhackbox/prompts/verification.md /opt/blhackbox-verify/verification.md
-
 # Startup script: checks each MCP server, shows status, launches Claude.
 COPY docker/claude-code-entrypoint.sh /usr/local/bin/claude-code-entrypoint.sh
 RUN chmod +x /usr/local/bin/claude-code-entrypoint.sh

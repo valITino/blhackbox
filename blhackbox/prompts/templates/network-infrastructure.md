@@ -31,8 +31,7 @@ TARGET = "[TARGET]"
 > 1. Confirm the `TARGET` placeholder above is set to your target IP, range, or domain
 > 2. Set optional `PORTS`, `SCAN_RATE`, and `EXCLUDES` if needed
 > 3. Ensure all MCP servers are healthy — run `make mcp-status`
-> 4. Verify authorization is active — run `make inject-verification`
-> 5. Query each server's tool listing to discover available network testing capabilities
+> 4. Query each server's tool listing to discover available network testing capabilities
 
 ## Mandatory Tool & Methodology Readiness
 

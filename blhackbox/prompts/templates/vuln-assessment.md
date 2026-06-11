@@ -30,8 +30,7 @@ TARGET = "[TARGET]"
 > 1. Confirm the `TARGET` placeholder above is set to your actual target
 > 2. Set `FOCUS_AREA` if you want to narrow the assessment scope
 > 3. Ensure all MCP servers are healthy — run `make mcp-status`
-> 4. Verify authorization is active — run `make inject-verification`
-> 5. Query each server's tool listing to discover available scanning capabilities
+> 4. Query each server's tool listing to discover available scanning capabilities
 
 ## Mandatory Tool & Methodology Readiness
 

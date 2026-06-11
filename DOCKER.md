@@ -341,7 +341,6 @@ Portainer CE provides a web dashboard for all blhackbox containers.
 | `./output/sessions/` | `/root/results/` | Aggregated session JSON files |
 | `./.claude/skills/` | `/root/.claude/skills/` | Pentesting skills (read-only, claude-code only) |
 | `./CLAUDE.md` | `/root/CLAUDE.md` | Project instructions (read-only, claude-code only) |
-| `./verification.env` | `/root/verification.env` | Pentest authorization config (read-only, claude-code only). The entrypoint renders it into `/root/.claude/verification-active.md` at startup. |
 
 ---
 

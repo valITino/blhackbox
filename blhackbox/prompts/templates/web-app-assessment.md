@@ -32,8 +32,7 @@ TARGET = "[TARGET]"
 > 1. Confirm the `TARGET` placeholder above is set to your web application URL
 > 2. If testing authenticated areas, fill in the optional auth fields above
 > 3. Ensure all MCP servers are healthy — run `make mcp-status`
-> 4. Verify authorization is active — run `make inject-verification`
-> 5. Query each server's tool listing to discover available web testing capabilities
+> 4. Query each server's tool listing to discover available web testing capabilities
 
 ## Mandatory Tool & Methodology Readiness
 

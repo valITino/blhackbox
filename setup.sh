@@ -314,9 +314,7 @@ print_summary() {
         echo -e "  ${BOLD}MCP Gateway:${NC}    ${CYAN}http://localhost:8080${NC}"
     fi
     echo -e "  ${BOLD}For pentesting:${NC}"
-    echo -e "    1. Edit ${CYAN}verification.env${NC} with your engagement details"
-    echo -e "    2. Run ${CYAN}make inject-verification${NC}"
-    echo -e "    3. Use a pentest template: ${DIM}full-pentest, quick-scan, etc.${NC}"
+    echo -e "    Use a pentest template or skill: ${DIM}full-pentest, quick-scan, etc.${NC}"
     echo ""
 }
 

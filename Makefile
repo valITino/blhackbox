@@ -8,8 +8,7 @@
        push-all wordlists report \
        check-mcp mcp-status tool-inventory security-scan \
        logs-hexstrike logs-boaz \
-       hexstrike-bridge boaz-bridge \
-       inject-verification
+       hexstrike-bridge boaz-bridge
 
 COMPOSE := docker compose
 
@@ -209,10 +208,6 @@ wordlists: ## Download common wordlists
 
 report: ## Generate report for a session (requires SESSION env var)
 	blhackbox report --session $(SESSION) --format pdf
-
-# ── Verification ─────────────────────────────────────────────────
-inject-verification: ## Render verification.env into active authorization document
-	python -m blhackbox.prompts.inject_verification
 
 # ── Build and push (Docker Hub: crhacky/blhackbox) ──────────────
 push-all: ## Build and push all custom images to Docker Hub

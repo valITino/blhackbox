@@ -48,7 +48,7 @@
 | **Advanced** | [Advanced Usage & FAQ](#advanced-usage--faq) |
 | **Reference** | [Components](#components) · [Output Files](#output-files) · [CLI Reference](#cli-reference) · [Makefile Shortcuts](#makefile-shortcuts) · [Docker Hub Images](#docker-hub-images) |
 | **Operations** | [Prompt Flow](#how-prompts-flow-through-the-system) · [MCP Gateway](#do-i-need-the-mcp-gateway) · [Portainer Setup](#portainer-setup) · [Neo4j](#neo4j-optional) · [Troubleshooting](#troubleshooting) |
-| **Security** | [Authorization & Verification](#authorization--verification) · [Security Notes](#security-notes) |
+| **Security** | [Security Notes](#security-notes) |
 | **Project** | [Project Structure](#project-structure) · [Build from Source](#build-from-source-optional) · [License](#license) |
 
 ---
@@ -323,19 +323,6 @@ docker compose pull
 docker compose up -d
 ```
 
-**Set up authorization** (required before running pentests):
-
-```bash
-# 5. Fill in engagement details
-nano verification.env
-# Set AUTHORIZATION_STATUS=ACTIVE after completing all fields
-
-# 6. Render the active verification document
-make inject-verification
-```
-
-See [Authorization & Verification](#authorization--verification) for details.
-
 **Verify everything is running:**
 
 ```bash
@@ -471,7 +458,7 @@ Claude Code on [claude.ai/code](https://claude.ai/code) works as a web-based cod
 ### Steps
 
 1. Go to [claude.ai/code](https://claude.ai/code) and open this repository
-2. The session-start hook auto-installs dependencies and injects verification
+2. The session-start hook auto-installs dependencies and runs an MCP health check
 3. Type `/mcp` to verify — you should see `blhackbox` with its tools
 4. Use a skill: `/quick-scan example.com`
 
@@ -652,7 +639,7 @@ The repo has directory-scoped `CLAUDE.md` files that enforce local development r
 
 | File | Rules |
 |:--|:--|
-| `blhackbox/mcp/CLAUDE.md` | MCP tool validation, verification document handling |
+| `blhackbox/mcp/CLAUDE.md` | MCP tool validation and development rules |
 | `blhackbox/models/CLAUDE.md` | `AggregatedPayload` schema contract, PoC fields mandatory |
 | `blhackbox/backends/CLAUDE.md` | `shell=False` enforcement, tool allowlisting |
 | `blhackbox/reporting/CLAUDE.md` | Report path conventions, WeasyPrint compatibility |
@@ -671,29 +658,6 @@ output/
 ```
 
 Reports follow the naming convention: `output/reports/reports-DDMMYYYY/report-<target>-DDMMYYYY.md`
-
-### How do I set up authorization for a lab/CTF?
-
-Minimal self-authorized setup in `verification.env`:
-
-```bash
-AUTHORIZATION_STATUS=ACTIVE
-ENGAGEMENT_ID=LAB-2026-001
-AUTHORIZATION_DATE=2026-03-15
-EXPIRATION_DATE=2026-12-31
-AUTHORIZING_ORGANIZATION=My Lab
-TESTER_NAME=Your Name
-TARGET_1=192.168.1.0/24
-TARGET_1_TYPE=network
-TESTING_START=2026-03-15 00:00
-TESTING_END=2026-12-31 23:59
-SIGNATORY_NAME=Your Name
-SIGNATURE_DATE=2026-03-15
-```
-
-Then: `make inject-verification`
-
-See [Authorization & Verification](#authorization--verification) for the full setup.
 
 ---
 
@@ -876,7 +840,6 @@ blhackbox mcp                                            # Start MCP server
 | `make logs-kali` | Tail Kali MCP logs (includes Metasploit) |
 | `make logs-wireshark` | Tail WireMCP logs |
 | `make logs-screenshot` | Tail Screenshot MCP logs |
-| `make inject-verification` | Render verification.env → active authorization document |
 | `make push-all` | Build and push all images to Docker Hub |
 
 ---
@@ -929,101 +892,10 @@ Stores `AggregatedPayload` results as a graph after each session. Useful for rec
 
 ---
 
-## Authorization & Verification
-
-Before running any pentest template, blhackbox requires an **active verification document** — explicit written authorization confirming you have permission to test the target. Without it, Claude Code will refuse to execute offensive actions.
-
-### How it works
-
-```
-verification.env              You fill in engagement details (target, scope,
-      │                       testing window, authorized activities, signatory)
-      │
-      ▼
-inject_verification.py        Renders the template with your values
-      │
-      ▼
-verification.md               Template with {{PLACEHOLDER}} tokens
-      │
-      ▼
-.claude/verification-         Active document loaded into Claude Code session.
-  active.md                   Automatically appended to every pentest template.
-```
-
-When you load a pentest template (via the `get_template` MCP tool), the active verification document is automatically appended as authorization context. If none exists, Claude will prompt you to set one up.
-
-### Step-by-step setup
-
-**1. Edit `verification.env`** in the project root:
-
-```bash
-nano verification.env    # or vim, code, etc.
-```
-
-Fill in **all** fields across the 6 sections:
-
-| Section | Fields |
-|:--|:--|
-| **Engagement ID** | `ENGAGEMENT_ID`, `AUTHORIZATION_DATE`, `EXPIRATION_DATE`, `AUTHORIZING_ORGANIZATION`, `TESTER_NAME`, `TESTER_EMAIL`, `CLIENT_CONTACT_NAME`, `CLIENT_CONTACT_EMAIL` |
-| **Scope** | `TARGET_1` through `TARGET_3` (with `_TYPE` and `_NOTES`), `OUT_OF_SCOPE`, `ENGAGEMENT_TYPE`, `CREDENTIALS` |
-| **Activities** | Toggle each `PERMIT_*` field (`x` = allowed, blank = denied): recon, scanning, enumeration, exploitation, data extraction, credential testing, post-exploitation, traffic capture, screenshots |
-| **Testing Window** | `TESTING_START`, `TESTING_END`, `TIMEZONE`, `EMERGENCY_CONTACT`, `EMERGENCY_PHONE` |
-| **Legal** | `APPLICABLE_STANDARDS`, `REPORT_CLASSIFICATION`, `REPORT_DELIVERY` |
-| **Signature** | `SIGNATORY_NAME`, `SIGNATORY_TITLE`, `SIGNATORY_ORGANIZATION`, `SIGNATURE_DATE`, `DIGITAL_SIGNATURE` |
-
-**2. Activate** — set the status field:
-
-```bash
-AUTHORIZATION_STATUS=ACTIVE
-```
-
-**3. Inject** — render the active document:
-
-```bash
-make inject-verification
-```
-
-Or directly: `python -m blhackbox.prompts.inject_verification`
-
-On success:
-
-```
-Verification document activated → .claude/verification-active.md
-Engagement: PENTEST-2026-001
-Targets: example.com, 10.0.0.0/24
-Window: 2026-03-01 09:00 — 2026-03-31 17:00 UTC
-Authorized by: Jane Smith
-```
-
-**4. Start your session** — Claude Code will automatically pick up the verification document. On Claude Code Web, the session-start hook runs `inject-verification` automatically if `verification.env` exists. In the Dockerized Claude Code container (`make claude-code`), `verification.env` is mounted read-only and the entrypoint renders it into `/root/.claude/verification-active.md` at startup — no host pre-step required.
-
-### Validation rules
-
-The injection script validates before rendering:
-
-- `AUTHORIZATION_STATUS` must be `ACTIVE`
-- All required fields must be filled (`ENGAGEMENT_ID`, `AUTHORIZATION_DATE`, `EXPIRATION_DATE`, `AUTHORIZING_ORGANIZATION`, `TESTER_NAME`, `TARGET_1`, `TESTING_START`, `TESTING_END`, `SIGNATORY_NAME`, `SIGNATURE_DATE`)
-- `EXPIRATION_DATE` must not be in the past
-
-If any check fails, the script exits with an error explaining what to fix.
-
-### Files involved
-
-| File | Purpose |
-|:--|:--|
-| `verification.env` | User-fillable config with engagement details, scope, and permissions |
-| `blhackbox/prompts/verification.md` | Template with `{{PLACEHOLDER}}` tokens |
-| `blhackbox/prompts/inject_verification.py` | Renders the template into the active document |
-| `.claude/verification-active.md` | Rendered active authorization (git-ignored) |
-
-For a minimal self-authorized lab setup, see [How do I set up authorization for a lab/CTF?](#how-do-i-set-up-authorization-for-a-labctf) in the Advanced FAQ.
-
----
-
 ## Security Notes
 
 - **Docker socket** — MCP Gateway (optional) and Portainer mount `/var/run/docker.sock`. This grants effective root on the host. Never expose ports 8080 or 9443 to the public internet.
-- **Authorization** — Set up a [verification document](#authorization--verification) before running any pentest. Claude Code will not execute offensive actions without active authorization. The rendered document (`.claude/verification-active.md`) is git-ignored.
+- **Authorization** — Only test systems you have explicit written permission to assess. Unauthorized scanning or exploitation is illegal.
 - **Neo4j** — Set a strong password in `.env`. Never use defaults in production.
 - **Portainer** — Uses HTTPS with a self-signed certificate. Create a strong admin password on first run.
 
@@ -1037,7 +909,6 @@ blhackbox/
 ├── CLAUDE.md                            Project-wide development rules
 ├── .claude/
 │   ├── settings.json                    Claude Code hooks config
-│   ├── verification-active.md           Rendered authorization (git-ignored)
 │   ├── hooks/
 │   │   ├── session-start.sh             Auto-setup for web sessions
 │   │   └── loop-detector.sh             MCP tool loop detection (Reflector pattern)
@@ -1057,7 +928,6 @@ blhackbox/
 │   ├── reports/                         Generated pentest reports
 │   ├── screenshots/                     PoC evidence captures
 │   └── sessions/                        Aggregated session JSONs
-├── verification.env                     Pentest authorization config
 ├── .mcp.json                            MCP server config (Claude Code Web)
 ├── docker/
 │   ├── kali-mcp.Dockerfile              Kali Linux + Metasploit Framework
@@ -1081,9 +951,7 @@ blhackbox/
 │   │   └── CLAUDE.md                    Backend safety rules (shell=False)
 │   ├── prompts/
 │   │   ├── templates/                   11 pentest template .md files
-│   │   ├── claude_playbook.md           Pentest playbook for MCP host
-│   │   ├── verification.md              Authorization template
-│   │   └── inject_verification.py       Renders template → active document
+│   │   └── claude_playbook.md           Pentest playbook for MCP host
 │   ├── reporting/
 │   │   ├── html_generator.py, pdf_generator.py, md_generator.py
 │   │   └── CLAUDE.md                    Reporting path conventions

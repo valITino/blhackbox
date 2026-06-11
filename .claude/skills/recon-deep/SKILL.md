@@ -20,8 +20,7 @@ If no target was provided, ask the user:
 
 > **Before you start:**
 > 1. Ensure all MCP servers are healthy — run `make mcp-status`
-> 2. Verify authorization is active — run `make inject-verification`
-> 3. Query each server's tool listing to discover available recon capabilities
+> 2. Query each server's tool listing to discover available recon capabilities
 
 ## Mandatory Tool & Methodology Readiness
 

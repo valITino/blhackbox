@@ -74,9 +74,8 @@ REPORT_FORMAT   = "[REPORT_FORMAT]"
 > **Before you start:**
 > 1. Confirm all placeholders above (`TARGET`, `SCOPE`, `OUT_OF_SCOPE`,
 >    `ENGAGEMENT_TYPE`, `CREDENTIALS`, `REPORT_FORMAT`) are set
-> 2. Ensure all MCP servers are healthy — run `make mcp-status`
-> 3. Verify authorization is active — run `make inject-verification`
-> 4. Query each server's tool listing to discover available capabilities
+> 1. Ensure all MCP servers are healthy — run `make mcp-status`
+> 2. Query each server's tool listing to discover available capabilities
 
 ---
 

@@ -345,10 +345,6 @@ services:
       # Mount skills and project instructions so Claude Code discovers them
       - ./.claude/skills:/root/.claude/skills:ro
       - ./CLAUDE.md:/root/CLAUDE.md:ro
-      # Pentest authorization config — rendered into the active verification
-      # document (/root/.claude/verification-active.md) at startup by the
-      # entrypoint, so Claude Code recognizes the engagement authorization.
-      - ./verification.env:/root/verification.env:ro
     depends_on:
       kali-mcp:
         condition: service_healthy

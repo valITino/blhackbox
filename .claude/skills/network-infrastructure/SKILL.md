@@ -29,8 +29,7 @@ Optionally ask if the user wants to customize:
 
 > **Before you start:**
 > 1. Ensure all MCP servers are healthy — run `make mcp-status`
-> 2. Verify authorization is active — run `make inject-verification`
-> 3. Query each MCP server's tool listing to discover available capabilities
+> 2. Query each MCP server's tool listing to discover available capabilities
 > 3. Query each server's tool listing to discover available network testing capabilities
 
 ## Mandatory Tool & Methodology Readiness

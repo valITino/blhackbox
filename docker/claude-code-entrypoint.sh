@@ -80,36 +80,9 @@ ln -sfn /root/reports       /root/output/reports
 ln -sfn /root/results       /root/output/sessions
 ln -sfn /tmp/screenshots    /root/output/screenshots
 
-# ── Pentest authorization document ──────────────────────────────────
-# Render the mounted verification.env into the active authorization
-# document that CLAUDE.md instructs Claude to read at session start.
-# Mirrors the host session-start hook. Best-effort: if verification.env
-# is absent, AUTHORIZATION_STATUS is not ACTIVE, or required fields are
-# missing, no document is written and Claude treats the engagement as
-# unauthorized.
-render_verification() {
-    mkdir -p /root/.claude
-    echo -e "  ${BOLD}Authorization${NC}"
-    if [ ! -f /root/verification.env ]; then
-        echo -e "    [ ${WARN} ]  verification.env not mounted — no authorization document"
-        return
-    fi
-    if python3 /opt/blhackbox-verify/inject_verification.py \
-            --env /root/verification.env \
-            --out /root/.claude/verification-active.md > /tmp/verification.log 2>&1; then
-        echo -e "    [ ${CHECK} ]  Active verification document loaded"
-    else
-        echo -e "    [ ${WARN} ]  $(head -n 1 /tmp/verification.log)"
-        echo -e "    ${DIM}Fill verification.env and set AUTHORIZATION_STATUS=ACTIVE on the host.${NC}"
-    fi
-}
-
 # ── Main ────────────────────────────────────────────────────────────
 
 print_banner
-
-render_verification
-echo ""
 
 echo -e "${BOLD}Checking service connectivity...${NC}"
 echo -e "${DIM}Waiting for services to become healthy.${NC}"

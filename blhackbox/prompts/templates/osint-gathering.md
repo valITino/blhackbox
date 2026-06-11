@@ -21,8 +21,7 @@ TARGET = "[TARGET]"
 > **Before you start:**
 > 1. Confirm the `TARGET` placeholder above is set to your target domain
 > 2. Ensure all MCP servers are healthy — run `make mcp-status`
-> 3. Verify authorization is active — run `make inject-verification`
-> 4. Note: This template uses **passive techniques only** — no packets sent to target
+> 3. Note: This template uses **passive techniques only** — no packets sent to target
 
 ## Mandatory Tool & Methodology Readiness
 

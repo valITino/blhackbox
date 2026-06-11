@@ -20,8 +20,7 @@ TARGET = "[TARGET]"
 > **Before you start:**
 > 1. Confirm the `TARGET` placeholder above is set to your actual target
 > 2. Ensure all MCP servers are healthy — run `make mcp-status`
-> 3. Verify authorization is active — run `make inject-verification`
-> 4. Query each server's tool listing to discover available recon capabilities
+> 3. Query each server's tool listing to discover available recon capabilities
 
 ## Mandatory Tool & Methodology Readiness
 

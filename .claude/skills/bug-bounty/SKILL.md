@@ -42,7 +42,6 @@ Never test assets outside the confirmed scope.
 > **Before you start:**
 > 1. Confirm scope, out-of-scope, and program rules are set
 > 2. Ensure all MCP servers are healthy — run `make mcp-status`
-> 3. Verify authorization is active — run `make inject-verification`
 
 ## Mandatory Tool & Methodology Readiness
 

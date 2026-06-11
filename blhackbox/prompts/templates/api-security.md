@@ -36,8 +36,7 @@ TARGET = "[TARGET_API_BASE_URL]"
 > 2. If you have API documentation (Swagger/OpenAPI), set `API_DOCS_URL`
 > 3. If testing authenticated endpoints, fill in the optional auth fields above
 > 4. Ensure all MCP servers are healthy — run `make mcp-status`
-> 5. Verify authorization is active — run `make inject-verification`
-> 6. Query each server's tool listing to discover available API testing capabilities
+> 5. Query each server's tool listing to discover available API testing capabilities
 
 ## Mandatory Tool & Methodology Readiness
 

@@ -21,8 +21,7 @@ If no target was provided, ask the user:
 
 > **Before you start:**
 > 1. Ensure all MCP servers are healthy — run `make mcp-status`
-> 2. Verify authorization is active — run `make inject-verification`
-> 3. Note: This uses **passive techniques only** — no packets sent to target
+> 2. Note: This uses **passive techniques only** — no packets sent to target
 
 ## Mandatory Tool & Methodology Readiness
 
