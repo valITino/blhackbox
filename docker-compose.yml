@@ -339,7 +339,10 @@ services:
     stdin_open: true
     tty: true
     environment:
-      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY}"
+      # Empty default: Compose interpolates the whole file even for inactive
+      # profiles, so a bare ${ANTHROPIC_API_KEY} warns on every compose command
+      # (e.g. DeepSeek-only runs). setup.sh surfaces a missing key at summary.
+      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
       # Bypass egress proxies (e.g. GitHub Codespaces) for internal Docker traffic
       no_proxy: "mcp-gateway,kali-mcp,wire-mcp,screenshot-mcp,hexstrike-ai,hexstrike-bridge-mcp,boaz-mcp,localhost,127.0.0.1"
       NO_PROXY: "mcp-gateway,kali-mcp,wire-mcp,screenshot-mcp,hexstrike-ai,hexstrike-bridge-mcp,boaz-mcp,localhost,127.0.0.1"
