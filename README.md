@@ -125,6 +125,7 @@ Skills are native Claude Code commands that launch autonomous pentesting workflo
 
 | Skill | Description | Example |
 |:--|:--|:--|
+| `/opsec-check` | OpSec preflight — audits your own fingerprint surface and hardens it before/during testing | `/opsec-check` |
 | `/full-pentest` | Complete end-to-end penetration test | `/full-pentest example.com` |
 | `/full-attack-chain` | Maximum-impact testing with attack chain construction | `/full-attack-chain 10.0.0.0/24` |
 | `/quick-scan` | Fast triage — exploits critical findings on the spot | `/quick-scan 192.168.1.100` |
@@ -456,7 +457,7 @@ Claude Code will autonomously:
 4. Structure, deduplicate, and correlate findings into an `AggregatedPayload`
 5. Validate via `aggregate_results()` and write a structured pentest report
 
-See [Available Skills](#available-skills) for all 11 pentesting workflows.
+See [Available Skills](#available-skills) for all pentesting workflows, plus `/opsec-check` for OpSec preflight.
 
 ### Monitoring (separate terminal)
 
@@ -965,6 +966,7 @@ blhackbox/
 │   │   ├── session-start.sh             Auto-setup for web sessions
 │   │   └── loop-detector.sh             MCP tool loop detection (Reflector pattern)
 │   └── skills/                          Pentesting skill slash commands
+│       ├── opsec-check/SKILL.md         /opsec-check (OpSec preflight + enforcement)
 │       ├── full-pentest/SKILL.md        /full-pentest
 │       ├── full-attack-chain/SKILL.md   /full-attack-chain
 │       ├── quick-scan/SKILL.md          /quick-scan

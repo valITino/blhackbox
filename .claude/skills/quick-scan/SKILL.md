@@ -27,6 +27,33 @@ If no target was provided, ask the user:
 > 1. Ensure all MCP servers are healthy — run `make mcp-status`
 > 2. Query each MCP server's tool listing to discover available capabilities
 
+## OpSec Discipline (Mandatory)
+
+Run this engagement under operational-security discipline — your own tooling leaves
+fingerprints, and so does the browser the Screenshot MCP drives. Manage that
+footprint before and during the test; never tamper with the target's logs or evidence.
+
+**Preflight (before the readiness pass below):** invoke `/opsec-check` — or run
+`.claude/opsec-audit.sh` — to inventory what this session leaks: egress IP/exit point,
+per-tool default User-Agents, JA3/TLS signature, DNS resolver, host timezone/locale,
+and the screenshot browser's fingerprint + favicon-cache ("supercookie") exposure.
+Resolve every HIGH finding before you touch the target.
+
+**During execution (enforce continuously):** before each outbound action, ask whether
+it leaks attribution or contaminates the engagement. If so, fix it first —
+
+- route through the configured SOCKS/VPN/Tor egress, never the raw host IP;
+- send a deliberate, non-default User-Agent on web/API tools;
+- randomize scan timing instead of using tool defaults;
+- drive the screenshot browser in an ephemeral profile and clear its favicon cache
+  between targets so a planted supercookie can't correlate your sessions;
+- keep per-engagement state isolated — never reuse a browser profile or output dir
+  across targets.
+
+Call out any OpSec break and correct it before continuing. This is footprint hygiene,
+not target-log tampering. These techniques are for authorized scope — confirm
+authorization once at session start, then proceed.
+
 ## Mandatory Tool & Methodology Readiness
 
 Complete this readiness pass before you start the execution plan — it is what keeps
