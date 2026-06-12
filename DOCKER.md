@@ -27,7 +27,6 @@ Seven custom images are published to `crhacky/blhackbox` on Docker Hub:
 | **WireMCP** | `crhacky/blhackbox:wire-mcp` | `docker/wire-mcp.Dockerfile` | `debian:bookworm-slim` |
 | **Screenshot MCP** | `crhacky/blhackbox:screenshot-mcp` | `docker/screenshot-mcp.Dockerfile` | `python:3.13-slim` |
 | **Claude Code** | `crhacky/blhackbox:claude-code` | `docker/claude-code.Dockerfile` | `node:22-slim` |
-| **DeepSeek (Reasonix)** | `crhacky/blhackbox:deepseek` | `docker/deepseek.Dockerfile` | `node:22-slim` |
 | **HexStrike API** | `crhacky/blhackbox:hexstrike-ai` | `docker/hexstrike-ai.Dockerfile` | `kalilinux/kali-rolling` |
 | **HexStrike MCP** | `crhacky/blhackbox:hexstrike-mcp` | `docker/hexstrike-mcp.Dockerfile` | `python:3.11-slim` |
 | **BOAZ MCP** | `crhacky/blhackbox:boaz-mcp` | `docker/boaz-mcp.Dockerfile` | `python:3.11-slim` |
@@ -197,7 +196,7 @@ Skills are available in the container via two mechanisms:
 | `boaz-mcp` | `crhacky/blhackbox:boaz-mcp` | `9005` | default | BOAZ-MCP Gamma server (Streamable HTTP) |
 | `portainer` | `portainer/portainer-ce:latest` | `9443` | default | Docker management UI (HTTPS) |
 | `claude-code` | `crhacky/blhackbox:claude-code` | — | `claude-code` | Claude Code CLI client (Docker) |
-| `deepseek` | `crhacky/blhackbox:deepseek` | — | `deepseek` | DeepSeek (Reasonix) terminal agent (Docker) |
+| `deepseek` | `crhacky/blhackbox:claude-code` | — | `deepseek` | DeepSeek agent — Claude Code image + DeepSeek API (Docker) |
 | `mcp-gateway` | `docker/mcp-gateway:latest` | `8080` | `gateway` | Single MCP entry point (host clients) |
 | `neo4j` | `neo4j:5` | `7474` / `7687` | `neo4j` | Cross-session knowledge graph |
 
@@ -245,7 +244,7 @@ Requires `--profile gateway` (`make up-gateway`).
 | Variable | Default | Description |
 |:--|:--|:--|
 | `ANTHROPIC_API_KEY` | — | Required for the Claude Code container (`--profile claude-code`) |
-| `DEEPSEEK_API_KEY` | — | Required for the DeepSeek/Reasonix container (`--profile deepseek`) |
+| `DEEPSEEK_API_KEY` | — | Required for the DeepSeek container (`--profile deepseek`); passed to Claude Code as `ANTHROPIC_AUTH_TOKEN` |
 | `MCP_GATEWAY_PORT` | `8080` | MCP Gateway host port (optional) |
 | `MSF_TIMEOUT` | `300` | Metasploit command timeout in seconds |
 | `NEO4J_URI` | `bolt://neo4j:7687` | Neo4j connection URI (optional) |
@@ -308,18 +307,19 @@ Requires `--profile gateway` (`make up-gateway`).
 
 The Claude Code container includes the full skills system. Skills (`.claude/skills/`) and project instructions (`CLAUDE.md`) are baked into the image at build time and overridden by volume mounts at runtime for live updates.
 
-### DeepSeek / Reasonix — `crhacky/blhackbox:deepseek`
+### DeepSeek — `deepseek` profile (reuses `crhacky/blhackbox:claude-code`)
 
 | | |
 |:--|:--|
-| **Base** | `node:22-slim` |
-| **Agent** | [Reasonix](https://github.com/esengine/DeepSeek-Reasonix) (DeepSeek-native), installed via `npm install -g reasonix` |
-| **Entrypoint** | `deepseek-entrypoint.sh` (health checks + launch) |
-| **MCP config** | Auto-reads the baked Claude-style `.mcp.json`; Direct Streamable HTTP to each server (no gateway dependency) |
-| **Provider** | `reasonix.toml` → DeepSeek (`https://api.deepseek.com`), key from `DEEPSEEK_API_KEY` env (never written to disk) |
+| **Image** | Same as Claude Code — `crhacky/blhackbox:claude-code` (no separate image) |
+| **Agent** | Claude Code CLI, pointed at the DeepSeek API |
+| **Entrypoint** | `claude-code-entrypoint.sh` (health checks + launch) |
+| **MCP config** | Direct Streamable HTTP to each server (no gateway dependency) |
+| **Provider** | `ANTHROPIC_BASE_URL=https://api.deepseek.com/anthropic` + `ANTHROPIC_AUTH_TOKEN` from `DEEPSEEK_API_KEY` env (never written to disk) |
+| **Models** | `deepseek-v4-pro` (default), `deepseek-v4-flash` (Haiku tier) — per the [DeepSeek guide](https://github.com/deepseek-ai/awesome-deepseek-agent/blob/main/docs/claude_code.md) |
 | **Requires** | `DEEPSEEK_API_KEY` in `.env` |
 
-Reasonix maps the `.mcp.json` `mcpServers` entries (`type: http`, `url: …/mcp`) field-for-field onto its plugins, so it reaches the same five MCP servers as the Claude Code container. Launch it with `make deepseek` or `docker compose --profile deepseek run --rm deepseek`. Note that Claude Code *skills* (slash commands) are not a Reasonix feature; the agent works from natural-language instructions and the mounted `CLAUDE.md` methodology.
+The `deepseek` profile runs the **same Claude Code image** as `--profile claude-code`, only with environment variables that route the model backend to DeepSeek's Anthropic-compatible endpoint. There is no separate image to build, push, or maintain, and the full skills system (slash commands) works exactly as it does with Claude Code. Launch it with `make deepseek` or `docker compose --profile deepseek run --rm deepseek`.
 
 ---
 

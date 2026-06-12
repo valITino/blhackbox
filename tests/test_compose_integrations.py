@@ -85,32 +85,21 @@ def test_claude_code_container_wires_all_default_mcp_servers() -> None:
     assert "hexstrike-bridge-mcp" in entrypoint
 
 
-def test_deepseek_container_wires_all_default_mcp_servers() -> None:
-    dockerfile = (ROOT / "docker" / "deepseek.Dockerfile").read_text(encoding="utf-8")
-    entrypoint = (ROOT / "docker" / "deepseek-entrypoint.sh").read_text(encoding="utf-8")
-
-    for expected in [
-        "http://kali-mcp:9001/mcp",
-        "http://kali-mcp:9003/mcp",
-        "http://screenshot-mcp:9004/mcp",
-        "http://boaz-mcp:9005/mcp",
-        "http://hexstrike-bridge-mcp:9006/mcp",
-    ]:
-        assert expected in dockerfile
-        assert expected in entrypoint
-
-    # Reasonix install + DeepSeek provider that reads the key from the env.
-    assert "npm install -g reasonix" in dockerfile
-    assert "reasonix.toml" in dockerfile
-    assert 'api_key_env = "DEEPSEEK_API_KEY"' in dockerfile
-    # Launches the Reasonix coding agent.
-    assert "reasonix code" in entrypoint
+def test_deepseek_reuses_claude_code_image_without_separate_build() -> None:
+    # The DeepSeek profile is now just the Claude Code image pointed at the
+    # DeepSeek API — no separate Reasonix Dockerfile/entrypoint to maintain.
+    assert not (ROOT / "docker" / "deepseek.Dockerfile").exists()
+    assert not (ROOT / "docker" / "deepseek-entrypoint.sh").exists()
 
 
 def test_deepseek_service_is_in_compose_under_profile() -> None:
     compose = COMPOSE.read_text(encoding="utf-8")
     assert "deepseek:" in compose
-    assert "image: crhacky/blhackbox:deepseek" in compose
+    # Reuses the Claude Code image rather than building a dedicated one.
+    assert "image: crhacky/blhackbox:claude-code" in compose
+    assert "crhacky/blhackbox:deepseek" not in compose
+    assert "docker/deepseek.Dockerfile" not in compose
     assert 'profiles: ["deepseek"]' in compose
-    assert "docker/deepseek.Dockerfile" in compose
-    assert "DEEPSEEK_API_KEY" in compose
+    # Routes Claude Code at DeepSeek's Anthropic-compatible endpoint.
+    assert "https://api.deepseek.com/anthropic" in compose
+    assert 'ANTHROPIC_AUTH_TOKEN: "${DEEPSEEK_API_KEY:-}"' in compose
