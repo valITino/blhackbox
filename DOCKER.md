@@ -98,7 +98,7 @@ Claude Desktop ──▶ MCP Gateway (localhost:8080/mcp) ──┬──▶ Kal
 ```bash
 git clone https://github.com/valITino/blhackbox.git
 cd blhackbox
-./setup.sh    # interactive wizard: prereqs, .env, pull, start, health
+./setup.sh    # guided wizard: prereqs, AI client, keys, Neo4j, live pull/health
 ```
 
 ### Manual — Default Stack (7 containers)
