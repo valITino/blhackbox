@@ -16,15 +16,31 @@
 #   ./setup.sh --help               # Show usage
 set -euo pipefail
 
+# ── Interactivity & color detection ──────────────────────────────────
+# Prompt only when stdin is a terminal; emit cursor-redraw codes only when
+# stdout is a terminal; colorize only when stdout is a TTY AND the NO_COLOR
+# convention (https://no-color.org — any non-empty value disables color) is
+# not set. This keeps piped/CI logs clean (no raw escape codes).
+INTERACTIVE=true; [ -t 0 ] || INTERACTIVE=false
+INTERACTIVE_OUT=true; [ -t 1 ] || INTERACTIVE_OUT=false
+USE_COLOR=true
+if [ "$INTERACTIVE_OUT" != true ] || [ -n "${NO_COLOR:-}" ]; then
+    USE_COLOR=false
+fi
+
 # ── Colors & Symbols ─────────────────────────────────────────────────
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-CYAN='\033[0;36m'
-BOLD='\033[1m'
-DIM='\033[2m'
-NC='\033[0m'
+if [ "$USE_COLOR" = true ]; then
+    RED='\033[0;31m'
+    GREEN='\033[0;32m'
+    YELLOW='\033[1;33m'
+    BLUE='\033[0;34m'
+    CYAN='\033[0;36m'
+    BOLD='\033[1m'
+    DIM='\033[2m'
+    NC='\033[0m'
+else
+    RED=''; GREEN=''; YELLOW=''; BLUE=''; CYAN=''; BOLD=''; DIM=''; NC=''
+fi
 CHECK="${GREEN}✔${NC}"
 CROSS="${RED}✘${NC}"
 WARN="${YELLOW}!${NC}"
@@ -46,11 +62,20 @@ NEO4J_MODE="none"    # none | local | aura
 WRITE_ENV=true       # whether we may (over)write .env
 STATUS_LINES=0       # bookkeeping for the live status redraw
 
-# Interactivity detection: only prompt when stdin is a real terminal.
-INTERACTIVE=true; [ -t 0 ] || INTERACTIVE=false
-INTERACTIVE_OUT=true; [ -t 1 ] || INTERACTIVE_OUT=false
-
 # ── Generic helpers ──────────────────────────────────────────────────
+
+# Render a clickable terminal hyperlink (OSC 8) when color/terminal support
+# is on; otherwise print the bare text. Uses the BEL terminator (widely
+# supported); terminals without OSC 8 simply show the text, so it's safe.
+# $1 = URL, $2 = display text (defaults to the URL).
+link() {
+    local url="$1" text="${2:-$1}"
+    if [ "$USE_COLOR" = true ]; then
+        printf '\033]8;;%s\007%s\033]8;;\007' "$url" "$text"
+    else
+        printf '%s' "$text"
+    fi
+}
 
 # Append a compose --profile flag once (no duplicates).
 add_profile() {
@@ -98,6 +123,28 @@ set_env() {
     local key="$1" val="$2" file="$SCRIPT_DIR/.env"
     sed -i -E "/^[[:space:]]*#?[[:space:]]*${key}=/d" "$file"
     printf '%s=%s\n' "$key" "$val" >> "$file"
+}
+
+# Return 0 if KEY is set to a non-empty value in .env.
+env_has_value() {
+    grep -qE "^$1=.+" "$SCRIPT_DIR/.env" 2>/dev/null
+}
+
+# Soft, non-blocking format check for a freshly entered API key. Returns 0
+# to proceed with saving, 1 to treat as skipped. Never prints the value.
+key_format_ok() {
+    local var="$1" val="$2"
+    case "$var" in
+        ANTHROPIC_API_KEY)
+            [[ "$val" == sk-ant-* ]] && return 0
+            echo -e "    ${WARN} That doesn't look like an Anthropic key (expected prefix 'sk-ant-')." ;;
+        DEEPSEEK_API_KEY|OPENAI_API_KEY)
+            [[ "$val" == sk-* ]] && return 0
+            echo -e "    ${WARN} That doesn't look like a typical API key (expected prefix 'sk-')." ;;
+        *) return 0 ;;
+    esac
+    # Prefix didn't match — let the user decide (non-blocking).
+    ask_yes_no "Save it anyway?" "y"
 }
 
 # ── Banner & usage ───────────────────────────────────────────────────
@@ -228,6 +275,11 @@ prepare_env() {
         cp "$SCRIPT_DIR/.env.example" "$SCRIPT_DIR/.env"
         echo -e "  ${CHECK} Created .env from the template"
     fi
+
+    # Secrets live in .env — restrict it to the owner only.
+    if chmod 600 "$SCRIPT_DIR/.env" 2>/dev/null; then
+        echo -e "  ${CHECK} Locked .env to owner-only ${DIM}(chmod 600)${NC}"
+    fi
     echo ""
 }
 
@@ -278,7 +330,7 @@ configure_agent_key() {
     if ask_yes_no "Add ${var} now?" "y"; then
         local val
         val="$(prompt_secret)"
-        if [ -n "$val" ]; then
+        if [ -n "$val" ] && key_format_ok "$var" "$val"; then
             set_env "$var" "$val"
             echo -e "    ${CHECK} ${var} saved to .env"
         else
@@ -396,6 +448,12 @@ choose_neo4j() {
                 echo -e "    ${BOLD}Set a Neo4j password${NC} ${DIM}(min 8 chars; press Enter for '${def}').${NC}"
                 p="$(prompt_secret "  Password (hidden): ")"
                 [ -n "$p" ] || p="$def"
+                # Neo4j 5 rejects passwords shorter than 8 chars and won't start.
+                while [ "${#p}" -lt 8 ]; do
+                    echo -e "    ${WARN} Too short — Neo4j needs at least 8 characters."
+                    p="$(prompt_secret "  Password (hidden, ≥8 chars): ")"
+                    [ -n "$p" ] || p="$def"
+                done
                 set_env "NEO4J_URI" "bolt://neo4j:7687"
                 set_env "NEO4J_USER" "neo4j"
                 set_env "NEO4J_PASSWORD" "$p"
@@ -573,12 +631,17 @@ start_services() {
 # depend on echo -e semantics inside the loop.
 render_status() {
     local elapsed="$1" max="$2" header table block
-    header=$(printf '  \033[2mService health  ·  %ss / %ss elapsed  (auto-refresh)\033[0m' "$elapsed" "$max")
+    if [ "$USE_COLOR" = true ]; then
+        header=$(printf '  \033[2mService health  ·  %ss / %ss elapsed  (auto-refresh)\033[0m' "$elapsed" "$max")
+    else
+        header=$(printf '  Service health  ·  %ss / %ss elapsed  (auto-refresh)' "$elapsed" "$max")
+    fi
     # shellcheck disable=SC2086
     table=$(docker compose $PROFILES ps --format "table {{.Name}}\t{{.State}}\t{{.Status}}" 2>/dev/null \
-        | awk '
-            NR==1 { printf "  \033[2m%s\033[0m\n", $0; next }
+        | awk -v color="$USE_COLOR" '
+            NR==1 { if (color=="true") printf "  \033[2m%s\033[0m\n", $0; else printf "  %s\n", $0; next }
             {
+                if (color!="true")                     { printf "  %s\n", $0; next }
                 if ($0 ~ /\(healthy\)/)                 code="32";  # green
                 else if ($0 ~ /starting/)               code="33";  # yellow
                 else if ($0 ~ /unhealthy|Exit|Restart/) code="31";  # red
@@ -644,13 +707,21 @@ print_launch_hint() {
     case "$AI_VARIANT" in
         claude-code)
             echo -e "  ${BOLD}Launch your agent:${NC}"
-            echo -e "    ${CYAN}make claude-code${NC}    ${DIM}Start Claude Code in Docker${NC}" ;;
+            echo -e "    ${CYAN}make claude-code${NC}    ${DIM}Start Claude Code in Docker${NC}"
+            if ! env_has_value ANTHROPIC_API_KEY; then
+                echo -e "    ${WARN} ${YELLOW}ANTHROPIC_API_KEY is not set${NC} — the claude-code container won't"
+                echo -e "       start until you add it to ${CYAN}.env${NC} (then re-run ${CYAN}make claude-code${NC})."
+            fi ;;
         deepseek)
             echo -e "  ${BOLD}Launch your agent:${NC}"
-            echo -e "    ${CYAN}make deepseek${NC}       ${DIM}Start the DeepSeek (Reasonix) agent${NC}" ;;
+            echo -e "    ${CYAN}make deepseek${NC}       ${DIM}Start the DeepSeek (Reasonix) agent${NC}"
+            if ! env_has_value DEEPSEEK_API_KEY; then
+                echo -e "    ${WARN} ${YELLOW}DEEPSEEK_API_KEY is not set${NC} — the deepseek container won't"
+                echo -e "       start until you add it to ${CYAN}.env${NC} (then re-run ${CYAN}make deepseek${NC})."
+            fi ;;
         claude-web)
             echo -e "  ${BOLD}Using Claude Code Web:${NC}"
-            echo -e "    ${DIM}Open this repository at ${NC}${CYAN}https://claude.ai/code${NC}${DIM}.${NC}"
+            echo -e "    ${DIM}Open this repository at ${NC}$(link https://claude.ai/code "${CYAN}https://claude.ai/code${NC}")${DIM}.${NC}"
             echo -e "    ${DIM}The .mcp.json starts the blhackbox MCP server automatically; type /mcp to verify.${NC}" ;;
         claude-desktop)
             echo -e "  ${BOLD}Connect Claude Desktop${NC} ${DIM}(via the MCP Gateway, now enabled):${NC}"
@@ -685,20 +756,77 @@ print_summary() {
     echo -e "    ${DIM}./output/screenshots/  PoC evidence screenshots${NC}"
     echo -e "    ${DIM}./output/sessions/     Aggregated session data${NC}"
     echo ""
-    echo -e "  ${BOLD}Portainer UI:${NC}  ${CYAN}https://localhost:9443${NC}"
+    echo -e "  ${BOLD}Portainer UI:${NC}  $(link https://localhost:9443 "${CYAN}https://localhost:9443${NC}")"
     echo -e "    ${WARN} Create the admin account within 5 minutes of first start!"
     if [ "$NEO4J_MODE" = "local" ]; then
         echo ""
-        echo -e "  ${BOLD}Neo4j Browser:${NC}  ${CYAN}http://localhost:7474${NC} ${DIM}(user: neo4j)${NC}"
+        echo -e "  ${BOLD}Neo4j Browser:${NC}  $(link http://localhost:7474 "${CYAN}http://localhost:7474${NC}") ${DIM}(user: neo4j)${NC}"
     elif [ "$NEO4J_MODE" = "aura" ]; then
         echo ""
-        echo -e "  ${BOLD}Neo4j Aura:${NC}  manage your cloud instance at ${CYAN}https://console.neo4j.io${NC}"
+        echo -e "  ${BOLD}Neo4j Aura:${NC}  manage your cloud instance at $(link https://console.neo4j.io "${CYAN}https://console.neo4j.io${NC}")"
         echo -e "    ${DIM}Connection details are in your .env (no local container started).${NC}"
     fi
     echo ""
     echo -e "  ${BOLD}For pentesting:${NC} use a skill — ${DIM}/full-pentest, /quick-scan, /bug-bounty, …${NC}"
     echo ""
     echo -e "  ${DIM}Add or change keys anytime in ${NC}${CYAN}.env${NC}${DIM}, then: ${NC}${CYAN}docker compose up -d${NC}"
+    echo ""
+}
+
+# ── Pre-flight confirmation ──────────────────────────────────────────
+
+# Human-readable label for the selected AI client.
+ai_label() {
+    case "$AI_VARIANT" in
+        claude-code)    echo "Claude Code (Docker container)" ;;
+        claude-web)     echo "Claude Code (Web — claude.ai/code)" ;;
+        claude-desktop) echo "Claude Desktop (host app via MCP Gateway)" ;;
+        chatgpt)        echo "ChatGPT / OpenAI (host app via MCP Gateway)" ;;
+        deepseek)       echo "DeepSeek / Reasonix (Docker container)" ;;
+        *)              echo "None selected (core stack only)" ;;
+    esac
+}
+
+# Show a review of all selections and ask before any images are pulled or
+# containers started. Skipped entirely in non-interactive runs.
+confirm_plan() {
+    [ "$INTERACTIVE" = true ] || return 0
+
+    echo -e "${BOLD}Review your setup${NC}"
+    echo -e "${DIM}  Nothing has been pulled or started yet. Here's what will happen:${NC}"
+    echo ""
+    echo -e "  ${BOLD}AI client:${NC}        $(ai_label)"
+    case "$NEO4J_MODE" in
+        local) echo -e "  ${BOLD}Knowledge graph:${NC}  Local Neo4j (Docker container)" ;;
+        aura)  echo -e "  ${BOLD}Knowledge graph:${NC}  Neo4j Aura (cloud — no local container)" ;;
+        *)     echo -e "  ${BOLD}Knowledge graph:${NC}  None" ;;
+    esac
+    if [[ "$PROFILES" == *"--profile gateway"* ]]; then
+        echo -e "  ${BOLD}MCP Gateway:${NC}      Enabled (port 8080)"
+    else
+        echo -e "  ${BOLD}MCP Gateway:${NC}      Disabled"
+    fi
+    echo ""
+    echo -e "  ${BOLD}Actions:${NC}"
+    if [ "$SKIP_PULL" = true ]; then
+        echo -e "    ${ARROW} Skip image pull (use cached images)"
+    else
+        echo -e "    ${ARROW} Pull core Docker images ${DIM}(live progress)${NC}"
+    fi
+    [ -n "$AGENT_PROFILE" ] && echo -e "    ${ARROW} Prepare the ${CYAN}${AGENT_PROFILE}${NC} agent image"
+    if [ -n "$PROFILES" ]; then
+        echo -e "    ${ARROW} Start the core stack + profiles:${PROFILES//--profile /}"
+    else
+        echo -e "    ${ARROW} Start the core stack"
+    fi
+    echo -e "    ${ARROW} Wait for services to become healthy"
+    echo ""
+    if ! ask_yes_no "Proceed?" "y"; then
+        echo ""
+        echo -e "  ${ARROW} Stopped before any images were pulled or containers started."
+        echo -e "    ${DIM}Your .env is saved. Re-run ${NC}${CYAN}./setup.sh${NC}${DIM} anytime.${NC}"
+        exit 0
+    fi
     echo ""
 }
 
@@ -758,6 +886,7 @@ choose_ai_client
 choose_neo4j
 choose_optional_keys
 create_output_dirs
+confirm_plan
 pull_images
 start_services
 wait_for_health
