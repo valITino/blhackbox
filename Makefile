@@ -119,9 +119,9 @@ claude-code: ## Build and launch Claude Code in a Docker container
 	@echo ""
 	$(COMPOSE) --profile claude-code run --rm claude-code
 
-# ── DeepSeek / Reasonix (Docker) ────────────────────────────────
-deepseek: ## Build and launch the DeepSeek (Reasonix) agent in a Docker container
-	$(COMPOSE) --profile deepseek pull deepseek || $(COMPOSE) --profile deepseek build deepseek
+# ── DeepSeek (Docker — Claude Code pointed at the DeepSeek API) ──
+deepseek: ## Launch the DeepSeek agent in a Docker container (reuses the Claude Code image)
+	$(COMPOSE) --profile deepseek pull deepseek || $(COMPOSE) --profile claude-code build claude-code
 	@echo ""
 	@echo "\033[1m  Pre-flight Container Status\033[0m"
 	@echo "\033[2m  ──────────────────────────────────────\033[0m"
@@ -227,7 +227,6 @@ push-all: ## Build and push all custom images to Docker Hub
 	docker build -f docker/wire-mcp.Dockerfile -t crhacky/blhackbox:wire-mcp .
 	docker build -f docker/screenshot-mcp.Dockerfile -t crhacky/blhackbox:screenshot-mcp .
 	docker build -f docker/claude-code.Dockerfile -t crhacky/blhackbox:claude-code .
-	docker build -f docker/deepseek.Dockerfile -t crhacky/blhackbox:deepseek .
 	docker build -f docker/hexstrike-ai.Dockerfile -t crhacky/blhackbox:hexstrike-ai .
 	docker build -f docker/hexstrike-mcp.Dockerfile -t crhacky/blhackbox:hexstrike-mcp .
 	docker build -f docker/boaz-mcp.Dockerfile -t crhacky/blhackbox:boaz-mcp .
@@ -235,7 +234,6 @@ push-all: ## Build and push all custom images to Docker Hub
 	docker push crhacky/blhackbox:wire-mcp
 	docker push crhacky/blhackbox:screenshot-mcp
 	docker push crhacky/blhackbox:claude-code
-	docker push crhacky/blhackbox:deepseek
 	docker push crhacky/blhackbox:hexstrike-ai
 	docker push crhacky/blhackbox:hexstrike-mcp
 	docker push crhacky/blhackbox:boaz-mcp

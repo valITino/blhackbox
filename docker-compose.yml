@@ -5,7 +5,7 @@
 #   docker compose up -d                         Start default stack (Kali, WireMCP, Screenshot, HexStrike, BOAZ, Portainer)
 #   docker compose --profile gateway up -d       Start with MCP Gateway
 #   docker compose --profile claude-code up -d   Start with Claude Code container
-#   docker compose --profile deepseek run --rm deepseek   Run the DeepSeek (Reasonix) agent
+#   docker compose --profile deepseek run --rm deepseek   Run the DeepSeek agent (Claude Code + DeepSeek API)
 #   docker compose --profile neo4j up -d         Start with Neo4j
 #   docker compose build                         Build all custom images locally
 #
@@ -372,26 +372,37 @@ services:
     networks:
       - blhackbox_net
 
-  # -- DEEPSEEK / REASONIX (OPTIONAL) ----------------------------------------
-  # DeepSeek-native MCP client running inside Docker -- no host install needed.
+  # -- DEEPSEEK (OPTIONAL) ---------------------------------------------------
+  # DeepSeek-powered agent running inside Docker -- no host install needed.
   # Enable with: docker compose --profile deepseek run --rm deepseek
   #              (or `make deepseek`)
   #
-  # Reasonix (https://github.com/esengine/DeepSeek-Reasonix) connects DIRECTLY
-  # to each MCP server via Streamable HTTP over the Docker network by reading
-  # its baked .mcp.json (Claude Code's mcpServers schema). Does NOT require the
-  # MCP Gateway. Requires DEEPSEEK_API_KEY (read from env, never written to disk).
+  # Reuses the Claude Code image and points it at DeepSeek's Anthropic-compatible
+  # API via ANTHROPIC_BASE_URL + ANTHROPIC_AUTH_TOKEN, following the official
+  # DeepSeek guide:
+  #   https://github.com/deepseek-ai/awesome-deepseek-agent/blob/main/docs/claude_code.md
+  # Same MCP wiring, skills, and entrypoint as the claude-code service — only the
+  # model backend differs, so there is no separate image to build or maintain.
+  # Requires DEEPSEEK_API_KEY (read from env, never written to disk).
   deepseek:
-    image: crhacky/blhackbox:deepseek
-    build:
-      context: .
-      dockerfile: docker/deepseek.Dockerfile
+    image: crhacky/blhackbox:claude-code
     container_name: blhackbox-deepseek
     profiles: ["deepseek"]
     stdin_open: true
     tty: true
     environment:
-      DEEPSEEK_API_KEY: "${DEEPSEEK_API_KEY:-}"
+      # Route Claude Code at DeepSeek's Anthropic-compatible endpoint.
+      # ANTHROPIC_AUTH_TOKEN is sent as the Authorization: Bearer header.
+      ANTHROPIC_BASE_URL: "https://api.deepseek.com/anthropic"
+      ANTHROPIC_AUTH_TOKEN: "${DEEPSEEK_API_KEY:-}"
+      # Map Claude's model tiers onto DeepSeek models (per the DeepSeek guide).
+      # Switch the active model in-session with /model.
+      ANTHROPIC_MODEL: "deepseek-v4-pro"
+      ANTHROPIC_DEFAULT_OPUS_MODEL: "deepseek-v4-pro"
+      ANTHROPIC_DEFAULT_SONNET_MODEL: "deepseek-v4-pro"
+      ANTHROPIC_DEFAULT_HAIKU_MODEL: "deepseek-v4-flash"
+      # Don't phone home to Anthropic for telemetry/auto-update.
+      CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1"
       # Bypass egress proxies (e.g. GitHub Codespaces) for internal Docker traffic
       no_proxy: "mcp-gateway,kali-mcp,wire-mcp,screenshot-mcp,hexstrike-ai,hexstrike-bridge-mcp,boaz-mcp,localhost,127.0.0.1"
       NO_PROXY: "mcp-gateway,kali-mcp,wire-mcp,screenshot-mcp,hexstrike-ai,hexstrike-bridge-mcp,boaz-mcp,localhost,127.0.0.1"
@@ -404,7 +415,8 @@ services:
       - ./output/sessions:/root/results
       # Shared working data from Kali MCP (recon files, tool artifacts)
       - shared-output:/root/kali-data:ro
-      # Mount project instructions so the agent has the latest methodology
+      # Mount skills and project instructions so Claude Code discovers them
+      - ./.claude/skills:/root/.claude/skills:ro
       - ./CLAUDE.md:/root/CLAUDE.md:ro
     depends_on:
       kali-mcp:

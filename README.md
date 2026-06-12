@@ -44,7 +44,7 @@
 |---|---|
 | **Getting Started** | [How It Works](#how-it-works) · [Architecture](#architecture) · [Prerequisites](#prerequisites) · [Installation](#installation) |
 | **Skills** | [Skills Overview](#skills--slash-commands) · [Available Skills](#available-skills) · [How Skills Work](#how-skills-work) |
-| **Tutorials** | [Claude Code (Docker)](#tutorial-1-claude-code-docker--recommended) · [DeepSeek (Reasonix)](#tutorial-1b-deepseek-reasonix-docker) · [Claude Code (Web)](#tutorial-2-claude-code-web) · [Claude Desktop](#tutorial-3-claude-desktop-host--gateway) · [ChatGPT / OpenAI](#tutorial-4-chatgpt--openai-host--gateway) |
+| **Tutorials** | [Claude Code (Docker)](#tutorial-1-claude-code-docker--recommended) · [DeepSeek (Docker)](#tutorial-1b-deepseek-docker) · [Claude Code (Web)](#tutorial-2-claude-code-web) · [Claude Desktop](#tutorial-3-claude-desktop-host--gateway) · [ChatGPT / OpenAI](#tutorial-4-chatgpt--openai-host--gateway) |
 | **Advanced** | [Advanced Usage & FAQ](#advanced-usage--faq) |
 | **Reference** | [Components](#components) · [Output Files](#output-files) · [CLI Reference](#cli-reference) · [Makefile Shortcuts](#makefile-shortcuts) · [Docker Hub Images](#docker-hub-images) |
 | **Operations** | [Prompt Flow](#how-prompts-flow-through-the-system) · [MCP Gateway](#do-i-need-the-mcp-gateway) · [Portainer Setup](#portainer-setup) · [Neo4j](#neo4j-optional) · [Troubleshooting](#troubleshooting) |
@@ -424,7 +424,7 @@ The entrypoint script checks each service and shows a status dashboard with avai
 
 You are now inside an interactive Claude Code session.
 
-> **Prefer DeepSeek?** A drop-in alternative agent is available. Set `DEEPSEEK_API_KEY` in `.env` and run `make deepseek` (or `docker compose --profile deepseek run --rm deepseek`). It launches [Reasonix](https://github.com/esengine/DeepSeek-Reasonix), a DeepSeek-native terminal agent, wired to the same five MCP servers over Streamable HTTP. See [Tutorial 1b](#tutorial-1b-deepseek-reasonix-docker).
+> **Prefer DeepSeek?** Set `DEEPSEEK_API_KEY` in `.env` and run `make deepseek` (or `docker compose --profile deepseek run --rm deepseek`). This runs the **same Claude Code image** pointed at DeepSeek's Anthropic-compatible API — same MCP wiring, same skills, only the model backend differs. See [Tutorial 1b](#tutorial-1b-deepseek-docker).
 
 ### Step 3 — Verify the connection
 
@@ -470,13 +470,13 @@ Or use **Portainer** at `https://localhost:9443` for a unified dashboard.
 
 ---
 
-## Tutorial 1b: DeepSeek (Reasonix, Docker)
+## Tutorial 1b: DeepSeek (Docker)
 
-Prefer a DeepSeek-powered agent over Claude? [Reasonix](https://github.com/esengine/DeepSeek-Reasonix) is a DeepSeek-native terminal coding agent that connects to the **same five MCP servers** over Streamable HTTP — it reads a Claude-style `.mcp.json`, so the wiring is identical to the Claude Code container. It is added as a separate `deepseek` profile and does **not** replace Claude Code.
+Prefer a DeepSeek-powered agent over Claude? The `deepseek` profile runs the **same Claude Code image** as Tutorial 1, just pointed at DeepSeek's Anthropic-compatible API via `ANTHROPIC_BASE_URL` + `ANTHROPIC_AUTH_TOKEN` (following the [official DeepSeek guide](https://github.com/deepseek-ai/awesome-deepseek-agent/blob/main/docs/claude_code.md)). The MCP wiring, the skills system, and the entrypoint are identical — only the model backend changes. There is no separate image to build or maintain.
 
 ### Step 1 — Set your DeepSeek key
 
-Put `DEEPSEEK_API_KEY` in `.env` (get one at [platform.deepseek.com/api_keys](https://platform.deepseek.com/api_keys)). `setup.sh` prompts for it, or add it manually. The key is read from the environment at runtime and never written into the image.
+Put `DEEPSEEK_API_KEY` in `.env` (get one at [platform.deepseek.com/api_keys](https://platform.deepseek.com/api_keys)). `setup.sh` prompts for it, or add it manually. The key is read from the environment at runtime, passed to Claude Code as `ANTHROPIC_AUTH_TOKEN`, and never written into the image.
 
 ### Step 2 — Launch the agent
 
@@ -490,9 +490,9 @@ Or manually:
 docker compose --profile deepseek run --rm deepseek
 ```
 
-The entrypoint checks each MCP server, then drops you into an interactive Reasonix session with all the pentest tools available. The default model is **DeepSeek-V4-Flash**; type `/pro` for a single Pro turn or `/preset max` to use Pro for the whole session.
+The entrypoint checks each MCP server, then drops you into an interactive session with all the pentest tools available. The default model is **deepseek-v4-pro** (background tasks use **deepseek-v4-flash**); switch the active model in-session with `/model`.
 
-> **Note:** Slash-command *skills* (`/full-pentest`, `/quick-scan`, …) are a Claude Code feature. With Reasonix, describe your authorized target and goal in natural language and the agent calls the MCP tools directly; the methodology in `CLAUDE.md` is mounted at `/root/CLAUDE.md` for reference.
+> **Note:** Because this is Claude Code under the hood, the full skills system works — `/full-pentest`, `/quick-scan`, and the rest of the slash commands behave exactly as in Tutorial 1.
 
 ---
 
@@ -761,7 +761,7 @@ STEP 7 ─ (OPTIONAL) RESULTS STORED IN NEO4J
 | MCP Client | Gateway? | How it connects |
 |:--|:--:|:--|
 | **Claude Code (Docker)** | No | Direct Streamable HTTP to each MCP server over Docker network |
-| **DeepSeek / Reasonix (Docker)** | No | Direct Streamable HTTP to each MCP server over Docker network |
+| **DeepSeek (Docker)** | No | Claude Code image + DeepSeek API; direct Streamable HTTP to each MCP server over Docker network |
 | **Claude Code (Web)** | No | Stdio MCP server from `.mcp.json` |
 | **Claude Desktop** | **Yes** | Host GUI app → `localhost:8080/mcp` gateway |
 | **ChatGPT / OpenAI** | **Yes** | Host GUI/web app → `localhost:8080/mcp` gateway |
@@ -882,7 +882,7 @@ blhackbox mcp                                            # Start MCP server
 | `make up-gateway` | Start with MCP Gateway for Claude Desktop (8 containers) |
 | `make down` | Stop all services |
 | `make claude-code` | Build and launch Claude Code in Docker |
-| `make deepseek` | Build and launch the DeepSeek (Reasonix) agent in Docker |
+| `make deepseek` | Launch the DeepSeek agent in Docker (Claude Code image + DeepSeek API) |
 | `make status` | Container status table |
 | `make health` | Quick health check of all services |
 | `make test` | Run tests |
@@ -920,8 +920,7 @@ All custom images are published to `crhacky/blhackbox`:
 | `crhacky/blhackbox:hexstrike-ai` | HexStrike Gamma API container |
 | `crhacky/blhackbox:hexstrike-mcp` | Upstream HexStrike Gamma MCP server over Streamable HTTP |
 | `crhacky/blhackbox:boaz-mcp` | Upstream BOAZ-MCP Gamma server over Streamable HTTP |
-| `crhacky/blhackbox:claude-code` | Claude Code CLI client (direct Streamable HTTP to MCP servers) |
-| `crhacky/blhackbox:deepseek` | DeepSeek (Reasonix) terminal agent (direct Streamable HTTP to MCP servers) |
+| `crhacky/blhackbox:claude-code` | Claude Code CLI client (direct Streamable HTTP to MCP servers); also used by the `deepseek` profile pointed at the DeepSeek API |
 
 Official images pulled directly:
 
@@ -986,10 +985,8 @@ blhackbox/
 │   ├── kali-mcp.Dockerfile              Kali Linux + Metasploit Framework
 │   ├── wire-mcp.Dockerfile
 │   ├── screenshot-mcp.Dockerfile
-│   ├── claude-code.Dockerfile           MCP client container
-│   ├── claude-code-entrypoint.sh        Startup script with health checks
-│   ├── deepseek.Dockerfile              DeepSeek (Reasonix) MCP client container
-│   └── deepseek-entrypoint.sh           DeepSeek startup script with health checks
+│   ├── claude-code.Dockerfile           MCP client container (also used by the deepseek profile)
+│   └── claude-code-entrypoint.sh        Startup script with health checks
 ├── kali-mcp/                            Kali MCP server (70+ tools + Metasploit)
 ├── wire-mcp/                            WireMCP server (tshark, 7 tools)
 ├── screenshot-mcp/                      Screenshot MCP server (Playwright, 4 tools)

@@ -167,7 +167,7 @@ usage() {
     echo ""
     echo "Options:"
     echo "  --api-key KEY      Set ANTHROPIC_API_KEY (Claude Code container)"
-    echo "  --deepseek-key KEY Set DEEPSEEK_API_KEY (DeepSeek/Reasonix container)"
+    echo "  --deepseek-key KEY Set DEEPSEEK_API_KEY (DeepSeek container)"
     echo "  --minimal         Core stack only (no prompts, no Neo4j/Gateway)"
     echo "  --with-neo4j      Enable local Neo4j knowledge graph (Docker)"
     echo "  --with-gateway    Enable MCP Gateway for Claude Desktop/ChatGPT"
@@ -297,7 +297,7 @@ print_anthropic_help() {
 }
 
 print_deepseek_help() {
-    echo -e "    ${BOLD}What it's for:${NC} authenticates the DeepSeek (Reasonix) agent in Docker."
+    echo -e "    ${BOLD}What it's for:${NC} authenticates the DeepSeek agent (Claude Code + DeepSeek API) in Docker."
     echo -e "    ${BOLD}Where it's used:${NC} the ${CYAN}deepseek${NC} container (DEEPSEEK_API_KEY)."
     echo -e "    ${BOLD}How to get it:${NC}"
     echo -e "      ${DIM}1.${NC} Sign in at ${CYAN}https://platform.deepseek.com${NC}"
@@ -399,7 +399,7 @@ choose_ai_client() {
             ;;
         3)  # DeepSeek
             AI_VARIANT="deepseek"; AGENT_PROFILE="deepseek"
-            echo -e "  ${ARROW} DeepSeek (Reasonix) runs containerized in Docker."
+            echo -e "  ${ARROW} DeepSeek runs containerized in Docker (Claude Code + DeepSeek API)."
             configure_agent_key "DEEPSEEK_API_KEY" print_deepseek_help
             ;;
     esac
@@ -714,7 +714,7 @@ print_launch_hint() {
             fi ;;
         deepseek)
             echo -e "  ${BOLD}Launch your agent:${NC}"
-            echo -e "    ${CYAN}make deepseek${NC}       ${DIM}Start the DeepSeek (Reasonix) agent${NC}"
+            echo -e "    ${CYAN}make deepseek${NC}       ${DIM}Start the DeepSeek agent${NC}"
             if ! env_has_value DEEPSEEK_API_KEY; then
                 echo -e "    ${WARN} ${YELLOW}DEEPSEEK_API_KEY is not set${NC} — the deepseek container won't"
                 echo -e "       start until you add it to ${CYAN}.env${NC} (then re-run ${CYAN}make deepseek${NC})."
@@ -782,7 +782,7 @@ ai_label() {
         claude-web)     echo "Claude Code (Web — claude.ai/code)" ;;
         claude-desktop) echo "Claude Desktop (host app via MCP Gateway)" ;;
         chatgpt)        echo "ChatGPT / OpenAI (host app via MCP Gateway)" ;;
-        deepseek)       echo "DeepSeek / Reasonix (Docker container)" ;;
+        deepseek)       echo "DeepSeek (Docker — Claude Code + DeepSeek API)" ;;
         *)              echo "None selected (core stack only)" ;;
     esac
 }
