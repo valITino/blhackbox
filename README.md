@@ -306,14 +306,16 @@ cd blhackbox
 ./setup.sh
 ```
 
-The setup wizard will:
+The setup wizard walks you through everything interactively:
 
-1. Check prerequisites (Docker, Docker Compose, disk space)
-2. Let you choose optional components (Neo4j, MCP Gateway)
-3. Prompt for your `ANTHROPIC_API_KEY` (required for Claude Code in Docker)
-4. Generate `.env` and create the `output/` directory
-5. Pull Docker images and start all services
-6. Wait for health checks to pass
+1. **Check prerequisites** (Docker, Docker Compose, Git, disk space)
+2. **Choose your AI client** — Claude (Claude Code in Docker, Claude Code Web, or Claude Desktop), ChatGPT/OpenAI, or DeepSeek. The choice decides which agent/profile starts and which key (if any) you need.
+3. **Configure API keys with guidance** — for each key it explains what it's for, where it's used, and the exact steps to obtain it; every key is optional/skippable.
+4. **Pick a knowledge graph** — none, local Neo4j (Docker), or Neo4j Aura (cloud). Aura mode walks you through `console.neo4j.io` and stores your connection details without starting a local container.
+5. **Optionally add recon API keys** (WPScan, Shodan, VirusTotal, SecurityTrails) — all skippable; tools run without them.
+6. **Generate `.env`** and create the `output/` directory
+7. **Pull images with live progress** and start all services
+8. **Show a live service-health dashboard** until services are healthy
 
 Non-interactive flags:
 
