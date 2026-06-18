@@ -1,0 +1,322 @@
+{
+  "capture": {
+    "source_page": "https://www.linkedin.com/pulse/how-structure-your-linkedin-content-more-views-graham-riley",
+    "session_state": "logged-out guest (urn:li:member:0, isGuest=true)",
+    "note": "Session/CSRF/security tokens are MASKED. This file contains no full secret values."
+  },
+  "author": {
+    "public_handle": "grahamkeithriley",
+    "profile_url": "https://www.linkedin.com/in/grahamkeithriley",
+    "display_name": "Graham Riley",
+    "profile_photo_asset": "urn:li:digitalmediaAsset:D5603AQEx9gIpnH-iDQ",
+    "numeric_member_id": "NOT EXPOSED (guest view; would require authenticated Voyager call)"
+  },
+  "post": {
+    "canonical_url": "https://www.linkedin.com/pulse/how-structure-your-linkedin-content-more-views-graham-riley",
+    "url_slug": "how-structure-your-linkedin-content-more-views-graham-riley",
+    "urns_with_decoded_creation_time": {
+      "urn:li:ugcPost:6922668744561360896": "2022-04-20 22:14:05Z",
+      "urn:li:linkedInArticle:6922664509425807360": "2022-04-20 21:57:15Z",
+      "urn:li:article:8483198953102629138": null
+    },
+    "decode_method": "64-bit Snowflake-style ID; creation_ms = id >> 22 (top ~41 bits = Unix ms)"
+  },
+  "media_assets": [
+    {
+      "category": "picture",
+      "subtype": "article-inline_image",
+      "source": "html_reference",
+      "asset_id": "C5612AQEILL7_4-dbIg",
+      "urn": "urn:li:digitalmediaAsset:C5612AQEILL7_4-dbIg",
+      "artifact_type": "article-inline_image-shrink_1500_2232",
+      "upload_date": "2022-04-20",
+      "url": "https://media.licdn.com/dms/image/v2/C5612AQEILL7_4-dbIg/article-inline_image-shrink_1500_2232/article-inline_image-shrink_1500_2232/0/1650492455321?e=2147483647&v=beta&t=YHzcWPJm-sykVJRi_A5p78xjlN8CCeVZas-l9uOVspM"
+    },
+    {
+      "category": "picture",
+      "subtype": "article-inline_image",
+      "source": "html_reference",
+      "asset_id": "C5612AQGWLLkHt0pIwg",
+      "urn": "urn:li:digitalmediaAsset:C5612AQGWLLkHt0pIwg",
+      "artifact_type": "article-inline_image-shrink_1000_1488",
+      "upload_date": "2022-04-20",
+      "url": "https://media.licdn.com/dms/image/v2/C5612AQGWLLkHt0pIwg/article-inline_image-shrink_1000_1488/article-inline_image-shrink_1000_1488/0/1650492247072?e=2147483647&v=beta&t=iHbI2ywguRXgiQAuT8CtJsPHBUrRcoLVoPhKqUv-XzI"
+    },
+    {
+      "category": "picture",
+      "subtype": "article-cover_image",
+      "source": "network_request",
+      "asset_id": "C5612AQHS1flUGdsipA",
+      "urn": "urn:li:digitalmediaAsset:C5612AQHS1flUGdsipA",
+      "artifact_type": "article-cover_image-shrink_720_1280",
+      "upload_date": "2022-04-20",
+      "url": "https://media.licdn.com/dms/image/v2/C5612AQHS1flUGdsipA/article-cover_image-shrink_720_1280/article-cover_image-shrink_720_1280/0/1650491835717?e=2147483647&v=beta&t=yZEnOmgmJmplxtWg_Cy656d7sJjQalfOldcZTs-yh5o"
+    },
+    {
+      "category": "picture",
+      "subtype": "article-inline_image",
+      "source": "network_request",
+      "asset_id": "C5612AQHZLo3YQmyRbQ",
+      "urn": "urn:li:digitalmediaAsset:C5612AQHZLo3YQmyRbQ",
+      "artifact_type": "article-inline_image-shrink_400_744",
+      "upload_date": "2022-04-20",
+      "url": "https://media.licdn.com/dms/image/v2/C5612AQHZLo3YQmyRbQ/article-inline_image-shrink_400_744/article-inline_image-shrink_400_744/0/1650491884370?e=2147483647&v=beta&t=TP20fIYGGsLrpVhOKU8xGdwa99vIRCwKce4qLKfh6wU"
+    },
+    {
+      "category": "picture",
+      "subtype": "article-inline_image",
+      "source": "html_reference",
+      "asset_id": "C5612AQHtfJ0p8yhmUA",
+      "urn": "urn:li:digitalmediaAsset:C5612AQHtfJ0p8yhmUA",
+      "artifact_type": "article-inline_image-shrink_1000_1488",
+      "upload_date": "2022-04-20",
+      "url": "https://media.licdn.com/dms/image/v2/C5612AQHtfJ0p8yhmUA/article-inline_image-shrink_1000_1488/article-inline_image-shrink_1000_1488/0/1650492744928?e=2147483647&v=beta&t=gP32sJyag0pD1OJoe1UCp2JtUteCRl1Qgsmcrms1b08"
+    },
+    {
+      "category": "picture",
+      "subtype": "article-cover_image",
+      "source": "html_reference",
+      "asset_id": "D4E12AQEgMUQHrcP-Ww",
+      "urn": "urn:li:digitalmediaAsset:D4E12AQEgMUQHrcP-Ww",
+      "artifact_type": "article-cover_image-shrink_720_1280",
+      "upload_date": "2026-01-28",
+      "url": "https://media.licdn.com/dms/image/v2/D4E12AQEgMUQHrcP-Ww/article-cover_image-shrink_720_1280/B4EZwFOeM1JgAQ-/0/1769614206740?e=2147483647&v=beta&t=AReViLGnRRlyzLTcyIJkxDipdM15j0XqClyCkC0-1i4"
+    },
+    {
+      "category": "picture",
+      "subtype": "profile-displayphoto",
+      "source": "network_request",
+      "asset_id": "D5603AQEx9gIpnH-iDQ",
+      "urn": "urn:li:digitalmediaAsset:D5603AQEx9gIpnH-iDQ",
+      "artifact_type": "profile-displayphoto-shrink_400_400",
+      "upload_date": "2023-01-28",
+      "url": "https://media.licdn.com/dms/image/v2/D5603AQEx9gIpnH-iDQ/profile-displayphoto-shrink_400_400/profile-displayphoto-shrink_400_400/0/1674949661120?e=2147483647&v=beta&t=zFp2UMwFh6xj-v5e30E3jIMJQ-4vg-3NOM5r8K7Lu6E"
+    },
+    {
+      "category": "picture",
+      "subtype": "article-cover_image",
+      "source": "html_reference",
+      "asset_id": "D5612AQEDSeCuohyetQ",
+      "urn": "urn:li:digitalmediaAsset:D5612AQEDSeCuohyetQ",
+      "artifact_type": "article-cover_image-shrink_720_1280",
+      "upload_date": "2026-01-12",
+      "url": "https://media.licdn.com/dms/image/v2/D5612AQEDSeCuohyetQ/article-cover_image-shrink_720_1280/B56ZuzsihLHcAI-/0/1768246357132?e=2147483647&v=beta&t=7aoGa4kSr0AYuL9M22z3hDNB_s5jXcM1BQ8gPgKJnYE"
+    },
+    {
+      "category": "picture",
+      "subtype": "article-cover_image",
+      "source": "html_reference",
+      "asset_id": "D5612AQEGBBPGHoJQNQ",
+      "urn": "urn:li:digitalmediaAsset:D5612AQEGBBPGHoJQNQ",
+      "artifact_type": "article-cover_image-shrink_720_1280",
+      "upload_date": "2026-01-12",
+      "url": "https://media.licdn.com/dms/image/v2/D5612AQEGBBPGHoJQNQ/article-cover_image-shrink_720_1280/B56ZuzuQYlGwAM-/0/1768246807100?e=2147483647&v=beta&t=VNPcS0uyqGXx_q1GFXQ7zeqvJ1QFajx-he8i4czXF_k"
+    },
+    {
+      "category": "picture",
+      "subtype": "article-cover_image",
+      "source": "html_reference",
+      "asset_id": "D5612AQEa3rO2Sq935w",
+      "urn": "urn:li:digitalmediaAsset:D5612AQEa3rO2Sq935w",
+      "artifact_type": "article-cover_image-shrink_720_1280",
+      "upload_date": "2026-01-12",
+      "url": "https://media.licdn.com/dms/image/v2/D5612AQEa3rO2Sq935w/article-cover_image-shrink_720_1280/B56ZuztimdHgAI-/0/1768246619389?e=2147483647&v=beta&t=YGWJ4u6vijjRlsZaEaQi9olephGNQQK2lPhuAfZB2pU"
+    },
+    {
+      "category": "picture",
+      "subtype": "series-logo_image",
+      "source": "html_reference",
+      "asset_id": "D5612AQEa5urutCr8Jg",
+      "urn": "urn:li:digitalmediaAsset:D5612AQEa5urutCr8Jg",
+      "artifact_type": "series-logo_image-shrink_100_100",
+      "upload_date": "2026-01-12",
+      "url": "https://media.licdn.com/dms/image/v2/D5612AQEa5urutCr8Jg/series-logo_image-shrink_100_100/B56ZuztV8tIYAc-/0/1768246567336?e=2147483647&v=beta&t=Y3YPlJUBlPpUXYbSQ8KN-xLIsWPzcu_TAU_wNzP_HBE"
+    },
+    {
+      "category": "picture",
+      "subtype": "article-cover_image",
+      "source": "html_reference",
+      "asset_id": "D5612AQEmtbuGvP5OTg",
+      "urn": "urn:li:digitalmediaAsset:D5612AQEmtbuGvP5OTg",
+      "artifact_type": "article-cover_image-shrink_720_1280",
+      "upload_date": "2026-01-12",
+      "url": "https://media.licdn.com/dms/image/v2/D5612AQEmtbuGvP5OTg/article-cover_image-shrink_720_1280/B56ZuzsF5qIoAI-/0/1768246239808?e=2147483647&v=beta&t=IuoEOvNl5eohnK0M6POP6fesIAGL40_KvRQMLv3WhFU"
+    },
+    {
+      "category": "picture",
+      "subtype": "article-cover_image",
+      "source": "html_reference",
+      "asset_id": "D5612AQF0ZVMw4TZMIg",
+      "urn": "urn:li:digitalmediaAsset:D5612AQF0ZVMw4TZMIg",
+      "artifact_type": "article-cover_image-shrink_720_1280",
+      "upload_date": "2026-01-12",
+      "url": "https://media.licdn.com/dms/image/v2/D5612AQF0ZVMw4TZMIg/article-cover_image-shrink_720_1280/B56ZuzukDMG4AM-/0/1768246887576?e=2147483647&v=beta&t=jc3YLG5MwtX8M68oSGhYow3ux8Hlt09VhEf9mdXgOYk"
+    },
+    {
+      "category": "picture",
+      "subtype": "article-cover_image",
+      "source": "html_reference",
+      "asset_id": "D5612AQFXkgClsVC1Dw",
+      "urn": "urn:li:digitalmediaAsset:D5612AQFXkgClsVC1Dw",
+      "artifact_type": "article-cover_image-shrink_720_1280",
+      "upload_date": "2026-02-17",
+      "url": "https://media.licdn.com/dms/image/v2/D5612AQFXkgClsVC1Dw/article-cover_image-shrink_720_1280/B56ZxrxiAQIIAM-/0/1771334673324?e=2147483647&v=beta&t=cVKdhvCQ8feIJV84N3zOeCf9zaP8UECzG4ZYV0goRHg"
+    },
+    {
+      "category": "picture",
+      "subtype": "article-cover_image",
+      "source": "html_reference",
+      "asset_id": "D5612AQFjSaP6ry5vXA",
+      "urn": "urn:li:digitalmediaAsset:D5612AQFjSaP6ry5vXA",
+      "artifact_type": "article-cover_image-shrink_720_1280",
+      "upload_date": "2026-04-08",
+      "url": "https://media.licdn.com/dms/image/v2/D5612AQFjSaP6ry5vXA/article-cover_image-shrink_720_1280/B56Z1usodSGgAI-/0/1775678688612?e=2147483647&v=beta&t=Ww1tsOz2d_Y_JIZajYJ8QjM4BaPC9IP-Yvfm8dTKi-I"
+    },
+    {
+      "category": "picture",
+      "subtype": "article-cover_image",
+      "source": "html_reference",
+      "asset_id": "D5612AQGSs3zdfrnTWg",
+      "urn": "urn:li:digitalmediaAsset:D5612AQGSs3zdfrnTWg",
+      "artifact_type": "article-cover_image-shrink_720_1280",
+      "upload_date": "2026-01-14",
+      "url": "https://media.licdn.com/dms/image/v2/D5612AQGSs3zdfrnTWg/article-cover_image-shrink_720_1280/B56Zu80Jw1H4AI-/0/1768399347600?e=2147483647&v=beta&t=VedtlwVg3PSsek8QV4W-THe4jnIBag-X23ZNssB_0Vo"
+    },
+    {
+      "category": "picture",
+      "subtype": "article-cover_image",
+      "source": "html_reference",
+      "asset_id": "D5612AQH_VBmr239bag",
+      "urn": "urn:li:digitalmediaAsset:D5612AQH_VBmr239bag",
+      "artifact_type": "article-cover_image-shrink_720_1280",
+      "upload_date": "2026-04-08",
+      "url": "https://media.licdn.com/dms/image/v2/D5612AQH_VBmr239bag/article-cover_image-shrink_720_1280/B56Z1usIKaLIAI-/0/1775678556371?e=2147483647&v=beta&t=ye4g-n7Q0nyDhhxzUw7G8kpywRyBD9F-OAgiBKcMd4E"
+    }
+  ],
+  "viewer_fingerprint_cookies": [
+    {
+      "name": "JSESSIONID",
+      "purpose": "Guest session / CSRF token (ajax: prefix)",
+      "value_masked": "ajax:2…[masked] (len 24)"
+    },
+    {
+      "name": "PLAY_LANG",
+      "purpose": "Play framework UI language",
+      "value_masked": "de (len 2)"
+    },
+    {
+      "name": "PLAY_SESSION",
+      "purpose": "Play framework session (JWT)",
+      "value_masked": "eyJhbG…[masked] (len 513)"
+    },
+    {
+      "name": "__cf_bm",
+      "purpose": "Cloudflare bot-management token",
+      "value_masked": "Ci.cSe…[masked] (len 199)"
+    },
+    {
+      "name": "_px3",
+      "purpose": "PerimeterX security token (~60s lifetime)",
+      "value_masked": "03e696…[masked] (len 651)"
+    },
+    {
+      "name": "_pxvid",
+      "purpose": "PerimeterX/HUMAN persistent visitor/device ID (up to ~1 year)",
+      "value_masked": "24fdd724-68b… (len 36)"
+    },
+    {
+      "name": "bcookie",
+      "purpose": "Persistent browser UUID — LinkedIn's primary cross-session browser identifier",
+      "value_masked": "\"v=2&3cc7b5d… (len 42)"
+    },
+    {
+      "name": "bscookie",
+      "purpose": "Signed secure browser cookie (embeds issue date)",
+      "value_masked": "\"v=1&2…[masked] (len 88)"
+    },
+    {
+      "name": "lang",
+      "purpose": "UI language preference",
+      "value_masked": "v=2&lang=de-… (len 14)"
+    },
+    {
+      "name": "li_alerts",
+      "purpose": "Alerts state (base64)",
+      "value_masked": "e30= (len 4)"
+    },
+    {
+      "name": "li_gc",
+      "purpose": "Guest cookie-consent record",
+      "value_masked": "MTswOz…[masked] (len 72)"
+    },
+    {
+      "name": "lidc",
+      "purpose": "LinkedIn datacenter routing",
+      "value_masked": "\"b=TGST03:s=… (len 108)"
+    },
+    {
+      "name": "pxcts",
+      "purpose": "PerimeterX client timestamp token",
+      "value_masked": "clscvm…[masked] (len 237)"
+    },
+    {
+      "name": "sdui_ver",
+      "purpose": "Server-driven-UI version",
+      "value_masked": "sdui-flagshi… (len 41)"
+    },
+    {
+      "name": "timezone",
+      "purpose": "Client timezone",
+      "value_masked": "Europe/Zuric… (len 13)"
+    }
+  ],
+  "geo_locale": {
+    "timezone_cookie": "Europe/Zurich",
+    "lang_cookie": "v=2&lang=de-DE",
+    "play_lang_cookie": "de",
+    "html_meta_locale": "de_DE",
+    "html_lang_attr": "de",
+    "inference": "Viewer in German-speaking Switzerland (Europe/Zurich + de locale)"
+  },
+  "page_and_tracking": {
+    "page_key": "d_flagship2_pulse_read",
+    "page_instance_urns": [
+      "urn:li:page:d_flagship2_pulse_read;hlXGC6YHRsiTZ3J/ZuHfvA=="
+    ],
+    "member_urns_present": [
+      "urn:li:member:0"
+    ],
+    "ingraphs_beacon": "{\"pageKey\":\"d_flagship2_pulse_read_jsbeacon\",\"metricsType\":\"seoPageView\"}"
+  },
+  "anti_bot": {
+    "vendor": "HUMAN Security / PerimeterX (white-labeled as protechts.net)",
+    "app_id": "PXdOjV695v",
+    "tenant": "msft (Microsoft — LinkedIn parent)",
+    "use_case_flag": "scraping",
+    "device_id_masked": "27833d71e767…",
+    "r_id_masked": "AAZUgZz3kgis…",
+    "endpoints": [
+      "client.protechts.net/PXdOjV695v/main.min.js",
+      "collector-pxdojv695v.protechts.net/api/v2/msft",
+      "collector-pxdojv695v.protechts.net/api/v2/msft/beacon",
+      "li.protechts.net/index.html",
+      "tzm.protechts.net/ns"
+    ]
+  },
+  "temporal_intelligence": {
+    "post_created": "2022-04-20 (from ugcPost / linkedInArticle URN + image upload dates)",
+    "recommended_thumbnail_dates": [
+      "2026-01-12",
+      "2026-01-12",
+      "2026-01-12",
+      "2026-01-12",
+      "2026-01-12",
+      "2026-01-14",
+      "2026-01-28",
+      "2026-02-17",
+      "2026-04-08",
+      "2026-04-08"
+    ],
+    "capture_dated_by_recommendations": "Jan–Apr 2026 thumbnails imply capture ~mid-2026"
+  }
+}
