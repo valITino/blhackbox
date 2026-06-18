@@ -1,0 +1,515 @@
+{
+  "report": "LinkedIn Pulse HAR — full intelligence extraction",
+  "source_page": "https://www.linkedin.com/pulse/how-structure-your-linkedin-content-more-views-graham-riley",
+  "_research_caveat": "Primary vendor docs (MS Learn URN namespace, HUMAN/PerimeterX, cookie DBs, the post-ID decoder) returned HTTP 403 to the fetcher; annotations are synthesized from search results cross-checked against the empirical HAR data + established knowledge.",
+  "_secrets": "Session/CSRF/JWT/PerimeterX tokens are MASKED. Public identifiers and article text are included verbatim.",
+  "capture": {
+    "captured_local": "2026-06-18T08:52:01.172+02:00",
+    "captured_utc": "Thu, 18 Jun 2026 06:52:01 GMT",
+    "timezone_inference": "Europe/Zurich (+02:00 CEST); corroborated by Cloudflare edge colo ZRH",
+    "browser": "Mozilla Firefox (response header x-firefox-spdy: h2)",
+    "http_version": "HTTP/2",
+    "total_requests": 73,
+    "total_response_bytes": 4805798,
+    "page_timings_ms": {
+      "onContentLoad": 673,
+      "onLoad": 746
+    }
+  },
+  "shared_content": {
+    "_about": "The actual content shared on the page — reconstructed from the server-rendered HTML.",
+    "title": "How to Structure your LinkedIn Content for more Views",
+    "lead_sentence": "Are you one of those people who is fed up with creating content that nobody seems to look at? Have you had the experience of feeling like you've almost crafted the world's best-ever post but then it struggles to get more than a handful of reactions or comments, with just a few hundred Views? Yet you…",
+    "read_time_minutes": "7",
+    "word_count_body": 1524,
+    "is_accessible_for_free": true,
+    "author": {
+      "name": "Graham Riley",
+      "handle": "grahamkeithriley",
+      "profile_url": "https://www.linkedin.com/in/grahamkeithriley",
+      "numeric_member_id": "146172655",
+      "affiliation_byline": "Maverrik - North America",
+      "followers": 34996,
+      "profile_photo_url": "https://media.licdn.com/dms/image/v2/D5603AQEx9gIpnH-iDQ/profile-displayphoto-shrink_400_400/profile-displayphoto-shrink_400_400/0/1674949661120?e=2147483647&v=beta&t=zFp2UMwFh6xj-v5e30E3jIMJQ-4vg-3NOM5r8K7Lu6E"
+    },
+    "dates": {
+      "published": "2022-04-20T22:14:06.000+00:00",
+      "modified": "2026-04-10T16:53:39.000+00:00",
+      "published_decoded_from_urn": {
+        "urn:li:ugcPost:6922668744561360896": "2022-04-20 22:14:05Z",
+        "urn:li:linkedInArticle:6922664509425807360": "2022-04-20 21:57:15Z",
+        "urn:li:article:8483198953102629138": null
+      }
+    },
+    "engagement": {
+      "reactions": 62,
+      "comments": 0,
+      "views": "NOT EXPOSED to guests",
+      "_note": "JSON-LD is authoritative: 62 reactions, 0 comments. With commentCount=0 there are no comment bodies to reconstruct."
+    },
+    "newsletter": {
+      "name": "LinkedIn Success",
+      "slug": "linkedin-success",
+      "urn_id": "6905523102084685824",
+      "url": "https://www.linkedin.com/newsletters/linkedin-success-6905523102084685824",
+      "subscribers": 3758,
+      "logo_url": "https://media.licdn.com/dms/image/v2/D5612AQEa5urutCr8Jg/series-logo_image-shrink_100_100/B56ZuztV8tIYAc-/0/1768246567336?e=2147483647&v=beta&t=Y3YPlJUBlPpUXYbSQ8KN-xLIsWPzcu_TAU_wNzP_HBE"
+    },
+    "related_articles": [
+      {
+        "title": "Why LinkedIn Live Builds Trust Faster Than Content Alone",
+        "date_de": "21. Apr. 2026",
+        "date_iso": "2026-04-21"
+      },
+      {
+        "title": "Why Most LinkedIn Strategies Stall Before They Start",
+        "date_de": "8. Apr. 2026",
+        "date_iso": "2026-04-08"
+      },
+      {
+        "title": "LinkedIn Webinars Are Not an Event Strategy. They Are a Coherence Test.",
+        "date_de": "17. Feb. 2026",
+        "date_iso": "2026-02-17"
+      },
+      {
+        "title": "LinkedIn Isn’t Rewarding More Activity. It’s Rewarding System Coherence.",
+        "date_de": "28. Jan. 2026",
+        "date_iso": "2026-01-28"
+      },
+      {
+        "title": "Boosting Your Visibility With 360Brew",
+        "date_de": "14. Jan. 2026",
+        "date_iso": "2026-01-14"
+      },
+      {
+        "title": "Why Your Company Page Isn’t Driving Sales Pipeline",
+        "date_de": "17. Sept. 2025",
+        "date_iso": "2025-09-17"
+      },
+      {
+        "title": "Why Your LinkedIn Posts Fall Flat (And How to Fix It)",
+        "date_de": "3. Sept. 2025",
+        "date_iso": "2025-09-03"
+      },
+      {
+        "title": "Why Social Selling Breaks (and How to Fix It)",
+        "date_de": "21. Juli 2025",
+        "date_iso": "2025-07-21"
+      },
+      {
+        "title": "Not All Content Is Created Equal",
+        "date_de": "7. Juli 2025",
+        "date_iso": "2025-07-07"
+      },
+      {
+        "title": "Why LinkedIn Needs a Real Owner Inside Your Sales Org",
+        "date_de": "16. Juni 2025",
+        "date_iso": "2025-06-16"
+      }
+    ],
+    "comments_detail": {
+      "count": 0,
+      "note": "0 comments exist; the comment UI scaffolding (CommentAction) is present but empty."
+    },
+    "body_text": "Are you one of those people who is fed up with creating content that nobody seems to look at? Have you had the experience of feeling like you've almost crafted the world's best-ever post but then it struggles to get more than a handful of reactions or comments, with just a few hundred Views? Yet you see others on the platform getting huge amounts of views and interactions on their content. It's a very common frustration and something that comes up time and time again when I'm training and coaching our clients. And almost every time I look at the client's content, I find that they're making the same common errors. LinkedIn is my favorite platform, so I will use this platform for this example. On LinkedIn alone. In the last 12 months, the amount of people who are posting content is grown by 30%. That's a million more people. So, I want to make sure that my content stands out, I want to make sure that the structure of the post is working for me so people see my content, find me, and engage with me… or else, why bother posting content. There is a best practice to the way you structure your social media content. Think: When you look at a post, what is it that catches the eye? Remember, your post is going to sit in somebody's feed; there's a poster above you and a post below you. You're competing for the viewer's attention. There are some key things you need to think about that will catch the eye first? First, it’s the Picture It's the media asset that you use. Whether that is a PDF, a video clip, a static image, or whatever it may be. What is going to capture the eye’s attention? Question: When you look at your feed what catches your eye first? Which posts stand out to you? Learn from what you see other people doing. There are some no-no’s when it comes to the media assets you use. Images with black or dark backgrounds tend to underperform. The same goes for small text on an image. Think about using bright colors such as oranges, greens, yellows, etc as these will help your post stand off the page and catch the attention of a viewer. TIP: Make your images are square to take up the maximum area in the post feed. Now think about the colors that you're going to use, the branding that you're going to use, the imagery that you're going to use, will it capture the eye’s attention. If you are using a PDF slide deck, make sure the first front page that sits immediately visible on your post draws in the viewer. Another common mistake is image text being too small. Often the imagery is created on a large screen desktop where the text is easy to see and read. Remember it's going to be seen on a mobile device. So, optimize your content for viewing on mobile devices. Another common mistake is making the imagery text-heavy. Nobody wants to be reading War & Peace on your social media posts. Stick to the headline statements and use the body of the post to fill out the detail. So the first three things that people engage with on a post are most commonly… The image The image title The opening line of the post The opening line of your post can be the deal-breaker when it comes to getting engagement. I see this all the time on LinkedIn, where that first two or three lines are just solid text, like the start of a new paragraph. On social media, this will put people off engaging with your content. Why? Simply attention spans on social media are short and people make micro-second judgments as to whether they will or will not engage. Large paragraphs of text require the reader to focus and track the lines of text to read the narrative and this results in most readers seeing it and mentally deciding ‘I do not have the time to read all of that.’ TIP: Create single line headlines that draw attention. Then leave one or two line spaces before the next line of text. A few years ago, a colleague of mine wrote a post on this subject and started his post with the headline \"Why I killed my mother-in-law\". Did he get attention? Absolutely!. Why? Because he played on human curiosity… we all want to know the story behind the headline. So, people click in, and now they're reading his content. The rest of the constant talks about why it's important to have a headline statement, something that creates curiosity for people to click to see more, go into and read the rest of your post. The headline could be a statement that leaves the reader wanting to know more such as \"Five ways of winning new business\". What are those five ways? The reader has to click on the post and read the rest to find out. It could be a question. If they want to know the answer, they have to read the rest of the post. TIP: Make sure your start a mental conversation Another common mistake is the content does not start a conversation. What you want to do is draw the reader into the content with a mental conversation. You ask questions such as ‘When was the last time you had this experience?’ or ‘How does the problem affect your business?’. If you are writing a bunch of statements, telling everyone how fantastic your company is and how wonderful your products are… then you will be ignored because you have no value to the individual. So let's start the conversation. Let's talk about the common issues that your clients might deal with on a daily, weekly or monthly basis. The sort of things that you know, you can solve. When you start to talk about those issues you start to create a conversation. Add in some questions to promote the mental conversation… Do you have this issue? … (reader thinks) Yes, I do. Is this issue causing you problems X, Y, and Z? … (reader thinks) Oh, yes, absolutely. Does the result of this issue affect not only your business life but your family life too? … (reader thinks) Yes..., this person understands my issue! Now, you've got them engaged in the conversation. The reader is responding yes, yes, yes that's me which promotes a favorable response towards any CTAs. And what they're mentally doing is making an assessment that actually this person understands my situation and the inference of that is that if you're talking about what the problem is, you must already have an answer. So they stay engaged with the post. And now you present to them what the solution could look like and what life could be like with that problem removed with your solution put in place. Your imagery and your text started a conversation around a topic that interests them and engages them enough to invest in the post content. Then as we get to the bottom, here's the real kicker. TIP: Give people a way to interact beyond the post content. What are your calls to action (CTA)? What are you actually asking people to do? A lot of social media content that I see is just a statement telling me how good something is or telling me a bunch of statistics that are supposed to convince me to buy. This type of content is easily ignored and quickly forgotten. So, what are you asking readers to do? What's the engagement you want them? On social media, you will learn that you have to give clear instructions for what you want the reader to do. Examples… \"Click here to access the free download\" or \"Send me a DM for more information\" or \"Click here to arrange a phone call\" Some people will be thinking that's me, I need that solution. It's worth the conversation and they'll want to get in touch. Do not make it a suggestion, give clear direct instruction. Nearly three years ago I learned a valuable lesson. I would quite often in my very English manner say, ‘Hey, if you are interested, click here to find more information. Well, by actually putting it like that I put a negative spin on it… if you are interested. I created a question with the word ‘if’. In the world of social media that invariably promotes the response ‘No, I am not interested.’ So I started writing ‘Click here for more information.’ and, guess what happened. The click rate doubled because I gave clear instructions, and people complied. So, put it all together: Use imagery that attracts attention Optimize content for mobile viewing Write headlines that create curiosity Start a mental conversation Give clear instructions for CTAs Do this consistently and you will find that those views on your content will start to increase and you can say goodbye to underperforming content. Schedule a Discovery Call with me to discuss how to maximize your content strategy. 📅 https://lnkd.in/gp4JWdKK #sales #salesenablement #marketing"
+  },
+  "structured_data": {
+    "_about": "Machine-readable data embedded in the page for crawlers, link unfurlers, and the LinkedIn app.",
+    "json_ld_schema_org": {
+      "@context": "http://schema.org",
+      "@type": "Article",
+      "headline": "Are you one of those people who is fed up with creating content that nobody seems to look at? Have you had the experience of feeling like you've almost crafted the world's best-ever post but then it struggles to get more than a handful of reactions or comments, with just a few hundred Views? Yet you",
+      "url": "https://www.linkedin.com/pulse/how-structure-your-linkedin-content-more-views-graham-riley",
+      "publisher": null,
+      "name": "How to Structure your LinkedIn Content for more Views",
+      "commentCount": 0,
+      "interactionStatistic": [
+        {
+          "@type": "InteractionCounter",
+          "interactionType": "http://schema.org/LikeAction",
+          "userInteractionCount": 62
+        },
+        {
+          "@type": "InteractionCounter",
+          "interactionType": "http://schema.org/CommentAction",
+          "userInteractionCount": 0
+        }
+      ],
+      "datePublished": "2022-04-20T22:14:06.000+00:00",
+      "mainEntityOfPage": "https://www.linkedin.com/pulse/how-structure-your-linkedin-content-more-views-graham-riley",
+      "isAccessibleForFree": true,
+      "image": {
+        "@type": "ImageObject",
+        "url": "https://media.licdn.com/dms/image/v2/C5612AQHS1flUGdsipA/article-cover_image-shrink_720_1280/article-cover_image-shrink_720_1280/0/1650491835717?e=2147483647&v=beta&t=yZEnOmgmJmplxtWg_Cy656d7sJjQalfOldcZTs-yh5o"
+      },
+      "dateModified": "2026-04-10T16:53:39.000+00:00",
+      "author": {
+        "@type": "Person",
+        "image": "https://media.licdn.com/dms/image/v2/D5603AQEx9gIpnH-iDQ/profile-displayphoto-shrink_400_400/profile-displayphoto-shrink_400_400/0/1674949661120?e=2147483647&v=beta&t=zFp2UMwFh6xj-v5e30E3jIMJQ-4vg-3NOM5r8K7Lu6E",
+        "interactionStatistic": {
+          "@type": "InteractionCounter",
+          "interactionType": "https://schema.org/FollowAction",
+          "name": "Followers",
+          "userInteractionCount": 34996
+        },
+        "name": "Graham Riley",
+        "url": "https://www.linkedin.com/in/grahamkeithriley"
+      }
+    },
+    "meta_tags": {
+      "pageKey": "d_flagship2_pulse_read",
+      "robots": "max-image-preview:large, noarchive",
+      "bingbot": "max-image-preview:large, archive",
+      "locale": "de_DE",
+      "article-ssr-frontend": "",
+      "al:android:url": "https://www.linkedin.com/pulse/how-structure-your-linkedin-content-more-views-graham-riley",
+      "al:android:package": "com.linkedin.android",
+      "al:android:app_name": "LinkedIn",
+      "al:ios:url": "https://www.linkedin.com/pulse/how-structure-your-linkedin-content-more-views-graham-riley",
+      "al:ios:app_store_id": "288429040",
+      "al:ios:app_name": "LinkedIn",
+      "description": "Are you one of those people who is fed up with creating content that nobody seems to look at? Have you had the experience of feeling like you've almost crafted the world's best-ever post but then it struggles to get more than a handful of reactions or comments, with just a few hundred Views? Yet you",
+      "og:title": "How to Structure your LinkedIn Content for more Views",
+      "og:description": "Are you one of those people who is fed up with creating content that nobody seems to look at? Have you had the experience of feeling like you've almost crafted the world's best-ever post but then it struggles to get more than a handful of reactions or comments, with just a few hundred Views? Yet you",
+      "og:image": "https://media.licdn.com/dms/image/v2/C5612AQHS1flUGdsipA/article-cover_image-shrink_720_1280/article-cover_image-shrink_720_1280/0/1650491835717?e=2147483647&v=beta&t=yZEnOmgmJmplxtWg_Cy656d7sJjQalfOldcZTs-yh5o",
+      "og:type": "article",
+      "og:url": "https://www.linkedin.com/pulse/how-structure-your-linkedin-content-more-views-graham-riley",
+      "twitter:card": "summary_large_image",
+      "twitter:site": "@LinkedInEditors",
+      "twitter:title": "How to Structure your LinkedIn Content for more Views",
+      "twitter:description": "Are you one of those people who is fed up with creating content that nobody seems to look at? Have you had the experience of feeling like you've almost crafted the world's best-ever post but then it struggles to get more than a handful of reactions or comments, with just a few hundred Views? Yet you",
+      "twitter:image": "https://media.licdn.com/dms/image/v2/C5612AQHS1flUGdsipA/article-cover_image-shrink_720_1280/article-cover_image-shrink_720_1280/0/1650491835717?e=2147483647&v=beta&t=yZEnOmgmJmplxtWg_Cy656d7sJjQalfOldcZTs-yh5o",
+      "appId": "",
+      "twitter:label1": "Von",
+      "twitter:data1": "Graham Riley",
+      "twitter:label2": "Lesedauer",
+      "twitter:data2": "Lesedauer: 7 Min.",
+      "clientSideIngraphs": "1"
+    },
+    "embedded_code_blocks": {
+      "articleUrn": "urn:li:linkedInArticle:6922664509425807360",
+      "legacyArticleUrn": "urn:li:article:8483198953102629138",
+      "ugcPostUrn": "urn:li:ugcPost:6922668744561360896",
+      "ugcPostUrl": "https://www.linkedin.com/feed/update/urn:li:ugcPost:6922668744561360896",
+      "memberUrn (viewer)": "urn:li:member:0",
+      "isGuest": true,
+      "signInUrl": "https://www.linkedin.com/signup/cold-join?session_redirect=%2Fpulse%2Fhow-structure-your-linkedin-content-more-views-graham-riley"
+    }
+  },
+  "identifiers": {
+    "_about": "Stable identifiers. Numeric IDs are Snowflake-style (creation_ms = id >> 22).",
+    "post_urns_decoded": {
+      "urn:li:ugcPost:6922668744561360896": "2022-04-20 22:14:05Z",
+      "urn:li:linkedInArticle:6922664509425807360": "2022-04-20 21:57:15Z",
+      "urn:li:article:8483198953102629138": null
+    },
+    "author_numeric_member_id": "146172655",
+    "viewer_member_urn": "urn:li:member:0 (guest)",
+    "page_instance_urns": [
+      "urn:li:page:d_flagship2_pulse_read;hlXGC6YHRsiTZ3J/ZuHfvA=="
+    ],
+    "media_asset_ids": [
+      {
+        "asset_id": "C5612AQEILL7_4-dbIg",
+        "type": "article-inline_image",
+        "upload_date": "2022-04-20",
+        "source": "html_reference"
+      },
+      {
+        "asset_id": "C5612AQGWLLkHt0pIwg",
+        "type": "article-inline_image",
+        "upload_date": "2022-04-20",
+        "source": "html_reference"
+      },
+      {
+        "asset_id": "C5612AQHS1flUGdsipA",
+        "type": "article-cover_image",
+        "upload_date": "2022-04-20",
+        "source": "network_request"
+      },
+      {
+        "asset_id": "C5612AQHZLo3YQmyRbQ",
+        "type": "article-inline_image",
+        "upload_date": "2022-04-20",
+        "source": "network_request"
+      },
+      {
+        "asset_id": "C5612AQHtfJ0p8yhmUA",
+        "type": "article-inline_image",
+        "upload_date": "2022-04-20",
+        "source": "html_reference"
+      },
+      {
+        "asset_id": "D4E12AQEgMUQHrcP-Ww",
+        "type": "article-cover_image",
+        "upload_date": "2026-01-28",
+        "source": "html_reference"
+      },
+      {
+        "asset_id": "D5603AQEx9gIpnH-iDQ",
+        "type": "profile-displayphoto",
+        "upload_date": "2023-01-28",
+        "source": "network_request"
+      },
+      {
+        "asset_id": "D5612AQEDSeCuohyetQ",
+        "type": "article-cover_image",
+        "upload_date": "2026-01-12",
+        "source": "html_reference"
+      },
+      {
+        "asset_id": "D5612AQEGBBPGHoJQNQ",
+        "type": "article-cover_image",
+        "upload_date": "2026-01-12",
+        "source": "html_reference"
+      },
+      {
+        "asset_id": "D5612AQEa3rO2Sq935w",
+        "type": "article-cover_image",
+        "upload_date": "2026-01-12",
+        "source": "html_reference"
+      },
+      {
+        "asset_id": "D5612AQEa5urutCr8Jg",
+        "type": "series-logo_image",
+        "upload_date": "2026-01-12",
+        "source": "html_reference"
+      },
+      {
+        "asset_id": "D5612AQEmtbuGvP5OTg",
+        "type": "article-cover_image",
+        "upload_date": "2026-01-12",
+        "source": "html_reference"
+      },
+      {
+        "asset_id": "D5612AQF0ZVMw4TZMIg",
+        "type": "article-cover_image",
+        "upload_date": "2026-01-12",
+        "source": "html_reference"
+      },
+      {
+        "asset_id": "D5612AQFXkgClsVC1Dw",
+        "type": "article-cover_image",
+        "upload_date": "2026-02-17",
+        "source": "html_reference"
+      },
+      {
+        "asset_id": "D5612AQFjSaP6ry5vXA",
+        "type": "article-cover_image",
+        "upload_date": "2026-04-08",
+        "source": "html_reference"
+      },
+      {
+        "asset_id": "D5612AQGSs3zdfrnTWg",
+        "type": "article-cover_image",
+        "upload_date": "2026-01-14",
+        "source": "html_reference"
+      },
+      {
+        "asset_id": "D5612AQH_VBmr239bag",
+        "type": "article-cover_image",
+        "upload_date": "2026-04-08",
+        "source": "html_reference"
+      }
+    ]
+  },
+  "infrastructure": {
+    "_about": "Origin/edge and security posture, from response headers.",
+    "cdn_path": "Cloudflare edge (a0d85e6b6e5dbb16-ZRH) → LinkedIn fabric prod-ltx1 (PoP cf-prod-ltx1-x)",
+    "html_doc_response_headers": {
+      "date": "Thu, 18 Jun 2026 06:52:01 GMT",
+      "content-type": "text/html; charset=utf-8",
+      "content-length": "24955",
+      "vary": "Accept-Encoding",
+      "server": "cloudflare",
+      "x-fs-uuid": "000654819cf79208ac0183a388d23a77",
+      "strict-transport-security": "max-age=31536000",
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "sameorigin",
+      "content-security-policy": "default-src 'none'; connect-src 'self' *.licdn.com *.linkedin.com cdn.linkedin.oribi.io dpm.demdex.net/id lnkd.demdex.net blob: accounts.google.com/gsi/ linkedin.sc.omtrdc.net/b/ss/ v.clarity.ms/collect *.microsoft.com *.adnxs.com *.tealiumiq.com login.microsoftonline.com bat.bing.com lnkd.tt.omtrdc.net/rest/v1/delivery www.google.com google.com adservice.google.com pagead2.googlesyndication.com td.doubleclick.net www.googletagmanager.com www.googleadservices.com ad.doubleclick.net googleads.g.doubleclick.net; script-src 'report-sample' 'sha256-th47JTnh6tX15SUn/I+GGmsOSXpa7dh5Skner77gxlY=' 'sha256-SSoodjUD3LGm2FfFCVHGqEb8D4UM3OOigidT2UKDcYg=' 'sha256-cKTgdnmO6+hXd85a9wKg1effVfVzenUAtUCyOKY9bQE=' 'sha256-DwtT8+ZZKpxH9pqZNAmJ3GdbLAh5SsYaXR3omTXPCns=' 'sha256-sV9jZa797T0QWBzcU/CNd4tpBhTnh+TFdLnfjlitl28=' 'sha256-aa/Q8CRBDSqTQbCIyioPhZaz+G+dbPyu7BzsjInEmiU=' 'sha256-THuVhwbXPeTR0HszASqMOnIyxqEgvGyBwSPBKBF/iMc=' 'sha256-zTIusdVJJeXz9+iox2a+pdDglzbpRpFVRzEwvW4AONk=' 'sha256-iC8MPqNLw0FDnsBf4DlSkFLNTwhkI85aouiAEB819ic=' 'sha256-2EqrEvcPzl8c6/TSGVvaVMEe7lg700MAz/te4/3kTYY=' 'sha256-y5uW69VItKj51mcc7UD9qfptDVUqicZL+bItEpvVNDw=' 'sha256-DatsFGoJ8gFkzzxo47Ou76WZ+3QBPOQHtBu9p9b3DhA=' 'sha256-k95cyM8gFgPziZe5VQ2IvJvBUVyd5zFt2CokIUwqdHE=' 'sha256-PyCXNcEkzRWqbiNr087fizmiBBrq9O6GGD8eV3P09Ik=' 'sha256-RFqsjmAF1N5LnfpaHFvPqFlVkeIS/DtTAFor+JjJJVc=' 'sha256-2SQ55Erm3CPCb+k03EpNxU9bdV3XL9TnVTriDs7INZ4=' 'sha256-S/KSPe186K/1B0JEjbIXcCdpB97krdzX05S+dHnQjUs=' 'sha256-9pXOIwF4N0gPltLd3AI69lkCjSC2H/Eb3sc5zdmUyYU=' 'sha256-jou6v/Nleyzoc+LXktAv1Fp8M807dVVxy7E/yzVljHc=' 'sha256-6E4e/3dSvj/8JZT2S2yR91mspqM6MyOpKl5lrhHsZa8=' 'sha256-JfJ82reKxtqugVbfRGw/O/1x1Lm1I09rHueXSwvbRws=' 'sha256-BbV1i75oYRtLtfDWs7tnA8QLF5EOO1dVHKL0prVd/fQ=' 'sha256-3woF8BZ54TeXM+czaH3aXoaJsVpiamuAKFsXDykAR/Q=' 'sha256-vIfNcKb8ixJg1cfJIoNNYjWcm0lezj1/XpUNFiZyVsU=' 'sha256-cLsHUHFgT/VGX04cZrJ9xgm4HbzTR7ptutkxK+7BlMk=' 'sha256-BwU8jMnQYUhjOpsDVABpfddV/DlP1ZYrFcTumYw7x54=' 'sha256-wz6ika9i3WU3bpUPdhYDZeO/NrDQniDyiscN0LWnyaY=' 'sha256-3RIGhhApBii1KY+aW1xk7kFyoQY8vSVE5DfT7E9SJUc=' static.licdn.com static-exp1.licdn.com static-exp2.licdn.com static-exp3.licdn.com platform.linkedin.com platform-akam.linkedin.com platform-ecst.linkedin.com platform-azur.linkedin.com snap.licdn.com www.google.com/recaptcha/enterprise.js www.gstatic.com/recaptcha/releases/ www.googletagmanager.com/gtag/js www.googletagmanager.com/gtag/destination googleads.g.doubleclick.net/pagead/viewthroughconversion/ merchantpool1.linkedin.com/mdt.js; img-src data: blob: * 'self' *.licdn.com android-webview-video-poster:; font-src data: * 'self' *.licdn.com; style-src 'self' 'unsafe-inline' static.licdn.com static-exp1.licdn.com static-exp2.licdn.com static-exp3.licdn.com; media-src 'self' *.licdn.com *.lynda.com; worker-src 'self' blob: static.licdn.com static-exp1.licdn.com static-exp2.licdn.com static-exp3.licdn.com; frame-src 'self' www.youtube.com/embed/ www.youtube-nocookie.com/embed/ lnkd.demdex.net smartlock.google.com accounts.google.com player.vimeo.com *.linkedin.com www.slideshare.net *.megaphone.fm *.omny.fm *.sounder.fm msit.powerbi.com app.powerbi.com linkedin.github.io *.licdn.com *.adnxs.com acdn.adnxs-simple.com radar.cedexis.com edge-auth.microsoft.com flo.uri.sh play.vidyard.com www.google.com/recaptcha/ aat-acr-web-prod.azurewebsites.net *.fls.doubleclick.net www.googletagmanager.com td.doubleclick.net li.protechts.net *.xlgmedia.com *.px-cloud.net merchantpool1.linkedin.com; frame-ancestors 'self' *.www.linkedin.com:*; manifest-src 'self'; report-uri https://www.linkedin.com/security/csp?f=gg",
+      "x-li-fabric": "prod-ltx1",
+      "pragma": "no-cache",
+      "expires": "Thu, 01 Jan 1970 00:00:00 GMT",
+      "cache-control": "no-cache, no-store, no-transform",
+      "x-li-pop": "cf-prod-ltx1-x",
+      "x-li-proto": "http/2",
+      "x-li-uuid": "AAZUgZz3kgisAYOjiNI6dw==",
+      "cf-cache-status": "DYNAMIC",
+      "cf-ray": "a0d85e6b6e5dbb16-ZRH",
+      "alt-svc": "h3=\":443\"; ma=86400",
+      "content-encoding": "gzip",
+      "x-firefox-spdy": "h2"
+    },
+    "distinct_response_header_names": [
+      "accept-ranges",
+      "access-control-allow-credentials",
+      "access-control-allow-headers",
+      "access-control-allow-methods",
+      "access-control-allow-origin",
+      "access-control-expose-headers",
+      "active-cdn",
+      "age",
+      "alt-svc",
+      "backend_is_origin",
+      "cache-control",
+      "cf-cache-status",
+      "cf-ray",
+      "content-disposition",
+      "content-encoding",
+      "content-length",
+      "content-security-policy",
+      "content-type",
+      "cross-origin-embedder-policy",
+      "cross-origin-opener-policy-report-only",
+      "cross-origin-resource-policy",
+      "date",
+      "etag",
+      "expires",
+      "last-modified",
+      "lei-origin",
+      "lei-timing",
+      "nel",
+      "pragma",
+      "remote-cache-status",
+      "report-to",
+      "server",
+      "server-timing",
+      "strict-transport-security",
+      "timing-allow-origin",
+      "vary",
+      "version",
+      "via",
+      "x-ambry-blob-size",
+      "x-ambry-request-cost",
+      "x-ambry-target-account-name",
+      "x-ambry-target-container-name",
+      "x-ambry-user-quota-usage",
+      "x-ambry-user-quota-warning",
+      "x-amz-checksum-crc32c",
+      "x-cache",
+      "x-cache-hits",
+      "x-cdn",
+      "x-cdn-client-ip-version",
+      "x-cdn-proto",
+      "x-content-type-options",
+      "x-firefox-spdy",
+      "x-frame-options",
+      "x-fs-uuid",
+      "x-goog-generation",
+      "x-goog-hash",
+      "x-goog-metageneration",
+      "x-goog-storage-class",
+      "x-goog-stored-content-encoding",
+      "x-goog-stored-content-length",
+      "x-guploader-uploadid",
+      "x-li-fabric",
+      "x-li-pop",
+      "x-li-proto",
+      "x-li-source-fabric",
+      "x-li-uuid",
+      "x-served-by",
+      "x-timer",
+      "x-xss-protection"
+    ],
+    "security_headers": {
+      "strict-transport-security": "max-age=31536000",
+      "content-security-policy": "default-src 'none'; connect-src 'self' *.licdn.com *.linkedin.com cdn.linkedin.oribi.io dpm.demdex.net/id lnkd.demdex.net blob: accounts.google.com/gsi/ linkedin.sc.omtrdc.net/b/ss/ v.clarity.ms/collect *.microsoft.com *.adnxs.com *.tealiumiq.com login.microsoftonline.com bat.bing.com lnkd.tt.omtrdc.net/rest/v1/delivery www.google.com google.com adservice.google.com pagead2.googlesyndication.com td.doubleclick.net www.googletagmanager.com www.googleadservices.com ad.doubleclick.net googleads.g.doubleclick.net; script-src 'report-sample' 'sha256-th47JTnh6tX15SUn/I+GGmsOSXpa7dh5Skner77gxlY=' 'sha256-SSoodjUD3LGm2FfFCVHGqEb8D4UM3OOigidT2UKDcYg=' 'sha256-cKTgdnmO6+hXd85a9wKg1effVfVzenUAtUCyOKY9bQE=' 'sha256-DwtT8+ZZKpxH9pqZNAmJ3GdbLAh5SsYaXR3omTXPCns=' 'sha256-sV9jZa797T0QWBzcU/CNd4tpBhTnh+TFdLnfjlitl28=' 'sha256-aa/Q8CRBDSqTQbCIyioPhZaz+G+dbPyu7BzsjInEmiU=' 'sha256-THuVhwbXPeTR0HszASqMOnIyxqEgvGyBwSPBKBF/iMc=' 'sha256-zTIusdVJJeXz9+iox2a+pdDglzbpRpFVRzEwvW4AONk=' 'sha256-iC8MPqNLw0FDnsBf4DlSkFLNTwhkI85aouiAEB819ic=' 'sha256-2EqrEvcPzl8c6/TSGVvaVMEe7lg700MAz/te4/3kTYY=' 'sha256-y5uW69VItKj51mcc7UD9qfptDVUqicZL+bItEpvVNDw=' 'sha256-DatsFGoJ8gFkzzxo47Ou76WZ+3QBPOQHtBu9p9b3DhA=' 'sha256-k95cyM8gFgPziZe5VQ2IvJvBUVyd5zFt2CokIUwqdHE=' 'sha256-PyCXNcEkzRWqbiNr087fizmiBBrq9O6GGD8eV3P09Ik=' 'sha256-RFqsjmAF1N5LnfpaHFvPqFlVkeIS/DtTAFor+JjJJVc=' 'sha256-2SQ55Erm3CPCb+k03EpNxU9bdV3XL9TnVTriDs7INZ4=' 'sha256-S/KSPe186K/1B0JEjbIXcCdpB97krdzX05S+dHnQjUs=' 'sha256-9pXOIwF4N0gPltLd3AI69lkCjSC2H/Eb3sc5zdmUyYU=' 'sha256-jou6v/Nleyzoc+LXktAv1Fp8M807dVVxy7E/yzVljHc=' 'sha256-6E4e/3dSvj/8JZT2S2yR91mspqM6MyOpKl5lrhHsZa8=' 'sha256-JfJ82reKxtqugVbfRGw/O/1x1Lm1I09rHueXSwvbRws=' 'sha256-BbV1i75oYRtLtfDWs7tnA8QLF5EOO1dVHKL0prVd/fQ=' 'sha256-3woF8BZ54TeXM+czaH3aXoaJsVpiamuAKFsXDykAR/Q=' 'sha256-vIfNcKb8ixJg1cfJIoNNYjWcm0lezj1/XpUNFiZyVsU=' 'sha256-cLsHUHFgT/VGX04cZrJ9xgm4HbzTR7ptutkxK+7BlMk=' 'sha256-BwU8jMnQYUhjOpsDVABpfddV/DlP1ZYrFcTumYw7x54=' 'sha256-wz6ika9i3WU3bpUPdhYDZeO/NrDQniDyiscN0LWnyaY=' 'sha256-3RIGhhApBii1KY+aW1xk7kFyoQY8vSVE5DfT7E9SJUc=' static.licdn.com static-exp1.licdn.com static-exp2.licdn.com static-exp3.licdn.com platform.linkedin.com platform-akam.linkedin.com platform-ecst.linkedin.com platform-azur.linkedin.com snap.licdn.com www.google.com/recaptcha/enterprise.js www.gstatic.com/recaptcha/releases/ www.googletagmanager.com/gtag/js www.googletagmanager.com/gtag/destination googleads.g.doubleclick.net/pagead/viewthroughconversion/ merchantpool1.linkedin.com/mdt.js; img-src data: blob: * 'self' *.licdn.com android-webview-video-poster:; font-src data: * 'self' *.licdn.com; style-src 'self' 'unsafe-inline' static.licdn.com static-exp1.licdn.com static-exp2.licdn.com static-exp3.licdn.com; media-src 'self' *.licdn.com *.lynda.com; worker-src 'self' blob: static.licdn.com static-exp1.licdn.com static-exp2.licdn.com static-exp3.licdn.com; frame-src 'self' www.youtube.com/embed/ www.youtube-nocookie.com/embed/ lnkd.demdex.net smartlock.google.com accounts.google.com player.vimeo.com *.linkedin.com www.slideshare.net *.megaphone.fm *.omny.fm *.sounder.fm msit.powerbi.com app.powerbi.com linkedin.github.io *.licdn.com *.adnxs.com acdn.adnxs-simple.com radar.cedexis.com edge-auth.microsoft.com flo.uri.sh play.vidyard.com www.google.com/recaptcha/ aat-acr-web-prod.azurewebsites.net *.fls.doubleclick.net www.googletagmanager.com td.doubleclick.net li.protechts.net *.xlgmedia.com *.px-cloud.net merchantpool1.linkedin.com; frame-ancestors 'self' *.www.linkedin.com:*; manifest-src 'self'; report-uri https://www.linkedin.com/security/csp?f=gg",
+      "x-frame-options": "sameorigin",
+      "x-content-type-options": "nosniff"
+    },
+    "hosts_contacted": {
+      "static.licdn.com": 35,
+      "www.linkedin.com": 19,
+      "accounts.google.com": 5,
+      "collector-pxdojv695v.protechts.net": 4,
+      "media.licdn.com": 3,
+      "play.google.com": 3,
+      "client.protechts.net": 2,
+      "li.protechts.net": 1,
+      "tzm.protechts.net": 1
+    },
+    "largest_responses": [
+      {
+        "bytes": 1474688,
+        "host": "media.licdn.com",
+        "subtype": "article-cover_image",
+        "url": "https://media.licdn.com/dms/image/v2/C5612AQHS1flUGdsipA/article-cover_image-shrink_720_1280/article-cover_image-shrink_720_1280/0/1650491835717?e=2147483647&v=beta&t=yZEnOmgmJmplxtWg_Cy656d7sJjQalfOldcZTs-yh5o"
+      },
+      {
+        "bytes": 737056,
+        "host": "static.licdn.com",
+        "subtype": "js",
+        "url": "https://static.licdn.com/aero-v1/sc/h/985sqoiudwdfnuemt74raqc27"
+      },
+      {
+        "bytes": 580208,
+        "host": "static.licdn.com",
+        "subtype": "js",
+        "url": "https://static.licdn.com/aero-v1/sc/h/5uuxwnwdmq2n9de6so4ojuvzv"
+      },
+      {
+        "bytes": 322855,
+        "host": "static.licdn.com",
+        "subtype": "js",
+        "url": "https://static.licdn.com/aero-v1/sc/h/4w1iremrnsuxf3bjq4udk3vti"
+      },
+      {
+        "bytes": 264639,
+        "host": "accounts.google.com",
+        "subtype": "google_gsi",
+        "url": "https://accounts.google.com/gsi/iframe/select?client_id=990339570472-k6nqn1tpmitg8pui82bfaun3jrpmiuhs.apps.googleusercontent.com&auto_select=true&ux_mode=popup&ui_mode=card&context=signin&as=hREe3by0Bdy7Xzq%2B1%2BHN8g&is_itp=true&channel_id=7e816d5ab1bc0092598dc51381166e2304bab19a9c76ce2f8155b4158ef0cec7&origin=https%3A%2F%2Fwww.linkedin.com&hl=de_DE"
+      }
+    ]
+  },
+  "tracking_telemetry": {
+    "_about": "Beacons/telemetry fired by the page. PerimeterX & ingraphs payloads are opaque/encrypted; Google endpoints relate to the One-Tap sign-in widget, not article content.",
+    "li_track": {
+      "endpoint": "https://www.linkedin.com/li/track",
+      "method": "POST",
+      "post_body_captured": true,
+      "note": "LinkedIn first-party client tracking beacon; no request body captured in this HAR (empty beacon)."
+    },
+    "ingraphs": {
+      "endpoint_subtypes": [
+        "ingraphs_counter",
+        "ingraphs_gauge"
+      ],
+      "counter_body": "{\"pageKey\":\"d_flagship2_pulse_read_jsbeacon\",\"metricsType\":\"seoPageView\"}",
+      "note": "Server-side SEO/page-view counters (clientSideIngraphs=1 meta)."
+    },
+    "perimeterx_human": {
+      "endpoints": [],
+      "note": "HUMAN/PerimeterX sensor + token endpoints; payload is encrypted/opaque."
+    },
+    "google_gsi": {
+      "requests": 5,
+      "note": "Google Identity Services One-Tap widget (sign-in offer to guests)."
+    },
+    "play_log": {
+      "requests": 3,
+      "note": "Google Play logging tied to the GSI widget."
+    },
+    "csp_declared_analytics_partners": [
+      "accounts.google.com/gsi/",
+      "ad.doubleclick.net",
+      "adservice.google.com",
+      "cdn.linkedin.oribi.io",
+      "dpm.demdex.net/id",
+      "google.com",
+      "googleads.g.doubleclick.net",
+      "lnkd.demdex.net",
+      "pagead2.googlesyndication.com",
+      "td.doubleclick.net",
+      "www.google.com",
+      "www.googleadservices.com",
+      "www.googletagmanager.com"
+    ]
+  },
+  "derived_intelligence": {
+    "geolocation": "German-speaking Switzerland / Zurich — de_DE locale + Europe/Zurich timezone cookie, independently corroborated by Cloudflare edge colo ZRH (Zurich airport code).",
+    "capture_dating": "Exact: Thu, 18 Jun 2026 06:52:01 GMT (UTC). Article last modified 2026-04-10T16:53:39.000+00:00; recommended-article thumbnails (Jan–Apr 2026) are consistent.",
+    "session_state": "Logged-out guest (urn:li:member:0, isGuest=true) — a sign-in/cold-join wall is present.",
+    "anti_scraping": "HUMAN/PerimeterX active (uc='scraping', tenant msft); persistent device id set.",
+    "browser": "Mozilla Firefox (x-firefox-spdy header)."
+  }
+}

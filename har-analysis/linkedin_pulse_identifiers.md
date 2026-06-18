@@ -1,5 +1,7 @@
 # LinkedIn Pulse HAR — identifiers & indicators
 
+> **See also:** [`linkedin_pulse_intel_report.md`](./linkedin_pulse_intel_report.md) — the consolidated full-intelligence report (shared content, structured data, infrastructure/headers, tracking payloads).
+
 **Source page:** https://www.linkedin.com/pulse/how-structure-your-linkedin-content-more-views-graham-riley  
 **Session:** logged-out guest (urn:li:member:0, isGuest=true)
 
@@ -13,8 +15,11 @@
 | public_handle | grahamkeithriley |
 | profile_url | https://www.linkedin.com/in/grahamkeithriley |
 | display_name | Graham Riley |
+| affiliation_byline | Maverrik - North America |
 | profile_photo_asset | urn:li:digitalmediaAsset:D5603AQEx9gIpnH-iDQ |
-| numeric_member_id | NOT EXPOSED (guest view; would require authenticated Voyager call) |
+| numeric_member_id | 146172655 (AUTHOR's member id, from articleViewEventData.authorId) |
+| followers | 34996 |
+| viewer_member_id | 0 (the viewer is a logged-out guest — urn:li:member:0) |
 
 ## Post / content identifiers
 
@@ -25,6 +30,22 @@ URNs with creation time decoded from the ID (`creation_ms = id >> 22`):
 | urn:li:ugcPost:6922668744561360896 | 2022-04-20 22:14:05Z |
 | urn:li:linkedInArticle:6922664509425807360 | 2022-04-20 21:57:15Z |
 | urn:li:article:8483198953102629138 | (not time-decodable) |
+
+## Content & engagement
+
+| field | value |
+|---|---|
+| title | How to Structure your LinkedIn Content for more Views |
+| date_published | 2022-04-20T22:14:06.000+00:00 |
+| date_modified | 2026-04-10T16:53:39.000+00:00 |
+| reactions | 62 |
+| comments | 0 |
+| views | NOT EXPOSED (LinkedIn does not publish article view counts to guests) |
+| read_time_minutes | 7 |
+| word_count_body | 1524 |
+| newsletter | {"name": "LinkedIn Success", "slug": "linkedin-success", "urn_id": "6905523102084685824", "url": "https://www.linkedin.com/newsletters/linkedin-success-6905523102084685824", "subscribers": 3758, "logo_url": "https://media.licdn.com/dms/image/v2/D5612AQEa5urutCr8Jg/series-logo_image-shrink_100_100/B56ZuztV8tIYAc-/0/1768246567336?e=2147483647&v=beta&t=Y3YPlJUBlPpUXYbSQ8KN-xLIsWPzcu_TAU_wNzP_HBE"} |
+| related_article_count | 10 |
+| full_reconstruction | see linkedin_pulse_intel_report.md (verbatim body, structured data, headers, tracking) |
 
 ## Media assets (each a `urn:li:digitalmediaAsset`)
 
@@ -77,7 +98,8 @@ URNs with creation time decoded from the ID (`creation_ms = id >> 22`):
 | play_lang_cookie | de |
 | html_meta_locale | de_DE |
 | html_lang_attr | de |
-| inference | Viewer in German-speaking Switzerland (Europe/Zurich + de locale) |
+| cloudflare_edge | ZRH |
+| inference | Viewer in German-speaking Switzerland (Europe/Zurich + de locale; independently corroborated by the Cloudflare edge colo ZRH = Zurich) |
 
 ## Page & tracking
 
@@ -104,6 +126,8 @@ URNs with creation time decoded from the ID (`creation_ms = id >> 22`):
 
 | field | value |
 |---|---|
-| post_created | 2022-04-20 (from ugcPost / linkedInArticle URN + image upload dates) |
+| post_created | 2022-04-20 (from ugcPost / linkedInArticle URN + image upload dates; exact JSON-LD datePublished = 2022-04-20T22:14:06.000+00:00) |
+| post_modified | 2026-04-10T16:53:39.000+00:00 |
+| capture_timestamp | 2026-06-18T08:52:01.172+02:00 (local) / Thu, 18 Jun 2026 06:52:01 GMT (UTC, from response Date header) |
 | recommended_thumbnail_dates | 2026-01-12, 2026-01-12, 2026-01-12, 2026-01-12, 2026-01-12, 2026-01-14, 2026-01-28, 2026-02-17, 2026-04-08, 2026-04-08 |
-| capture_dated_by_recommendations | Jan–Apr 2026 thumbnails imply capture ~mid-2026 |
+| capture_dated_by_recommendations | Jan–Apr 2026 thumbnails consistent with the exact capture date above |

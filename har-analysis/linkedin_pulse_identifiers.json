@@ -2,14 +2,18 @@
   "capture": {
     "source_page": "https://www.linkedin.com/pulse/how-structure-your-linkedin-content-more-views-graham-riley",
     "session_state": "logged-out guest (urn:li:member:0, isGuest=true)",
-    "note": "Session/CSRF/security tokens are MASKED. This file contains no full secret values."
+    "note": "Session/CSRF/security tokens are MASKED. This file contains no full secret values.",
+    "see_also": "linkedin_pulse_intel_report.md / .json — consolidated full-intelligence report"
   },
   "author": {
     "public_handle": "grahamkeithriley",
     "profile_url": "https://www.linkedin.com/in/grahamkeithriley",
     "display_name": "Graham Riley",
+    "affiliation_byline": "Maverrik - North America",
     "profile_photo_asset": "urn:li:digitalmediaAsset:D5603AQEx9gIpnH-iDQ",
-    "numeric_member_id": "NOT EXPOSED (guest view; would require authenticated Voyager call)"
+    "numeric_member_id": "146172655 (AUTHOR's member id, from articleViewEventData.authorId)",
+    "followers": 34996,
+    "viewer_member_id": "0 (the viewer is a logged-out guest — urn:li:member:0)"
   },
   "post": {
     "canonical_url": "https://www.linkedin.com/pulse/how-structure-your-linkedin-content-more-views-graham-riley",
@@ -20,6 +24,26 @@
       "urn:li:article:8483198953102629138": null
     },
     "decode_method": "64-bit Snowflake-style ID; creation_ms = id >> 22 (top ~41 bits = Unix ms)"
+  },
+  "content_and_engagement": {
+    "title": "How to Structure your LinkedIn Content for more Views",
+    "date_published": "2022-04-20T22:14:06.000+00:00",
+    "date_modified": "2026-04-10T16:53:39.000+00:00",
+    "reactions": 62,
+    "comments": 0,
+    "views": "NOT EXPOSED (LinkedIn does not publish article view counts to guests)",
+    "read_time_minutes": "7",
+    "word_count_body": 1524,
+    "newsletter": {
+      "name": "LinkedIn Success",
+      "slug": "linkedin-success",
+      "urn_id": "6905523102084685824",
+      "url": "https://www.linkedin.com/newsletters/linkedin-success-6905523102084685824",
+      "subscribers": 3758,
+      "logo_url": "https://media.licdn.com/dms/image/v2/D5612AQEa5urutCr8Jg/series-logo_image-shrink_100_100/B56ZuztV8tIYAc-/0/1768246567336?e=2147483647&v=beta&t=Y3YPlJUBlPpUXYbSQ8KN-xLIsWPzcu_TAU_wNzP_HBE"
+    },
+    "related_article_count": 10,
+    "full_reconstruction": "see linkedin_pulse_intel_report.md (verbatim body, structured data, headers, tracking)"
   },
   "media_assets": [
     {
@@ -276,7 +300,8 @@
     "play_lang_cookie": "de",
     "html_meta_locale": "de_DE",
     "html_lang_attr": "de",
-    "inference": "Viewer in German-speaking Switzerland (Europe/Zurich + de locale)"
+    "cloudflare_edge": "ZRH",
+    "inference": "Viewer in German-speaking Switzerland (Europe/Zurich + de locale; independently corroborated by the Cloudflare edge colo ZRH = Zurich)"
   },
   "page_and_tracking": {
     "page_key": "d_flagship2_pulse_read",
@@ -304,7 +329,9 @@
     ]
   },
   "temporal_intelligence": {
-    "post_created": "2022-04-20 (from ugcPost / linkedInArticle URN + image upload dates)",
+    "post_created": "2022-04-20 (from ugcPost / linkedInArticle URN + image upload dates; exact JSON-LD datePublished = 2022-04-20T22:14:06.000+00:00)",
+    "post_modified": "2026-04-10T16:53:39.000+00:00",
+    "capture_timestamp": "2026-06-18T08:52:01.172+02:00 (local) / Thu, 18 Jun 2026 06:52:01 GMT (UTC, from response Date header)",
     "recommended_thumbnail_dates": [
       "2026-01-12",
       "2026-01-12",
@@ -317,6 +344,6 @@
       "2026-04-08",
       "2026-04-08"
     ],
-    "capture_dated_by_recommendations": "Jan–Apr 2026 thumbnails imply capture ~mid-2026"
+    "capture_dated_by_recommendations": "Jan–Apr 2026 thumbnails consistent with the exact capture date above"
   }
 }

@@ -1,5 +1,7 @@
 # LinkedIn Pulse HAR — content-construction URLs
 
+> **See also:** [`linkedin_pulse_intel_report.md`](./linkedin_pulse_intel_report.md) — the consolidated full-intelligence report (shared content, structured data, infrastructure/headers, tracking payloads).
+
 **Source page:** https://www.linkedin.com/pulse/how-structure-your-linkedin-content-more-views-graham-riley
 
 Scope: the post HTML document + **all `*.licdn.com`** assets (media + static), plus images referenced in the HTML but not separately fetched. Telemetry, anti-bot, and Google/Play are excluded.
@@ -11,7 +13,7 @@ Scope: the post HTML document + **all `*.licdn.com`** assets (media + static), p
 |---|---|---|---|
 | GET | 200 | text/html; charset=utf-8 | `https://www.linkedin.com/pulse/how-structure-your-linkedin-content-more-views-graham-riley` |
 
-_Comments: embedded in this HTML (`commentCount`, `CommentAction`); no separate comment fetch occurred._
+_Comments: the article has **0 comments** (JSON-LD `commentCount`=0, `CommentAction`=0). The comment UI scaffolding is embedded in the HTML but there is nothing to load._
 
 
 ## Pictures — fetched from the media CDN

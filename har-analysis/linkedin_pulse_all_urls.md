@@ -1,5 +1,7 @@
 # LinkedIn Pulse HAR — all requested URLs (categorized)
 
+> **See also:** [`linkedin_pulse_intel_report.md`](./linkedin_pulse_intel_report.md) — the consolidated full-intelligence report (shared content, structured data, infrastructure/headers, tracking payloads).
+
 **Source page:** https://www.linkedin.com/pulse/how-structure-your-linkedin-content-more-views-graham-riley  
 **Total network requests:** 73
 
@@ -22,7 +24,7 @@ Category counts: `anti_bot`=8, `auth_thirdparty`=8, `picture`=3, `post`=1, `stat
 
 ## comment  (0)
 
-_No comment request was made. The comment count/scaffolding (`commentCount`, `CommentAction`) is embedded in the article HTML; the comment list is lazy-loaded via Voyager only on interaction, which did not occur in this capture._
+_Comments: the article has **0 comments** (JSON-LD `commentCount`=0, `CommentAction`=0). The comment UI scaffolding is embedded in the HTML but there is nothing to load._
 
 
 ## static_asset  (35)
