@@ -197,6 +197,7 @@ Skills are available in the container via two mechanisms:
 | `portainer` | `portainer/portainer-ce:latest` | `9443` | default | Docker management UI (HTTPS) |
 | `claude-code` | `crhacky/blhackbox:claude-code` | — | `claude-code` | Claude Code CLI client (Docker) |
 | `deepseek` | `crhacky/blhackbox:claude-code` | — | `deepseek` | DeepSeek agent — Claude Code image + DeepSeek API (Docker) |
+| `zai` | `crhacky/blhackbox:claude-code` | — | `zai` | Z.ai / GLM 5.2 agent — Claude Code image + Z.ai API (Docker) |
 | `mcp-gateway` | `docker/mcp-gateway:latest` | `8080` | `gateway` | Single MCP entry point (host clients) |
 | `neo4j` | `neo4j:5` | `7474` / `7687` | `neo4j` | Cross-session knowledge graph |
 
@@ -245,6 +246,7 @@ Requires `--profile gateway` (`make up-gateway`).
 |:--|:--|:--|
 | `ANTHROPIC_API_KEY` | — | Required for the Claude Code container (`--profile claude-code`) |
 | `DEEPSEEK_API_KEY` | — | Required for the DeepSeek container (`--profile deepseek`); passed to Claude Code as `ANTHROPIC_AUTH_TOKEN` |
+| `ZAI_API_KEY` | — | Required for the Z.ai / GLM 5.2 container (`--profile zai`); passed to Claude Code as `ANTHROPIC_AUTH_TOKEN` |
 | `MCP_GATEWAY_PORT` | `8080` | MCP Gateway host port (optional) |
 | `MSF_TIMEOUT` | `300` | Metasploit command timeout in seconds |
 | `NEO4J_URI` | `bolt://neo4j:7687` | Neo4j connection URI (optional) |
@@ -320,6 +322,20 @@ The Claude Code container includes the full skills system. Skills (`.claude/skil
 | **Requires** | `DEEPSEEK_API_KEY` in `.env` |
 
 The `deepseek` profile runs the **same Claude Code image** as `--profile claude-code`, only with environment variables that route the model backend to DeepSeek's Anthropic-compatible endpoint. There is no separate image to build, push, or maintain, and the full skills system (slash commands) works exactly as it does with Claude Code. Launch it with `make deepseek` or `docker compose --profile deepseek run --rm deepseek`.
+
+### Z.ai / GLM 5.2 — `zai` profile (reuses `crhacky/blhackbox:claude-code`)
+
+| | |
+|:--|:--|
+| **Image** | Same as Claude Code — `crhacky/blhackbox:claude-code` (no separate image) |
+| **Agent** | Claude Code CLI, pointed at the Z.ai API |
+| **Entrypoint** | `claude-code-entrypoint.sh` (health checks + launch) |
+| **MCP config** | Direct Streamable HTTP to each server (no gateway dependency) |
+| **Provider** | `ANTHROPIC_BASE_URL=https://api.z.ai/api/anthropic` + `ANTHROPIC_AUTH_TOKEN` from `ZAI_API_KEY` env (never written to disk) |
+| **Models** | `glm-5.2` (default), `glm-4.5-air` (Haiku tier) — per [Z.ai's Claude Code guide](https://docs.z.ai/devpack/tool/claude) |
+| **Requires** | `ZAI_API_KEY` in `.env` |
+
+The `zai` profile runs the **same Claude Code image** as `--profile claude-code`, only with environment variables that route the model backend to Z.ai's Anthropic-compatible endpoint. There is no separate image to build, push, or maintain, and the full skills system (slash commands) works exactly as it does with Claude Code. Launch it with `make zai` or `docker compose --profile zai run --rm zai`.
 
 ---
 

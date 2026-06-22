@@ -103,3 +103,23 @@ def test_deepseek_service_is_in_compose_under_profile() -> None:
     # Routes Claude Code at DeepSeek's Anthropic-compatible endpoint.
     assert "https://api.deepseek.com/anthropic" in compose
     assert 'ANTHROPIC_AUTH_TOKEN: "${DEEPSEEK_API_KEY:-}"' in compose
+
+
+def test_zai_reuses_claude_code_image_without_separate_build() -> None:
+    # The Z.ai / GLM 5.2 profile is just the Claude Code image pointed at the
+    # Z.ai API — no separate Dockerfile/entrypoint to maintain.
+    assert not (ROOT / "docker" / "zai.Dockerfile").exists()
+    assert not (ROOT / "docker" / "zai-entrypoint.sh").exists()
+
+
+def test_zai_service_is_in_compose_under_profile() -> None:
+    compose = COMPOSE.read_text(encoding="utf-8")
+    assert "zai:" in compose
+    # Reuses the Claude Code image rather than building a dedicated one.
+    assert "image: crhacky/blhackbox:claude-code" in compose
+    assert "crhacky/blhackbox:zai" not in compose
+    assert "docker/zai.Dockerfile" not in compose
+    assert 'profiles: ["zai"]' in compose
+    # Routes Claude Code at Z.ai's Anthropic-compatible endpoint.
+    assert "https://api.z.ai/api/anthropic" in compose
+    assert 'ANTHROPIC_AUTH_TOKEN: "${ZAI_API_KEY:-}"' in compose
