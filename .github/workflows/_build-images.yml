@@ -1,0 +1,113 @@
+name: Reusable - Build and push one image
+
+# Reusable workflow: builds a single Docker image and pushes it to Docker Hub.
+# Called once per selected component (caller-side matrix) from:
+#   - ci.yml             (per-component builds on push to main/master)
+#   - build-and-push.yml (release tags + manual dispatch)
+# The caller passes `secrets: inherit` so DOCKERHUB_TOKEN resolves here.
+
+on:
+  workflow_call:
+    inputs:
+      service:
+        description: "Image/service name — pushed as crhacky/blhackbox:<service>"
+        required: true
+        type: string
+      dockerfile:
+        description: "Path to the Dockerfile (build context is the repo root)"
+        required: true
+        type: string
+      tag_prefix:
+        description: "Metadata tag prefix, e.g. 'kali-mcp-'"
+        required: true
+        type: string
+      scout:
+        description: "Run the Docker Scout CVE scan + SARIF upload for this image"
+        required: false
+        type: boolean
+        default: false
+
+env:
+  REGISTRY: docker.io
+  IMAGE_NAME: crhacky/blhackbox
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
+      security-events: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0 # v6.0.3
+        with:
+          submodules: false
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4.1.0
+
+      - name: Log in to Docker Hub
+        env:
+          DOCKERHUB_USERNAME: crhacky
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          max_attempts=5
+          attempt=1
+          backoff=3
+          while [ "$attempt" -le "$max_attempts" ]; do
+            echo "Docker login attempt ${attempt}/${max_attempts}..."
+            if echo "${DOCKERHUB_TOKEN}" | docker login -u "${DOCKERHUB_USERNAME}" --password-stdin 2>&1; then
+              echo "Docker login succeeded on attempt ${attempt}"
+              exit 0
+            fi
+            if [ "$attempt" -lt "$max_attempts" ]; then
+              echo "Login failed, retrying in ${backoff}s..."
+              sleep "$backoff"
+              backoff=$((backoff * 2))
+            fi
+            attempt=$((attempt + 1))
+          done
+          echo "::error::Docker login failed after ${max_attempts} attempts"
+          exit 1
+
+      - name: Extract metadata (tags, labels)
+        id: meta
+        uses: docker/metadata-action@80c7e94dd9b9319bd5eb7a0e0fe9291e23a2a2e9 # v6.1.0
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          flavor: |
+            prefix=${{ inputs.tag_prefix }},onlatest=true
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix=${{ inputs.tag_prefix }}
+            type=raw,value=${{ inputs.tag_prefix }}latest,enable={{is_default_branch}}
+
+      - name: Build and push ${{ inputs.service }}
+        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
+        with:
+          context: .
+          file: ${{ inputs.dockerfile }}
+          push: true
+          tags: crhacky/blhackbox:${{ inputs.service }}
+
+      - name: Docker Scout - Vulnerability Scan
+        uses: docker/scout-action@v1
+        if: ${{ always() && inputs.scout }}
+        with:
+          command: cves
+          image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }}
+          sarif-file: sarif.output.json
+          summary: true
+        continue-on-error: true
+
+      - name: Upload SARIF to GitHub Security
+        uses: github/codeql-action/upload-sarif@v4
+        if: ${{ always() && inputs.scout }}
+        with:
+          sarif_file: sarif.output.json
+        continue-on-error: true

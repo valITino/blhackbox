@@ -1087,7 +1087,8 @@ blhackbox/
 ├── tests/
 └── .github/workflows/
     ├── ci.yml
-    └── build-and-push.yml
+    ├── build-and-push.yml
+    └── _build-images.yml      reusable single-image build (driven by .github/build-matrix.json)
 ```
 
 ---
