@@ -1,139 +1,75 @@
 name: Build and Push Docker Images
 
+# Release + manual publishing. Per-component builds on push to main/master are
+# handled by ci.yml (after tests pass). This workflow rebuilds the FULL image set
+# for a clean release, or a single image on demand.
 on:
-  # Auto-trigger: fires after CI workflow completes on main/master
-  workflow_run:
-    workflows: ["CI"]
-    types: [completed]
-    branches: [main, master]
-
-  # Auto-trigger: version tags bypass CI wait (tag push implies tested code)
+  # Version tags publish the complete, consistent image set.
   push:
     tags: ["v*"]
 
-  # Manual trigger
+  # Manual trigger: build everything, or a single chosen image.
   workflow_dispatch:
-
-env:
-  REGISTRY: docker.io
-  IMAGE_NAME: crhacky/blhackbox
+    inputs:
+      service:
+        description: "Image to build"
+        type: choice
+        default: all
+        options:
+          - all
+          - kali-mcp
+          - wire-mcp
+          - screenshot-mcp
+          - hexstrike-ai
+          - hexstrike-mcp
+          - boaz-mcp
+          - claude-code
 
 jobs:
-  build-and-push:
+  # Resolve the build matrix from the canonical registry: every image for a tag /
+  # "all" dispatch, or just the one requested via workflow_dispatch.
+  select:
     runs-on: ubuntu-latest
-
-    if: >
-      github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'push' ||
-      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
-
-    permissions:
-      contents: read
-      packages: write
-      security-events: write
-
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - service: kali-mcp
-            dockerfile: docker/kali-mcp.Dockerfile
-            tag_prefix: "kali-mcp-"
-            scout: false
-          - service: wire-mcp
-            dockerfile: docker/wire-mcp.Dockerfile
-            tag_prefix: "wire-mcp-"
-            scout: false
-          - service: screenshot-mcp
-            dockerfile: docker/screenshot-mcp.Dockerfile
-            tag_prefix: "screenshot-mcp-"
-            scout: false
-          - service: claude-code
-            dockerfile: docker/claude-code.Dockerfile
-            tag_prefix: "claude-code-"
-            scout: false
-          - service: hexstrike-ai
-            dockerfile: docker/hexstrike-ai.Dockerfile
-            tag_prefix: "hexstrike-ai-"
-            scout: false
-          - service: hexstrike-mcp
-            dockerfile: docker/hexstrike-mcp.Dockerfile
-            tag_prefix: "hexstrike-mcp-"
-            scout: false
-          - service: boaz-mcp
-            dockerfile: docker/boaz-mcp.Dockerfile
-            tag_prefix: "boaz-mcp-"
-            scout: false
+    outputs:
+      matrix: ${{ steps.select.outputs.matrix }}
+      any_changed: ${{ steps.select.outputs.any_changed }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0 # v6.0.3
-        with:
-          submodules: false
-          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || '' }}
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4.1.0
-
-      - name: Log in to Docker Hub
+      - name: Select images to build
+        id: select
         env:
-          DOCKERHUB_USERNAME: crhacky
-          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+          SERVICE: ${{ github.event.inputs.service }}
         run: |
-          max_attempts=5
-          attempt=1
-          backoff=3
-          while [ "$attempt" -le "$max_attempts" ]; do
-            echo "Docker login attempt ${attempt}/${max_attempts}..."
-            if echo "${DOCKERHUB_TOKEN}" | docker login -u "${DOCKERHUB_USERNAME}" --password-stdin 2>&1; then
-              echo "Docker login succeeded on attempt ${attempt}"
-              exit 0
-            fi
-            if [ "$attempt" -lt "$max_attempts" ]; then
-              echo "Login failed, retrying in ${backoff}s..."
-              sleep "$backoff"
-              backoff=$((backoff * 2))
-            fi
-            attempt=$((attempt + 1))
-          done
-          echo "::error::Docker login failed after ${max_attempts} attempts"
-          exit 1
+          set -euo pipefail
+          if [ -n "${SERVICE:-}" ] && [ "${SERVICE}" != "all" ]; then
+            out="$(python3 scripts/select_build_matrix.py --service "${SERVICE}")"
+          else
+            out="$(python3 scripts/select_build_matrix.py --all)"
+          fi
+          echo "Selection: ${out}" >&2
+          {
+            echo "matrix=$(echo "${out}" | jq -c '.matrix')"
+            echo "any_changed=$(echo "${out}" | jq -r '.any_changed')"
+          } >> "$GITHUB_OUTPUT"
 
-      - name: Extract metadata (tags, labels)
-        id: meta
-        uses: docker/metadata-action@80c7e94dd9b9319bd5eb7a0e0fe9291e23a2a2e9 # v6.1.0
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          flavor: |
-            prefix=${{ matrix.tag_prefix }},onlatest=true
-          tags: |
-            type=ref,event=branch
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=sha,prefix=${{ matrix.tag_prefix }}
-            type=raw,value=${{ matrix.tag_prefix }}latest,enable={{is_default_branch}}
-
-      - name: Build and push ${{ matrix.service }}
-        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
-        with:
-          context: .
-          file: ${{ matrix.dockerfile }}
-          push: true
-          tags: crhacky/blhackbox:${{ matrix.service }}
-
-      - name: Docker Scout - Vulnerability Scan
-        uses: docker/scout-action@v1
-        if: ${{ always() && matrix.scout }}
-        with:
-          command: cves
-          image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }}
-          sarif-file: sarif.output.json
-          summary: true
-        continue-on-error: true
-
-      - name: Upload SARIF to GitHub Security
-        uses: github/codeql-action/upload-sarif@v4
-        if: ${{ always() && matrix.scout }}
-        with:
-          sarif_file: sarif.output.json
-        continue-on-error: true
+  call-build:
+    needs: select
+    if: needs.select.outputs.any_changed == 'true'
+    permissions:
+      contents: read
+      packages: write
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.select.outputs.matrix) }}
+    uses: ./.github/workflows/_build-images.yml
+    with:
+      service: ${{ matrix.service }}
+      dockerfile: ${{ matrix.dockerfile }}
+      tag_prefix: ${{ matrix.tag_prefix }}
+      scout: ${{ matrix.scout }}
+    secrets: inherit

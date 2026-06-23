@@ -1,0 +1,59 @@
+{
+  "_comment": "Canonical registry of publishable Docker images. Single source of truth for the GitHub Actions workflows (detect-changes/select + _build-images.yml) and tests/test_docker_publish_matrix.py. 'service' is the Docker Hub image tag pushed as crhacky/blhackbox:<service>. 'paths' globs (an exact path, or a 'prefix/**' recursive prefix) decide which image a changed file rebuilds. 'scout' must stay a JSON boolean so the reusable workflow's `if: inputs.scout` evaluates correctly. NOTE: compose service 'hexstrike-bridge-mcp' uses image tag 'hexstrike-mcp'; 'hexstrike-ai' clones its upstream at build time and copies no repo files, so its only trigger is its Dockerfile.",
+  "components": [
+    {
+      "service": "kali-mcp",
+      "dockerfile": "docker/kali-mcp.Dockerfile",
+      "tag_prefix": "kali-mcp-",
+      "scout": false,
+      "paths": ["kali-mcp/**", "docker/kali-mcp.Dockerfile"]
+    },
+    {
+      "service": "wire-mcp",
+      "dockerfile": "docker/wire-mcp.Dockerfile",
+      "tag_prefix": "wire-mcp-",
+      "scout": false,
+      "paths": ["wire-mcp/**", "docker/wire-mcp.Dockerfile"]
+    },
+    {
+      "service": "screenshot-mcp",
+      "dockerfile": "docker/screenshot-mcp.Dockerfile",
+      "tag_prefix": "screenshot-mcp-",
+      "scout": false,
+      "paths": ["screenshot-mcp/**", "docker/screenshot-mcp.Dockerfile"]
+    },
+    {
+      "service": "hexstrike-ai",
+      "dockerfile": "docker/hexstrike-ai.Dockerfile",
+      "tag_prefix": "hexstrike-ai-",
+      "scout": false,
+      "paths": ["docker/hexstrike-ai.Dockerfile"]
+    },
+    {
+      "service": "hexstrike-mcp",
+      "dockerfile": "docker/hexstrike-mcp.Dockerfile",
+      "tag_prefix": "hexstrike-mcp-",
+      "scout": false,
+      "paths": ["hexstrike-mcp/**", "docker/hexstrike-mcp.Dockerfile"]
+    },
+    {
+      "service": "boaz-mcp",
+      "dockerfile": "docker/boaz-mcp.Dockerfile",
+      "tag_prefix": "boaz-mcp-",
+      "scout": false,
+      "paths": ["boaz-mcp/**", "docker/boaz-mcp.Dockerfile"]
+    },
+    {
+      "service": "claude-code",
+      "dockerfile": "docker/claude-code.Dockerfile",
+      "tag_prefix": "claude-code-",
+      "scout": false,
+      "paths": [
+        "docker/claude-code.Dockerfile",
+        "docker/claude-code-entrypoint.sh",
+        "CLAUDE.md",
+        ".claude/skills/**"
+      ]
+    }
+  ]
+}

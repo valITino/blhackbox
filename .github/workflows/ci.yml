@@ -60,3 +60,66 @@ jobs:
         # No upstream fix available yet. Remove --ignore-vuln when pygments patches.
         # https://nvd.nist.gov/vuln/detail/CVE-2026-4539
         run: pip-audit -r requirements.txt --ignore-vuln CVE-2026-4539
+
+  # Map the files changed in this push to the affected Docker images. Runs in the
+  # push context so the diff base (github.event.before) is reliable — workflow_run
+  # cannot do this because it ignores paths filters and exposes no "before" SHA.
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.select.outputs.matrix }}
+      any_changed: ${{ steps.select.outputs.any_changed }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Select changed images
+        id: select
+        env:
+          EVENT: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+          HEAD: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          zero=0000000000000000000000000000000000000000
+          if [ "${EVENT}" != "push" ]; then
+            # Only pushes publish images; PRs run test/security but never build.
+            out='{"matrix":[],"any_changed":false}'
+          elif [ "${BEFORE}" = "${zero}" ] || ! git cat-file -e "${BEFORE}^{commit}" 2>/dev/null; then
+            echo "No reliable diff base (new branch / force-push) — selecting all images." >&2
+            out="$(python3 scripts/select_build_matrix.py --all)"
+          else
+            out="$(git diff --name-only "${BEFORE}" "${HEAD}" | python3 scripts/select_build_matrix.py --changed -)"
+          fi
+          echo "Selection: ${out}" >&2
+          {
+            echo "matrix=$(echo "${out}" | jq -c '.matrix')"
+            echo "any_changed=$(echo "${out}" | jq -r '.any_changed')"
+          } >> "$GITHUB_OUTPUT"
+
+  # Build & push only the affected images, and only after tests pass on main/master.
+  # PRs run test/security but never reach this job (push-only guard).
+  call-build:
+    needs: [test, security, detect-changes]
+    if: >
+      github.event_name == 'push' &&
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') &&
+      needs.detect-changes.outputs.any_changed == 'true'
+    permissions:
+      contents: read
+      packages: write
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.detect-changes.outputs.matrix) }}
+    uses: ./.github/workflows/_build-images.yml
+    with:
+      service: ${{ matrix.service }}
+      dockerfile: ${{ matrix.dockerfile }}
+      tag_prefix: ${{ matrix.tag_prefix }}
+      scout: ${{ matrix.scout }}
+    secrets: inherit

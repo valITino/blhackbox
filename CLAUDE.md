@@ -142,10 +142,11 @@ Follow the existing conventions in the repo — don't invent new patterns. Befor
 2. Write a Dockerfile matching project conventions (non-root user, health check required, minimal base image)
 3. Implement the server using the same MCP framework and transport the other servers use
 4. Add the service to `docker-compose.yml` under the appropriate profile
-5. Add a `make logs-<n>` target to `Makefile` (use backticks around `<n>` in docs so it renders)
-6. Update `.mcp.json` if the server should also be available in the Claude Code Web path
-7. Document the exposed tools in the README components table
-8. Add unit tests — at minimum, Pydantic validation tests for every tool input
+5. Register the image in `.github/build-matrix.json` (`service`, `dockerfile`, `tag_prefix`, `paths`) so CI builds and publishes it — and only rebuilds it when its `paths` change
+6. Add a `make logs-<n>` target to `Makefile` (use backticks around `<n>` in docs so it renders)
+7. Update `.mcp.json` if the server should also be available in the Claude Code Web path
+8. Document the exposed tools in the README components table
+9. Add unit tests — at minimum, Pydantic validation tests for every tool input
 
 ---
 
