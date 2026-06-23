@@ -200,7 +200,7 @@ _TOOLS: list[Tool] = [
         description=(
             "Generate a professional pentest report from a session. "
             "Reports are saved to an organized folder structure: "
-            "reports/reports-DDMMYYYY/report-<target>-DDMMYYYY.<ext>. "
+            "output/reports/reports-DDMMYYYY/report-<target>-DDMMYYYY.<ext>. "
             "Use format 'both' to generate .md and .pdf together."
         ),
         inputSchema={

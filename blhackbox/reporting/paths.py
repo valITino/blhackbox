@@ -1,7 +1,7 @@
 """Organized report path resolution.
 
 Creates a structured folder layout for reports:
-    reports/
+    output/reports/
         reports-DDMMYYYY/
             report-<target-slug>-DDMMYYYY.md
             report-<target-slug>-DDMMYYYY.pdf
@@ -25,7 +25,7 @@ def _slugify(value: str, max_len: int = 60) -> str:
 def get_report_dir(date: datetime | None = None) -> Path:
     """Return the date-specific report sub-directory, creating it if needed.
 
-    Example: ``reports/reports-02032026/``
+    Example: ``output/reports/reports-02032026/``
     """
     dt = date or datetime.now(UTC)
     folder_name = f"reports-{dt.strftime('%d%m%Y')}"
@@ -47,7 +47,7 @@ def get_report_path(
         date: Override date (defaults to UTC now).
 
     Returns:
-        Path like ``reports/reports-02032026/report-example-com-02032026.md``
+        Path like ``output/reports/reports-02032026/report-example-com-02032026.md``
     """
     dt = date or datetime.now(UTC)
     date_str = dt.strftime("%d%m%Y")

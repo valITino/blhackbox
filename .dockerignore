@@ -49,7 +49,7 @@ Dockerfile
 /LICENSE
 
 # Results and data (may contain sensitive scan data)
-results/
+output/
 wordlists/
 neo4j_data/
 neo4j_logs/

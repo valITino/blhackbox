@@ -44,10 +44,12 @@ class Settings(BaseSettings):
     )
     log_level: str = Field(default="INFO", description="Logging level")
     results_dir: Path = Field(
-        default=_REPO_ROOT / "results", description="Directory for scan results"
+        default=_REPO_ROOT / "output" / "sessions",
+        description="Directory for scan results",
     )
     reports_dir: Path = Field(
-        default=_REPO_ROOT / "reports", description="Directory for organized reports"
+        default=_REPO_ROOT / "output" / "reports",
+        description="Directory for organized reports",
     )
     wordlists_dir: Path = Field(
         default=_REPO_ROOT / "wordlists", description="Directory for wordlists"
