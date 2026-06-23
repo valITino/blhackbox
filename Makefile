@@ -1,6 +1,6 @@
 .PHONY: help setup up up-full up-gateway down logs test test-local lint format clean nuke \
        pull status health portainer gateway-logs \
-       claude-code deepseek \
+       claude-code deepseek zai \
        neo4j-browser logs-kali \
        logs-wireshark logs-screenshot \
        restart-kali \
@@ -27,7 +27,7 @@ up: ## Start default stack (7 containers: Kali, WireMCP, Screenshot, HexStrike A
 	$(COMPOSE) up -d
 
 down: ## Stop all services (default + auxiliary profiles)
-	$(COMPOSE) --profile gateway --profile neo4j --profile claude-code --profile deepseek down
+	$(COMPOSE) --profile gateway --profile neo4j --profile claude-code --profile deepseek --profile zai down
 
 logs: ## Tail logs from all services
 	$(COMPOSE) logs -f
@@ -83,7 +83,7 @@ boaz-bridge: ## Run local BOAZ MCP helper server
 	python boaz-mcp/server.py
 
 clean: ## Remove containers, volumes, networks, and build artifacts (keeps images)
-	$(COMPOSE) --profile gateway --profile neo4j --profile claude-code --profile deepseek down -v --remove-orphans
+	$(COMPOSE) --profile gateway --profile neo4j --profile claude-code --profile deepseek --profile zai down -v --remove-orphans
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 	rm -rf dist/ build/ *.egg-info
 
@@ -91,7 +91,7 @@ nuke: ## Full cleanup: containers + volumes + ALL images (frees max disk space)
 	@echo "\033[1;33m  WARNING: This will remove ALL blhackbox containers, volumes, AND images.\033[0m"
 	@echo "\033[2m  You will need to 'docker compose pull' or 'docker compose build' again.\033[0m"
 	@echo ""
-	$(COMPOSE) --profile gateway --profile neo4j --profile claude-code --profile deepseek down -v --remove-orphans --rmi all
+	$(COMPOSE) --profile gateway --profile neo4j --profile claude-code --profile deepseek --profile zai down -v --remove-orphans --rmi all
 	@echo ""
 	@echo "\033[2m  Pruning dangling images and build cache...\033[0m"
 	docker image prune -f
@@ -131,12 +131,24 @@ deepseek: ## Launch the DeepSeek agent in a Docker container (reuses the Claude 
 	@echo ""
 	$(COMPOSE) --profile deepseek run --rm deepseek
 
+# ── Z.ai / GLM 5.2 (Docker — Claude Code pointed at the Z.ai API) ──
+zai: ## Launch the Z.ai / GLM 5.2 agent in a Docker container (reuses the Claude Code image)
+	$(COMPOSE) --profile zai pull zai || $(COMPOSE) --profile claude-code build claude-code
+	@echo ""
+	@echo "\033[1m  Pre-flight Container Status\033[0m"
+	@echo "\033[2m  ──────────────────────────────────────\033[0m"
+	@$(COMPOSE) ps --format "table {{.Name}}\t{{.Status}}" 2>/dev/null || $(COMPOSE) ps
+	@echo ""
+	@echo "\033[2m  Waiting for all dependencies to become healthy...\033[0m"
+	@echo ""
+	$(COMPOSE) --profile zai run --rm zai
+
 # ── Health & Status ──────────────────────────────────────────────
 status: ## Health status of all containers
 	@echo ""
 	@echo "\033[1m  blhackbox Container Status\033[0m"
 	@echo "\033[2m  ──────────────────────────────────────\033[0m"
-	@$(COMPOSE) --profile gateway --profile neo4j --profile claude-code --profile deepseek ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}" 2>/dev/null || $(COMPOSE) ps
+	@$(COMPOSE) --profile gateway --profile neo4j --profile claude-code --profile deepseek --profile zai ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}" 2>/dev/null || $(COMPOSE) ps
 	@echo ""
 
 health: ## Quick health check of all MCP servers

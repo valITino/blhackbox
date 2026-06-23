@@ -9,6 +9,7 @@
 #   ./setup.sh                      # Interactive wizard (recommended)
 #   ./setup.sh --api-key sk-ant-... # Non-interactive: Claude Code container
 #   ./setup.sh --deepseek-key sk-.. # Non-interactive: DeepSeek container
+#   ./setup.sh --zai-key KEY        # Non-interactive: Z.ai / GLM 5.2 container
 #   ./setup.sh --minimal            # Core stack only, no prompts
 #   ./setup.sh --with-neo4j         # Enable local Neo4j (Docker)
 #   ./setup.sh --with-gateway       # Enable MCP Gateway (Desktop/ChatGPT)
@@ -50,14 +51,15 @@ ARROW="${CYAN}→${NC}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 API_KEY=""
 DEEPSEEK_KEY=""
+ZAI_KEY=""
 MINIMAL=false
 SKIP_PULL=false
 NEO4J_PASS=""
 PROFILES=""
 
 # Runtime selections (filled in by the wizard).
-AI_VARIANT=""        # claude-code | claude-web | claude-desktop | chatgpt | deepseek | ""
-AGENT_PROFILE=""     # claude-code | deepseek | ""  (containerized agents only)
+AI_VARIANT=""        # claude-code | claude-web | claude-desktop | chatgpt | deepseek | zai | ""
+AGENT_PROFILE=""     # claude-code | deepseek | zai | ""  (containerized agents only)
 NEO4J_MODE="none"    # none | local | aura
 WRITE_ENV=true       # whether we may (over)write .env
 STATUS_LINES=0       # bookkeeping for the live status redraw
@@ -168,6 +170,7 @@ usage() {
     echo "Options:"
     echo "  --api-key KEY      Set ANTHROPIC_API_KEY (Claude Code container)"
     echo "  --deepseek-key KEY Set DEEPSEEK_API_KEY (DeepSeek container)"
+    echo "  --zai-key KEY      Set ZAI_API_KEY (Z.ai / GLM 5.2 container)"
     echo "  --minimal         Core stack only (no prompts, no Neo4j/Gateway)"
     echo "  --with-neo4j      Enable local Neo4j knowledge graph (Docker)"
     echo "  --with-gateway    Enable MCP Gateway for Claude Desktop/ChatGPT"
@@ -306,6 +309,16 @@ print_deepseek_help() {
     echo -e "      ${DIM}4.${NC} Copy it now — DeepSeek shows the key only once"
 }
 
+print_zai_help() {
+    echo -e "    ${BOLD}What it's for:${NC} authenticates the Z.ai / GLM 5.2 agent (Claude Code + Z.ai API) in Docker."
+    echo -e "    ${BOLD}Where it's used:${NC} the ${CYAN}zai${NC} container (ZAI_API_KEY)."
+    echo -e "    ${BOLD}How to get it:${NC}"
+    echo -e "      ${DIM}1.${NC} Sign in at ${CYAN}https://z.ai${NC} and subscribe to the GLM Coding Plan"
+    echo -e "      ${DIM}2.${NC} Open ${BOLD}API Keys${NC} at ${CYAN}https://z.ai/manage-apikey/apikey-list${NC}"
+    echo -e "      ${DIM}3.${NC} Click ${BOLD}Add New Key${NC} and copy it"
+    echo -e "      ${DIM}4.${NC} Copy it now — Z.ai shows the key only once"
+}
+
 print_openai_help() {
     echo -e "    ${BOLD}What it's for:${NC} used by your host-based ChatGPT/OpenAI MCP client"
     echo -e "    ${DIM}(and optional vector-memory embeddings). The Docker stack itself does${NC}"
@@ -356,6 +369,10 @@ choose_ai_client() {
             AI_VARIANT="deepseek"; AGENT_PROFILE="deepseek"
             [ "$WRITE_ENV" = true ] && set_env "DEEPSEEK_API_KEY" "$DEEPSEEK_KEY"
             echo -e "  ${ARROW} DeepSeek (Docker) — key supplied via --deepseek-key"
+        elif [ -n "$ZAI_KEY" ]; then
+            AI_VARIANT="zai"; AGENT_PROFILE="zai"
+            [ "$WRITE_ENV" = true ] && set_env "ZAI_API_KEY" "$ZAI_KEY"
+            echo -e "  ${ARROW} Z.ai / GLM 5.2 (Docker) — key supplied via --zai-key"
         else
             echo -e "  ${ARROW} No agent flag given — starting core stack only"
         fi
@@ -367,7 +384,8 @@ choose_ai_client() {
     echo -e "    ${CYAN}1)${NC} Claude ${DIM}(Anthropic)${NC}"
     echo -e "    ${CYAN}2)${NC} ChatGPT ${DIM}(OpenAI)${NC}"
     echo -e "    ${CYAN}3)${NC} DeepSeek"
-    local provider; provider="$(read_choice 3 1)"
+    echo -e "    ${CYAN}4)${NC} Z.ai ${DIM}(GLM 5.2)${NC}"
+    local provider; provider="$(read_choice 4 1)"
     echo ""
 
     case "$provider" in
@@ -401,6 +419,11 @@ choose_ai_client() {
             AI_VARIANT="deepseek"; AGENT_PROFILE="deepseek"
             echo -e "  ${ARROW} DeepSeek runs containerized in Docker (Claude Code + DeepSeek API)."
             configure_agent_key "DEEPSEEK_API_KEY" print_deepseek_help
+            ;;
+        4)  # Z.ai / GLM 5.2
+            AI_VARIANT="zai"; AGENT_PROFILE="zai"
+            echo -e "  ${ARROW} Z.ai / GLM 5.2 runs containerized in Docker (Claude Code + Z.ai API)."
+            configure_agent_key "ZAI_API_KEY" print_zai_help
             ;;
     esac
     echo ""
@@ -719,6 +742,13 @@ print_launch_hint() {
                 echo -e "    ${WARN} ${YELLOW}DEEPSEEK_API_KEY is not set${NC} — the deepseek container won't"
                 echo -e "       start until you add it to ${CYAN}.env${NC} (then re-run ${CYAN}make deepseek${NC})."
             fi ;;
+        zai)
+            echo -e "  ${BOLD}Launch your agent:${NC}"
+            echo -e "    ${CYAN}make zai${NC}            ${DIM}Start the Z.ai / GLM 5.2 agent${NC}"
+            if ! env_has_value ZAI_API_KEY; then
+                echo -e "    ${WARN} ${YELLOW}ZAI_API_KEY is not set${NC} — the zai container won't"
+                echo -e "       start until you add it to ${CYAN}.env${NC} (then re-run ${CYAN}make zai${NC})."
+            fi ;;
         claude-web)
             echo -e "  ${BOLD}Using Claude Code Web:${NC}"
             echo -e "    ${DIM}Open this repository at ${NC}$(link https://claude.ai/code "${CYAN}https://claude.ai/code${NC}")${DIM}.${NC}"
@@ -783,6 +813,7 @@ ai_label() {
         claude-desktop) echo "Claude Desktop (host app via MCP Gateway)" ;;
         chatgpt)        echo "ChatGPT / OpenAI (host app via MCP Gateway)" ;;
         deepseek)       echo "DeepSeek (Docker — Claude Code + DeepSeek API)" ;;
+        zai)            echo "Z.ai / GLM 5.2 (Docker — Claude Code + Z.ai API)" ;;
         *)              echo "None selected (core stack only)" ;;
     esac
 }
@@ -840,6 +871,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --deepseek-key)
             DEEPSEEK_KEY="$2"
+            shift 2
+            ;;
+        --zai-key)
+            ZAI_KEY="$2"
             shift 2
             ;;
         --minimal)

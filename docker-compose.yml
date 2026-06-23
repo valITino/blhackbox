@@ -6,6 +6,7 @@
 #   docker compose --profile gateway up -d       Start with MCP Gateway
 #   docker compose --profile claude-code up -d   Start with Claude Code container
 #   docker compose --profile deepseek run --rm deepseek   Run the DeepSeek agent (Claude Code + DeepSeek API)
+#   docker compose --profile zai run --rm zai             Run the Z.ai / GLM 5.2 agent (Claude Code + Z.ai API)
 #   docker compose --profile neo4j up -d         Start with Neo4j
 #   docker compose build                         Build all custom images locally
 #
@@ -401,6 +402,71 @@ services:
       ANTHROPIC_DEFAULT_OPUS_MODEL: "deepseek-v4-pro"
       ANTHROPIC_DEFAULT_SONNET_MODEL: "deepseek-v4-pro"
       ANTHROPIC_DEFAULT_HAIKU_MODEL: "deepseek-v4-flash"
+      # Don't phone home to Anthropic for telemetry/auto-update.
+      CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1"
+      # Bypass egress proxies (e.g. GitHub Codespaces) for internal Docker traffic
+      no_proxy: "mcp-gateway,kali-mcp,wire-mcp,screenshot-mcp,hexstrike-ai,hexstrike-bridge-mcp,boaz-mcp,localhost,127.0.0.1"
+      NO_PROXY: "mcp-gateway,kali-mcp,wire-mcp,screenshot-mcp,hexstrike-ai,hexstrike-bridge-mcp,boaz-mcp,localhost,127.0.0.1"
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    volumes:
+      - ./output/screenshots:/tmp/screenshots:ro
+      - ./output/reports:/root/reports
+      - ./output/sessions:/root/results
+      # Shared working data from Kali MCP (recon files, tool artifacts)
+      - shared-output:/root/kali-data:ro
+      # Mount skills and project instructions so Claude Code discovers them
+      - ./.claude/skills:/root/.claude/skills:ro
+      - ./CLAUDE.md:/root/CLAUDE.md:ro
+    depends_on:
+      kali-mcp:
+        condition: service_healthy
+      wire-mcp:
+        condition: service_healthy
+      screenshot-mcp:
+        condition: service_healthy
+      hexstrike-bridge-mcp:
+        condition: service_healthy
+      boaz-mcp:
+        condition: service_healthy
+    networks:
+      - blhackbox_net
+
+  # -- Z.ai / GLM 5.2 (OPTIONAL) ---------------------------------------------
+  # Z.ai (GLM) agent running inside Docker -- no host install needed.
+  # Enable with: docker compose --profile zai run --rm zai
+  #              (or `make zai`)
+  #
+  # Reuses the Claude Code image and points it at Z.ai's Anthropic-compatible
+  # API via ANTHROPIC_BASE_URL + ANTHROPIC_AUTH_TOKEN, following Z.ai's official
+  # Claude Code guide:
+  #   https://docs.z.ai/devpack/tool/claude
+  # Same MCP wiring, skills, and entrypoint as the claude-code service — only the
+  # model backend differs, so there is no separate image to build or maintain.
+  # Requires ZAI_API_KEY (read from env, never written to disk).
+  zai:
+    image: crhacky/blhackbox:claude-code
+    container_name: blhackbox-zai
+    profiles: ["zai"]
+    stdin_open: true
+    tty: true
+    environment:
+      # Route Claude Code at Z.ai's Anthropic-compatible endpoint.
+      # ANTHROPIC_AUTH_TOKEN is sent as the Authorization: Bearer header.
+      ANTHROPIC_BASE_URL: "https://api.z.ai/api/anthropic"
+      ANTHROPIC_AUTH_TOKEN: "${ZAI_API_KEY:-}"
+      # Map Claude's model tiers onto GLM models (per Z.ai's Claude Code guide).
+      # Switch the active model in-session with /model.
+      ANTHROPIC_MODEL: "glm-5.2"
+      ANTHROPIC_DEFAULT_OPUS_MODEL: "glm-5.2"
+      ANTHROPIC_DEFAULT_SONNET_MODEL: "glm-5.2"
+      ANTHROPIC_DEFAULT_HAIKU_MODEL: "glm-4.5-air"
+      # GLM reasoning can run long; Z.ai recommends a generous client timeout.
+      API_TIMEOUT_MS: "3000000"
+      # Optional: use GLM 5.2's full 1M-token context (uncomment both lines).
+      # ANTHROPIC_DEFAULT_SONNET_MODEL: "glm-5.2[1m]"
+      # CLAUDE_CODE_AUTO_COMPACT_WINDOW: "1000000"
       # Don't phone home to Anthropic for telemetry/auto-update.
       CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1"
       # Bypass egress proxies (e.g. GitHub Codespaces) for internal Docker traffic

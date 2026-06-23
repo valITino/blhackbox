@@ -44,7 +44,7 @@
 |---|---|
 | **Getting Started** | [How It Works](#how-it-works) · [Architecture](#architecture) · [Prerequisites](#prerequisites) · [Installation](#installation) |
 | **Skills** | [Skills Overview](#skills--slash-commands) · [Available Skills](#available-skills) · [How Skills Work](#how-skills-work) |
-| **Tutorials** | [Claude Code (Docker)](#tutorial-1-claude-code-docker--recommended) · [DeepSeek (Docker)](#tutorial-1b-deepseek-docker) · [Claude Code (Web)](#tutorial-2-claude-code-web) · [Claude Desktop](#tutorial-3-claude-desktop-host--gateway) · [ChatGPT / OpenAI](#tutorial-4-chatgpt--openai-host--gateway) |
+| **Tutorials** | [Claude Code (Docker)](#tutorial-1-claude-code-docker--recommended) · [DeepSeek (Docker)](#tutorial-1b-deepseek-docker) · [Z.ai / GLM 5.2 (Docker)](#tutorial-1c-zai--glm-52-docker) · [Claude Code (Web)](#tutorial-2-claude-code-web) · [Claude Desktop](#tutorial-3-claude-desktop-host--gateway) · [ChatGPT / OpenAI](#tutorial-4-chatgpt--openai-host--gateway) |
 | **Advanced** | [Advanced Usage & FAQ](#advanced-usage--faq) |
 | **Reference** | [Components](#components) · [Output Files](#output-files) · [CLI Reference](#cli-reference) · [Makefile Shortcuts](#makefile-shortcuts) · [Docker Hub Images](#docker-hub-images) |
 | **Operations** | [Prompt Flow](#how-prompts-flow-through-the-system) · [MCP Gateway](#do-i-need-the-mcp-gateway) · [Portainer Setup](#portainer-setup) · [Neo4j](#neo4j-optional) · [Troubleshooting](#troubleshooting) |
@@ -309,7 +309,7 @@ cd blhackbox
 The setup wizard walks you through everything interactively:
 
 1. **Check prerequisites** (Docker, Docker Compose, Git, disk space)
-2. **Choose your AI client** — Claude (Claude Code in Docker, Claude Code Web, or Claude Desktop), ChatGPT/OpenAI, or DeepSeek. The choice decides which agent/profile starts and which key (if any) you need.
+2. **Choose your AI client** — Claude (Claude Code in Docker, Claude Code Web, or Claude Desktop), ChatGPT/OpenAI, DeepSeek, or Z.ai / GLM 5.2. The choice decides which agent/profile starts and which key (if any) you need.
 3. **Configure API keys with guidance** — for each key it explains what it's for, where it's used, and the exact steps to obtain it; every key is optional/skippable.
 4. **Pick a knowledge graph** — none, local Neo4j (Docker), or Neo4j Aura (cloud). Aura mode walks you through `console.neo4j.io` and stores your connection details without starting a local container.
 5. **Optionally add recon API keys** (WPScan, Shodan, VirusTotal, SecurityTrails) — all skippable; tools run without them.
@@ -426,6 +426,8 @@ You are now inside an interactive Claude Code session.
 
 > **Prefer DeepSeek?** Set `DEEPSEEK_API_KEY` in `.env` and run `make deepseek` (or `docker compose --profile deepseek run --rm deepseek`). This runs the **same Claude Code image** pointed at DeepSeek's Anthropic-compatible API — same MCP wiring, same skills, only the model backend differs. See [Tutorial 1b](#tutorial-1b-deepseek-docker).
 
+> **Prefer GLM 5.2 (Z.ai)?** Set `ZAI_API_KEY` in `.env` and run `make zai` (or `docker compose --profile zai run --rm zai`). This runs the **same Claude Code image** pointed at Z.ai's Anthropic-compatible API — same MCP wiring, same skills, only the model backend differs. See [Tutorial 1c](#tutorial-1c-zai--glm-52-docker).
+
 ### Step 3 — Verify the connection
 
 ```
@@ -491,6 +493,32 @@ docker compose --profile deepseek run --rm deepseek
 ```
 
 The entrypoint checks each MCP server, then drops you into an interactive session with all the pentest tools available. The default model is **deepseek-v4-pro** (background tasks use **deepseek-v4-flash**); switch the active model in-session with `/model`.
+
+> **Note:** Because this is Claude Code under the hood, the full skills system works — `/full-pentest`, `/quick-scan`, and the rest of the slash commands behave exactly as in Tutorial 1.
+
+---
+
+## Tutorial 1c: Z.ai / GLM 5.2 (Docker)
+
+Prefer Z.ai's GLM 5.2 over Claude? The `zai` profile runs the **same Claude Code image** as Tutorial 1, just pointed at Z.ai's Anthropic-compatible API via `ANTHROPIC_BASE_URL` + `ANTHROPIC_AUTH_TOKEN` (following [Z.ai's Claude Code guide](https://docs.z.ai/devpack/tool/claude)). The MCP wiring, the skills system, and the entrypoint are identical — only the model backend changes. There is no separate image to build or maintain.
+
+### Step 1 — Set your Z.ai key
+
+Put `ZAI_API_KEY` in `.env` (subscribe to the GLM Coding Plan and create a key at [z.ai/manage-apikey/apikey-list](https://z.ai/manage-apikey/apikey-list)). `setup.sh` prompts for it, or add it manually. The key is read from the environment at runtime, passed to Claude Code as `ANTHROPIC_AUTH_TOKEN`, and never written into the image.
+
+### Step 2 — Launch the agent
+
+```bash
+make zai
+```
+
+Or manually:
+
+```bash
+docker compose --profile zai run --rm zai
+```
+
+The entrypoint checks each MCP server, then drops you into an interactive session with all the pentest tools available. The default model is **glm-5.2** (background tasks use **glm-4.5-air**); switch the active model in-session with `/model`. For GLM 5.2's full 1M-token context window, uncomment the `glm-5.2[1m]` option in `docker-compose.yml`.
 
 > **Note:** Because this is Claude Code under the hood, the full skills system works — `/full-pentest`, `/quick-scan`, and the rest of the slash commands behave exactly as in Tutorial 1.
 
@@ -762,6 +790,7 @@ STEP 7 ─ (OPTIONAL) RESULTS STORED IN NEO4J
 |:--|:--:|:--|
 | **Claude Code (Docker)** | No | Direct Streamable HTTP to each MCP server over Docker network |
 | **DeepSeek (Docker)** | No | Claude Code image + DeepSeek API; direct Streamable HTTP to each MCP server over Docker network |
+| **Z.ai / GLM 5.2 (Docker)** | No | Claude Code image + Z.ai API; direct Streamable HTTP to each MCP server over Docker network |
 | **Claude Code (Web)** | No | Stdio MCP server from `.mcp.json` |
 | **Claude Desktop** | **Yes** | Host GUI app → `localhost:8080/mcp` gateway |
 | **ChatGPT / OpenAI** | **Yes** | Host GUI/web app → `localhost:8080/mcp` gateway |
@@ -883,6 +912,7 @@ blhackbox mcp                                            # Start MCP server
 | `make down` | Stop all services |
 | `make claude-code` | Build and launch Claude Code in Docker |
 | `make deepseek` | Launch the DeepSeek agent in Docker (Claude Code image + DeepSeek API) |
+| `make zai` | Launch the Z.ai / GLM 5.2 agent in Docker (Claude Code image + Z.ai API) |
 | `make status` | Container status table |
 | `make health` | Quick health check of all services |
 | `make test` | Run tests |
@@ -920,7 +950,7 @@ All custom images are published to `crhacky/blhackbox`:
 | `crhacky/blhackbox:hexstrike-ai` | HexStrike Gamma API container |
 | `crhacky/blhackbox:hexstrike-mcp` | Upstream HexStrike Gamma MCP server over Streamable HTTP |
 | `crhacky/blhackbox:boaz-mcp` | Upstream BOAZ-MCP Gamma server over Streamable HTTP |
-| `crhacky/blhackbox:claude-code` | Claude Code CLI client (direct Streamable HTTP to MCP servers); also used by the `deepseek` profile pointed at the DeepSeek API |
+| `crhacky/blhackbox:claude-code` | Claude Code CLI client (direct Streamable HTTP to MCP servers); also used by the `deepseek` and `zai` profiles, pointed at the DeepSeek and Z.ai APIs |
 
 Official images pulled directly:
 
@@ -985,7 +1015,7 @@ blhackbox/
 │   ├── kali-mcp.Dockerfile              Kali Linux + Metasploit Framework
 │   ├── wire-mcp.Dockerfile
 │   ├── screenshot-mcp.Dockerfile
-│   ├── claude-code.Dockerfile           MCP client container (also used by the deepseek profile)
+│   ├── claude-code.Dockerfile           MCP client container (also used by the deepseek and zai profiles)
 │   └── claude-code-entrypoint.sh        Startup script with health checks
 ├── kali-mcp/                            Kali MCP server (70+ tools + Metasploit)
 ├── wire-mcp/                            WireMCP server (tshark, 7 tools)
