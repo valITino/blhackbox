@@ -1,4 +1,4 @@
-.PHONY: help setup up up-full up-gateway down logs test test-local lint format clean nuke \
+.PHONY: help setup add-model up up-full up-gateway down logs test test-local lint format clean nuke \
        pull status health portainer gateway-logs \
        claude-code deepseek zai \
        neo4j-browser logs-kali \
@@ -14,6 +14,9 @@ COMPOSE := docker compose
 
 setup: ## Interactive setup wizard (prerequisites, .env, pull, start, health check)
 	@bash setup.sh
+
+add-model: ## Add/switch an agent model API key in .env (Claude Code, DeepSeek, Z.ai)
+	@bash scripts/add_model.sh
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \

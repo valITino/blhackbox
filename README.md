@@ -42,7 +42,7 @@
 
 | | |
 |---|---|
-| **Getting Started** | [How It Works](#how-it-works) · [Architecture](#architecture) · [Prerequisites](#prerequisites) · [Installation](#installation) |
+| **Getting Started** | [How It Works](#how-it-works) · [Architecture](#architecture) · [Prerequisites](#prerequisites) · [Installation](#installation) · [Configure a Model](#configuring-a-model-api-keys) |
 | **Skills** | [Skills Overview](#skills--slash-commands) · [Available Skills](#available-skills) · [How Skills Work](#how-skills-work) |
 | **Tutorials** | [Claude Code (Docker)](#tutorial-1-claude-code-docker--recommended) · [DeepSeek (Docker)](#tutorial-1b-deepseek-docker) · [Z.ai / GLM 5.2 (Docker)](#tutorial-1c-zai--glm-52-docker) · [Claude Code (Web)](#tutorial-2-claude-code-web) · [Claude Desktop](#tutorial-3-claude-desktop-host--gateway) · [ChatGPT / OpenAI](#tutorial-4-chatgpt--openai-host--gateway) |
 | **Advanced** | [Advanced Usage & FAQ](#advanced-usage--faq) |
@@ -400,6 +400,41 @@ RETURN ip, p, s
 
 ---
 
+## Configuring a Model (API Keys)
+
+Each in-Docker agent — **Claude Code**, **DeepSeek**, and **Z.ai / GLM 5.2** — runs the
+**same image** pointed at a different model backend, so each needs its own API key in `.env`.
+The keys are independent: you can configure more than one and switch between them by launching
+the matching `make` target. Nothing is baked into the image — keys are read at runtime only.
+
+### The easy way: `make add-model`
+
+```bash
+make add-model
+```
+
+This interactive helper lists the models, shows which already have a key set, then prompts for
+the chosen model's key (input hidden) and writes it to `.env`. Re-run it anytime to add another
+model or replace an existing key — it prints the launch command when it's done. If you don't
+have a `.env` yet, it creates one from `.env.example` and locks it to owner-only (`chmod 600`).
+
+### The manual way
+
+Add the relevant line to `.env` (run `cp .env.example .env` first if you don't have one), then
+launch with the matching target:
+
+| Model | `.env` key | Get a key | Launch |
+|:--|:--|:--|:--|
+| Claude Code (Anthropic) | `ANTHROPIC_API_KEY=sk-ant-...` | [console.anthropic.com](https://console.anthropic.com/settings/keys) | `make claude-code` |
+| DeepSeek | `DEEPSEEK_API_KEY=sk-...` | [platform.deepseek.com/api_keys](https://platform.deepseek.com/api_keys) | `make deepseek` |
+| Z.ai / GLM 5.2 | `ZAI_API_KEY=...` | [z.ai/manage-apikey/apikey-list](https://z.ai/manage-apikey/apikey-list) | `make zai` |
+
+For DeepSeek and Z.ai, the key is passed to Claude Code as `ANTHROPIC_AUTH_TOKEN` against the
+provider's Anthropic-compatible endpoint (set in `docker-compose.yml`). `.env` is git-ignored —
+keep your keys out of version control.
+
+---
+
 ## Tutorial 1: Claude Code (Docker) — Recommended
 
 Claude Code runs entirely inside a Docker container on the same network as all blhackbox services. It connects **directly** to each MCP server via Streamable HTTP — no MCP Gateway, no host install, no Node.js.
@@ -478,7 +513,7 @@ Prefer a DeepSeek-powered agent over Claude? The `deepseek` profile runs the **s
 
 ### Step 1 — Set your DeepSeek key
 
-Put `DEEPSEEK_API_KEY` in `.env` (get one at [platform.deepseek.com/api_keys](https://platform.deepseek.com/api_keys)). `setup.sh` prompts for it, or add it manually. The key is read from the environment at runtime, passed to Claude Code as `ANTHROPIC_AUTH_TOKEN`, and never written into the image.
+Put `DEEPSEEK_API_KEY` in `.env` (get one at [platform.deepseek.com/api_keys](https://platform.deepseek.com/api_keys)). Run `make add-model` for a guided prompt, or `setup.sh`, or add it manually. The key is read from the environment at runtime, passed to Claude Code as `ANTHROPIC_AUTH_TOKEN`, and never written into the image.
 
 ### Step 2 — Launch the agent
 
@@ -504,7 +539,7 @@ Prefer Z.ai's GLM 5.2 over Claude? The `zai` profile runs the **same Claude Code
 
 ### Step 1 — Set your Z.ai key
 
-Put `ZAI_API_KEY` in `.env` (subscribe to the GLM Coding Plan and create a key at [z.ai/manage-apikey/apikey-list](https://z.ai/manage-apikey/apikey-list)). `setup.sh` prompts for it, or add it manually. The key is read from the environment at runtime, passed to Claude Code as `ANTHROPIC_AUTH_TOKEN`, and never written into the image.
+Put `ZAI_API_KEY` in `.env` (subscribe to the GLM Coding Plan and create a key at [z.ai/manage-apikey/apikey-list](https://z.ai/manage-apikey/apikey-list)). Run `make add-model` for a guided prompt, or `setup.sh`, or add it manually. The key is read from the environment at runtime, passed to Claude Code as `ANTHROPIC_AUTH_TOKEN`, and never written into the image.
 
 ### Step 2 — Launch the agent
 
@@ -904,6 +939,7 @@ blhackbox mcp                                            # Start MCP server
 | Target | Description |
 |:--|:--|
 | `make setup` | Interactive setup wizard (prereqs, .env, pull, start, health) |
+| `make add-model` | Add/switch an agent model API key in `.env` (Claude Code, DeepSeek, Z.ai) |
 | `make help` | Show all available targets |
 | `make pull` | Pull all pre-built images from Docker Hub |
 | `make up` | Start default stack (7 containers) |
